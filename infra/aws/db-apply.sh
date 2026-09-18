@@ -19,6 +19,10 @@ if [ "${2:-}" = "--reset" ]; then
   [ "$ENV_NAME" = prd ] && { read -rp "This wipes PRODUCTION data. Type 'wipe prd' to continue: " a; [ "$a" = "wipe prd" ] || exit 1; }
   psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -f scripts/db-reset.sql
 fi
-psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -f db/schema.sql
+if [ "$(psql "$OWNER_URL" -tAc "select to_regclass('public.team') is not null")" = "t" ] && [ "${2:-}" != "--reset" ]; then
+  echo "schema already present — skipping db/schema.sql (apply incremental SQL manually; see docs/deployment.md)"
+else
+  psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -f db/schema.sql
+fi
 psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -c "ALTER ROLE app WITH LOGIN PASSWORD '${APP_PW}';"
 psql "${APP_URL%%\?*}?sslmode=require" -tAc "select 'app role ok — tables: ' || count(*) from pg_tables where schemaname='public'"
