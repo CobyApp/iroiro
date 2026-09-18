@@ -5,6 +5,11 @@
 
 > **절대 URL 리다이렉트 규칙.** Route Handler에서 `NextResponse.redirect`에 넘길 절대 URL은 `lib/public-origin.ts`의 `publicUrl(request, path)`로 만든다. ALB 뒤의 컨테이너는 `request.url`에 내부 호스트(`ip-172-31-x.compute.internal:3000`)가 들어오므로 `new URL(path, request.url)`을 쓰면 사용자가 내부 주소로 튕긴다. 우선순위: `APP_URL` → `X-Forwarded-Host/Proto` → 요청 origin.
 
+> **저장 시 이미지 규격(서버, 2026-09-18).** 업로드 서버 액션이 저장 직전에 sharp로 재인코딩한다 — oshikore-card `core/image_utils.py`의 1:1 포팅.
+> 카드 사진(`uploadCardPhoto`)은 `modules/cards/lib/normalize-card-server.ts`: EXIF 보정 → 63:88 중앙 크롭 → 720×1006 → JPEG q82 progressive.
+> 상품(`uploadProductPhotoFile`, 긴 변 2000)·중고 매물(`uploadUsedPhotoFile`, 긴 변 1600) 사진은 `lib/image/compress-image.ts`: 크롭 없이 비율 유지·JPEG q82.
+> 세 액션은 저장된 객체의 공개 URL(`previewUrl`)을 돌려주고, 업로더 컴포넌트는 그 URL을 미리보기로 쓴다 — 사용자가 보는 미리보기 = 실제 저장 결과물.
+
 ## 인증 — 자체 세션 + 카카오·네이버 OAuth
 
 외부 인증 SaaS·라이브러리(NextAuth, Better-auth 등)를 쓰지 않는다. OAuth 왕복과 세션 관리를 `modules/auth/`가 직접 구현한다(룰 4).

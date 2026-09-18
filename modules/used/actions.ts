@@ -8,7 +8,8 @@ import {
   type ActionResult,
 } from "@/lib/action-result";
 import { getCurrentAccount } from "@/modules/auth/dal";
-import { buildR2Key, getSignedUploadUrl } from "@/lib/r2/presign";
+import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
+import { compressImageBuffer } from "@/lib/image/compress-image";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { evaluateBid, payDueFrom } from "@/modules/auction/lib/rules";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
@@ -78,10 +79,15 @@ export async function presignUsedPhotos(
   });
 }
 
-// 서버 경유 업로드 — R2 버킷 CORS 미설정으로 브라우저 직접 PUT이 차단된다.
+// 저장 규격 — Card(oshikore-card) 매물 스냅샷과 같은 방식(크롭 없음·비율 유지). 판매자 사진은
+// 포장·배경이 구도의 일부라 자르지 않는다. 갤러리 확대를 위해 긴 변 1600px.
+const USED_PHOTO_MAX_DIM = 1600;
+const USED_PHOTO_QUALITY = 82;
+
+// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadUsedPhotoFile(
   formData: FormData,
-): Promise<ActionResult<{ r2Key: string }>> {
+): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
     await requireLogin();
     await requireUsedTradeEnabled();
@@ -94,12 +100,21 @@ export async function uploadUsedPhotoFile(
     if (file.size > MAX_FILE_BYTES) {
       throw new DomainError(`파일 크기 초과 (8MB 이하): ${filename}`);
     }
-    const r2Key = buildR2Key(filename).replace(
+    let compressed: Buffer;
+    try {
+      compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
+        maxDim: USED_PHOTO_MAX_DIM,
+        quality: USED_PHOTO_QUALITY,
+      });
+    } catch {
+      throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
+    }
+    const r2Key = buildR2Key(`${filename.replace(/\.[^.]+$/, "")}.jpg`).replace(
       "products/original/",
       "used/original/",
     );
-    await relayUploadToR2(file, r2Key);
-    return { r2Key };
+    await relayUploadToR2(new Blob([new Uint8Array(compressed)], { type: "image/jpeg" }), r2Key);
+    return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
 }
 

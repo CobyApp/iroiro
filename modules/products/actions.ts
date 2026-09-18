@@ -7,7 +7,8 @@ import {
   parseActionInput,
   runAction,
 } from "@/lib/action-result";
-import { buildR2Key, getSignedUploadUrl } from "@/lib/r2/presign";
+import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
+import { compressImageBuffer } from "@/lib/image/compress-image";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
@@ -102,10 +103,15 @@ export async function presignProductPhotos(
   });
 }
 
-// 서버 경유 업로드 — 브라우저 직접 PUT은 R2 버킷 CORS 미설정으로 차단된다.
+// 저장 규격 — Card(oshikore-card) compress_image 방식(크롭 없음·비율 유지·progressive JPEG).
+// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px.
+const PRODUCT_PHOTO_MAX_DIM = 2000;
+const PRODUCT_PHOTO_QUALITY = 82;
+
+// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadProductPhotoFile(
   formData: FormData,
-): Promise<ActionResult<{ r2Key: string }>> {
+): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
     await requireAdmin();
     const file = formData.get("file");
@@ -117,9 +123,18 @@ export async function uploadProductPhotoFile(
     if (file.size > MAX_FILE_BYTES) {
       throw new DomainError(`파일 크기 초과 (5MB 이하): ${filename}`);
     }
-    const r2Key = buildR2Key(filename);
-    await relayUploadToR2(file, r2Key);
-    return { r2Key };
+    let compressed: Buffer;
+    try {
+      compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
+        maxDim: PRODUCT_PHOTO_MAX_DIM,
+        quality: PRODUCT_PHOTO_QUALITY,
+      });
+    } catch {
+      throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
+    }
+    const r2Key = buildR2Key(`${filename.replace(/\.[^.]+$/, "")}.jpg`);
+    await relayUploadToR2(new Blob([new Uint8Array(compressed)], { type: "image/jpeg" }), r2Key);
+    return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
 }
 

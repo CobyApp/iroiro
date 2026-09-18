@@ -1,4 +1,6 @@
-// 카드 이미지 정규화 — 토레카분석기(oshikore-card core/image_utils.py) 규격 포팅.
+// 카드 이미지 정규화(브라우저) — 토레카분석기(oshikore-card core/image_utils.py) 규격 포팅.
+// 저장 규격의 최종 보장은 서버(`normalize-card-server.ts`, uploadCardPhoto)가 한다. 여기서는
+// 전송량을 줄이고 미리보기를 만들며, 도용 방지 워터마크를 얹는다.
 //
 // 실제 트레카 물리 규격: 63mm(가로) × 88mm(세로). PhotoScan 등으로 찍은 사진은
 // 비율 제각각·용량 큼 → 업로드 전에 브라우저에서 일괄 정규화:

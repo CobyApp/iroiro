@@ -102,10 +102,17 @@ export function ProductPhotoUpload({ photos, onChange, publicBaseUrl }: Props) {
             formData.set("filename", file.name);
             const result = await uploadProductPhotoFile(formData);
             if (!result.ok) throw new Error(result.message);
+            // 업로드 완료 → 자리표시(원본 blob) 대신 서버가 압축해 저장한 실제 객체를 미리보기로.
+            URL.revokeObjectURL(item.previewUrl);
             setPending((previous) =>
               previous.map((photo) =>
                 photo.uiId === item.uiId
-                  ? { ...photo, r2Key: result.data.r2Key, uploading: false }
+                  ? {
+                      ...photo,
+                      r2Key: result.data.r2Key,
+                      previewUrl: result.data.previewUrl,
+                      uploading: false,
+                    }
                   : photo,
               ),
             );

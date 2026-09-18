@@ -8,18 +8,20 @@ import {
   runAction,
   type ActionResult,
 } from "@/lib/action-result";
-import { buildR2Key, getSignedUploadUrl } from "@/lib/r2/presign";
+import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
 import { listExistingCards } from "./lib/queries";
+import { normalizeCardImageBuffer } from "./lib/normalize-card-server";
 import type { Card } from "./types";
 
 // 토레카 마스터 액션 — 관리자 CRUD + 유저 제보(검수 대기) + 검수 승인/반려.
 
 const PRESIGN_TTL_SECONDS = 3600;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
-// 클라이언트에서 63:88 정규화 JPEG로 변환해 올린다.
-const ALLOWED_MIME = ["image/jpeg"];
+// 서버가 저장 직전에 63:88·720px·JPEG q82로 정규화하므로 입력 포맷은 sharp가 여는 것이면 된다
+// (HEIC은 리눅스 sharp 기본 빌드에 디코더가 없어 제외). 클라이언트는 사전 축소만 담당한다.
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 
 const cardInputSchema = z.object({
   itemType: z.string().trim().min(1).max(50).default("photocard"),
@@ -79,11 +81,12 @@ function revalidateCards() {
   revalidatePath("/cards/new");
 }
 
-// 앞/뒷면 이미지 업로드 — 서버 경유(R2 버킷 CORS 불요). 클라이언트에서
-// 63:88 정규화한 JPEG(수백 KB)만 받으므로 서버 액션 바디 한도(1MB) 안이다.
+// 앞/뒷면 이미지 업로드 — 서버 경유. 저장 직전에 서버가 Card(oshikore-card)와 동일한 규격으로
+// 정규화한다(EXIF 보정 → 63:88 중앙 크롭 → 720×1006 → JPEG q82 progressive). 클라이언트의
+// 사전 정규화는 전송량을 줄이는 보조 단계이며, 저장되는 객체의 규격은 여기서 보장된다.
 export async function uploadCardPhoto(
   formData: FormData,
-): Promise<ActionResult<{ r2Key: string }>> {
+): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
     const account = await getCurrentAccount();
     if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
@@ -96,22 +99,30 @@ export async function uploadCardPhoto(
     if (file.size > MAX_FILE_BYTES) {
       throw new DomainError("파일 크기 초과 (8MB 이하)");
     }
+    let normalized: Buffer;
+    try {
+      normalized = await normalizeCardImageBuffer(
+        Buffer.from(await file.arrayBuffer()),
+      );
+    } catch {
+      throw new DomainError("이미지를 처리할 수 없습니다 — 다른 사진으로 시도해주세요");
+    }
     const r2Key = buildR2Key(`${side}.jpg`).replace(
       "products/original/",
       "cards/original/",
     );
     const uploadUrl = await getSignedUploadUrl(
       r2Key,
-      file.type,
+      "image/jpeg",
       PRESIGN_TTL_SECONDS,
     );
     const put = await fetch(uploadUrl, {
       method: "PUT",
-      body: Buffer.from(await file.arrayBuffer()),
-      headers: { "Content-Type": file.type },
+      body: new Uint8Array(normalized),
+      headers: { "Content-Type": "image/jpeg" },
     });
     if (!put.ok) throw new DomainError("이미지 업로드에 실패했습니다");
-    return { r2Key };
+    return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
 }
 

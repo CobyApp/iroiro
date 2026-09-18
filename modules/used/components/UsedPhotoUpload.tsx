@@ -43,7 +43,8 @@ export function UsedPhotoUpload({
         if (!result.ok) throw new Error(result.message);
         uploaded.push({
           r2Key: result.data.r2Key,
-          previewUrl: URL.createObjectURL(file),
+          // 서버가 압축해 저장한 실제 객체를 미리보기로 보여준다.
+          previewUrl: result.data.previewUrl,
           isPrimary: false,
         });
       }
