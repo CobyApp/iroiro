@@ -8,7 +8,8 @@ MVP 단계의 기술 결정과 아키텍처를 정리한 문서.
 
 ## 기술 결정 기록 (왜 이 스택인가)
 
-- [MVP 기술 스택](./mvp-stack.md) — 전체 스택 요약과 비용 구조
+- [배포·브랜치 전략](./deployment.md) — AWS(App Runner·RDS·S3) 인프라, GitHub Actions CI/CD, dev/main 브랜치 운영 (살아있는 문서)
+- [MVP 기술 스택](./mvp-stack.md) — 전체 스택 요약과 비용 구조 (초기 Vercel·Supabase 기준 역사 기록)
 - [이미지 저장 및 최적화 전략](./image-strategy.md) — R2 선택 이유, 후보 비교
 - [이미지 경로(R2 객체 키) 설계 전략](./image-path-strategy.md) — 키 레이아웃·식별자(UUIDv7)·샤딩·캐싱 결정
 - [데이터베이스 및 인증 전략](./database-strategy.md) — 초기 Supabase 선택 이유, 후보 비교 (역사 기록 — 현재는 자체 Postgres · `db/schema.sql`)

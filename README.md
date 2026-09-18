@@ -2,7 +2,7 @@
 
 K-pop·J-pop 굿즈 커머스 — 카탈로그·주문·결제부터 구매한 굿즈의 컬렉션 전시와 팬 커뮤니티까지.
 
-**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · Cloudflare R2 (로컬은 MinIO) · 카카오·네이버 자체 OAuth · Vitest
+**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · S3 호환 오브젝트 스토리지 (운영 AWS S3 · 로컬 MinIO) · 카카오·네이버 자체 OAuth · Vitest · AWS App Runner + GitHub Actions
 
 ```mermaid
 flowchart TD
@@ -185,6 +185,7 @@ DB 스키마는 `db/schema.sql`이 단일 진실입니다. 스키마 변경은 �
 | 기능 스펙 | [superpowers/specs/](./docs/superpowers/specs/) | OAuth·컬렉션·커뮤니티 도메인 작업 |
 | DB 설계 학습 노트 | [lessons/README.md](./docs/lessons/README.md) | PK·RLS·세션·트랜잭션 등 16개 주제 |
 | 환경변수 레퍼런스 | [environment-variables.md](./docs/environment-variables.md) | env 추가·변경·배포 설정 시 |
+| **배포·브랜치 전략** | [deployment.md](./docs/deployment.md) | AWS 인프라·CI/CD·dev/main 브랜치 운영 |
 | 문서 인덱스 | [docs/README.md](./docs/README.md) | 의사결정 기록 전체 |
 
 ## 문제 해결

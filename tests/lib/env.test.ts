@@ -49,6 +49,16 @@ describe("env", () => {
     expect(mod.env.APP_URL).toBe("https://iroiro.example");
   });
 
+  it("R2_REGION 기본값은 auto, 설정 시 그대로 노출한다", async () => {
+    const { env } = await import("@/lib/env");
+    expect(env.R2_REGION).toBe("auto");
+
+    vi.resetModules();
+    vi.stubEnv("R2_REGION", "ap-northeast-1");
+    const mod = await import("@/lib/env");
+    expect(mod.env.R2_REGION).toBe("ap-northeast-1");
+  });
+
   it("R2_UGC_BUCKET 기본값은 iroiro-ugc-dev", async () => {
     const { env } = await import("@/lib/env");
 

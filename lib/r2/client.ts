@@ -9,7 +9,8 @@ export const r2 = new AwsClient({
   accessKeyId: env.R2_ACCESS_KEY_ID,
   secretAccessKey: env.R2_SECRET_ACCESS_KEY,
   service: "s3",
-  region: "auto",
+  // R2는 "auto", AWS S3는 실제 리전(예: ap-northeast-1) — SigV4 서명 스코프에 들어간다.
+  region: env.R2_REGION,
 });
 
 export const r2Endpoint = env.R2_ENDPOINT;

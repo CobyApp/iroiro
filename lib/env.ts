@@ -15,6 +15,8 @@ const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
 const envSchema = z
   .object({
     R2_ENDPOINT: z.string().url().default("http://localhost:9000"),
+    // S3 호환 엔드포인트의 서명 리전. R2/MinIO는 "auto", AWS S3는 버킷 리전.
+    R2_REGION: z.preprocess(emptyToUndefined, z.string().min(1).default("auto")),
     R2_ACCESS_KEY_ID: z.string().min(1).default("minioadmin"),
     R2_SECRET_ACCESS_KEY: z.string().min(1).default("minioadmin"),
     R2_BUCKET: z.string().min(1).default("iroiro-products-dev"),

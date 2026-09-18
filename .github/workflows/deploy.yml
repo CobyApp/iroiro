@@ -1,0 +1,107 @@
+# Branch → environment mapping (docs/deployment.md):
+#   dev  → GitHub environment "dev"        → dev.iroiro.club
+#   main → GitHub environment "production" → iroiro.club
+# Per-environment variables (Settings › Environments): AWS_ROLE_ARN, ECR_REPOSITORY,
+# APPRUNNER_SERVICE_ARN, NEXT_PUBLIC_VAPID_PUBLIC_KEY (optional).
+name: Deploy
+
+on:
+  push:
+    branches: [dev, main]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  deploy:
+    # Repo-level gate (environment vars are not visible to a job-level if). infra/aws/setup.sh github
+    # flips DEPLOY_ENABLED to true once the App Runner services exist.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iroiro
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iroiro"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Validate
+        run: npm run lint && npm run typecheck && npm run test
+
+      # Prerendering touches the DB, so build against a throwaway schema-only Postgres.
+      - name: Apply schema to build DB
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/iroiro" -v ON_ERROR_STOP=1 -q -f db/schema.sql
+          psql "postgresql://postgres:postgres@localhost:5432/iroiro" -c "ALTER ROLE app WITH LOGIN PASSWORD 'app';"
+
+      - name: Build
+        env:
+          DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
+          # Build-time placeholders — real values are injected by App Runner at runtime.
+          KAKAO_REST_API_KEY: build-placeholder
+          NAVER_CLIENT_ID: build-placeholder
+          NAVER_CLIENT_SECRET: build-placeholder
+          # Inlined into the client bundle, so it must be present at build time.
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+        run: npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          ENV_NAME: ${{ github.ref_name == 'main' && 'prd' || 'dev' }}
+        run: |
+          IMAGE="$REGISTRY/$REPOSITORY"
+          docker build -t "$IMAGE:$ENV_NAME-${GITHUB_SHA::12}" -t "$IMAGE:$ENV_NAME-latest" .
+          docker push --all-tags "$IMAGE"
+
+      # The service tracks the "<env>-latest" tag; start-deployment pulls the new image.
+      - name: Deploy to App Runner
+        env:
+          SERVICE_ARN: ${{ vars.APPRUNNER_SERVICE_ARN }}
+        run: |
+          OP_ID=$(aws apprunner start-deployment --service-arn "$SERVICE_ARN" --query OperationId --output text)
+          echo "operation: $OP_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(aws apprunner list-operations --service-arn "$SERVICE_ARN" \
+              --query "OperationSummaryList[?Id=='$OP_ID'].Status | [0]" --output text)
+            echo "[$i] $STATUS"
+            case "$STATUS" in
+              SUCCEEDED) exit 0 ;;
+              FAILED|ROLLBACK_SUCCEEDED|ROLLBACK_FAILED) echo "deployment failed: $STATUS" >&2; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "timed out waiting for deployment" >&2; exit 1

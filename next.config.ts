@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 컨테이너 배포용 — .next/standalone에 최소 런타임을 산출한다(Dockerfile이 복사).
+  output: "standalone",
   // 로컬 개발 시 좌하단에 뜨는 N 버튼(dev indicator) 숨김
   devIndicators: false,
   experimental: {

@@ -26,6 +26,7 @@
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
 | `R2_ENDPOINT` | ⚙️ 운영 필수 | R2(S3 호환) 엔드포인트. 기본값 `http://localhost:9000`(로컬 MinIO). 운영: R2 S3 endpoint |
+| `R2_REGION` | ⚙️ 운영 필수 | S3 SigV4 서명 리전. 로컬 MinIO·Cloudflare R2는 `auto`(기본값), AWS S3는 버킷 리전(`ap-northeast-1`) |
 | `R2_ACCESS_KEY_ID` 🔒 | ⚙️ 운영 필수 | R2 액세스 키 ID. 기본 `minioadmin`(로컬). 운영: R2 API 토큰(상품·UGC **두 버킷 스코프**) |
 | `R2_SECRET_ACCESS_KEY` 🔒 | ⚙️ 운영 필수 | R2 시크릿 액세스 키. 기본 `minioadmin`(로컬). **서버 전용** |
 | `R2_BUCKET` | ⚙️ 운영 필수 | 공개 버킷 이름(상품·공지 사진 — 공지는 notices/ prefix). 기본 `oshikore-products-dev` |
