@@ -2,7 +2,7 @@
 #   dev  → GitHub environment "dev"        → dev.iroiro.club
 #   main → GitHub environment "production" → iroiro.club
 # Per-environment variables (Settings › Environments): AWS_ROLE_ARN, ECR_REPOSITORY,
-# APPRUNNER_SERVICE_ARN, NEXT_PUBLIC_VAPID_PUBLIC_KEY (optional).
+# ECS_CLUSTER, ECS_SERVICE, NEXT_PUBLIC_VAPID_PUBLIC_KEY (optional). Repo variable: DEPLOY_ENABLED.
 name: Deploy
 
 on:
@@ -23,7 +23,7 @@ env:
 jobs:
   deploy:
     # Repo-level gate (environment vars are not visible to a job-level if). infra/aws/setup.sh github
-    # flips DEPLOY_ENABLED to true once the App Runner services exist.
+    # flips DEPLOY_ENABLED to true once the ECS services exist.
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -59,7 +59,7 @@ jobs:
       - name: Build
         env:
           DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
-          # Build-time placeholders — real values are injected by App Runner at runtime.
+          # Build-time placeholders — real values are injected by ECS (SSM secrets) at runtime.
           KAKAO_REST_API_KEY: build-placeholder
           NAVER_CLIENT_ID: build-placeholder
           NAVER_CLIENT_SECRET: build-placeholder
@@ -87,21 +87,15 @@ jobs:
           docker build -t "$IMAGE:$ENV_NAME-${GITHUB_SHA::12}" -t "$IMAGE:$ENV_NAME-latest" .
           docker push --all-tags "$IMAGE"
 
-      # The service tracks the "<env>-latest" tag; start-deployment pulls the new image.
-      - name: Deploy to App Runner
+      # The ECS Express service pins "<env>-latest"; a forced deployment pulls the new image.
+      # (Deliberately not update-express-gateway-service — that reconciles the ALB and would drop
+      # the custom-domain listener rules added by infra/aws/setup.sh domains.)
+      - name: Deploy to ECS
         env:
-          SERVICE_ARN: ${{ vars.APPRUNNER_SERVICE_ARN }}
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SERVICE: ${{ vars.ECS_SERVICE }}
         run: |
-          OP_ID=$(aws apprunner start-deployment --service-arn "$SERVICE_ARN" --query OperationId --output text)
-          echo "operation: $OP_ID"
-          for i in $(seq 1 60); do
-            STATUS=$(aws apprunner list-operations --service-arn "$SERVICE_ARN" \
-              --query "OperationSummaryList[?Id=='$OP_ID'].Status | [0]" --output text)
-            echo "[$i] $STATUS"
-            case "$STATUS" in
-              SUCCEEDED) exit 0 ;;
-              FAILED|ROLLBACK_SUCCEEDED|ROLLBACK_FAILED) echo "deployment failed: $STATUS" >&2; exit 1 ;;
-            esac
-            sleep 15
-          done
-          echo "timed out waiting for deployment" >&2; exit 1
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --force-new-deployment --query 'service.deployments[0].id' --output text
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].{running:runningCount,desired:desiredCount,status:status}' --output table

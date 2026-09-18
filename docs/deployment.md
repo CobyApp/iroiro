@@ -7,12 +7,13 @@
 
 | 환경 | 브랜치 | 도메인 | AWS 리소스 | GitHub Environment |
 |---|---|---|---|---|
-| dev | `dev` | https://dev.iroiro.club | App Runner `iroiro-dev` · RDS `iroiro-dev` · S3 `iroiro-products-dev` / `iroiro-ugc-dev` | `dev` |
-| prd | `main` | https://iroiro.club (+ www) | App Runner `iroiro-prd` · RDS `iroiro-prd` · S3 `iroiro-products-prd` / `iroiro-ugc-prd` | `production` |
+| dev | `dev` | https://dev.iroiro.club | ECS Express `iroiro-dev`(0.5 vCPU / 1 GB) · RDS `iroiro-dev` · S3 `iroiro-products-dev` / `iroiro-ugc-dev` | `dev` |
+| prd | `main` | https://iroiro.club (+ www) | ECS Express `iroiro-prd`(1 vCPU / 2 GB) · RDS `iroiro-prd` · S3 `iroiro-products-prd` / `iroiro-ugc-prd` | `production` |
 
-- 리전은 **도쿄(ap-northeast-1)** — App Runner가 서울 리전에 없다. 계정 `852382801109`, CLI 프로파일 `personal`.
-- DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업.
-- 시크릿은 SSM Parameter Store `/iroiro/<env>/<NAME>`(SecureString)에 두고 App Runner가 기동 시 주입한다. 코드·CI에는 시크릿이 없다.
+- 컴퓨트는 **Amazon ECS Express Mode**(Fargate + 자동 생성 ALB). App Runner는 2026-04-30부터 신규 고객을 받지 않아 AWS가 권장하는 대체다. 두 서비스는 같은 클러스터 `iroiro`·같은 네트워크 설정을 써서 **ALB 1대를 공유**한다.
+- 리전은 **도쿄(ap-northeast-1)**. 계정 `852382801109`, CLI 프로파일 `personal`. 기본 VPC(172.31.0.0/16)의 퍼블릭 서브넷에 Fargate 태스크가 뜬다(NAT 불필요).
+- DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업. 보안 그룹은 VPC CIDR(ECS 태스크)과 명시적으로 허용한 운영자 IP만 5432를 열어 둔다(`db-apply.sh`가 현재 IP를 자동 추가).
+- 시크릿은 SSM Parameter Store `/iroiro/<env>/<NAME>`(SecureString)에 두고 ECS 태스크 실행 롤이 기동 시 주입한다. 코드·CI에는 시크릿이 없다.
 - 이미지 스토리지는 AWS S3. 앱 코드의 `R2_*` 환경변수 이름은 그대로 두고 값만 S3를 가리킨다(`R2_REGION=ap-northeast-1`).
 
 ## 브랜치 전략
@@ -36,9 +37,10 @@ hotfix/*  ──PR──▶ main  (그리고 main → dev 로 back-merge)
 2. GitHub Actions 서비스 컨테이너(Postgres 17)에 `db/schema.sql` 적용 — Next 빌드가 프리렌더 중 DB를 읽기 때문
 3. `next build` (standalone) — 런타임 시크릿은 빌드 시 placeholder, `NEXT_PUBLIC_*`만 GitHub Environment 변수에서 주입
 4. OIDC로 `iroiro-github-deploy` 롤 assume → ECR `iroiro:<env>-<sha>` / `iroiro:<env>-latest` 푸시
-5. `aws apprunner start-deployment` → 완료까지 폴링. 실패 시 App Runner가 이전 이미지로 자동 롤백
+5. `aws ecs update-service --force-new-deployment` → `wait services-stable`. 헬스체크(`/api/health`) 실패 시 ECS 배포 서킷 브레이커가 이전 태스크를 유지한다.
+   (`update-express-gateway-service`를 쓰지 않는 이유: Express 업데이트는 ALB를 재조정해 `domains` 단계가 넣은 커스텀 도메인 호스트 규칙을 지울 수 있다.)
 
-Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY`, `APPRUNNER_SERVICE_ARN`, (선택) `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, (선택) `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
 리포 변수 `DEPLOY_ENABLED`가 `true`가 아니면 deploy job은 스킵된다(인프라 준비 전 push해도 실패로 남지 않음).
 
 ## 최초 프로비저닝 순서
@@ -48,11 +50,10 @@ Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY
 ./infra/aws/setup.sh db          # RDS ×2 생성·대기, DATABASE_URL / DATABASE_URL_OWNER → SSM   (~10분)
 ./infra/aws/db-apply.sh dev      # 스키마 적용 + app 롤 LOGIN
 ./infra/aws/db-apply.sh prd
-IMAGE_ONLY=1 ./infra/aws/setup.sh github   # GitHub 변수 + DEPLOY_ENABLED → dev/main push가 이미지를 빌드·푸시
-git push origin dev main         # 첫 이미지 (App Runner 서비스가 없으니 마지막 배포 단계는 실패해도 정상)
-./infra/aws/setup.sh apprunner   # 서비스 생성 (이미지 필수)
-./infra/aws/setup.sh github      # APPRUNNER_SERVICE_ARN 채움 → 이제부터 완전 자동 배포
-./infra/aws/setup.sh domains     # Squarespace에 넣을 DNS 레코드 출력
+# 첫 이미지: 로컬에서 `npm run build && docker build --platform linux/amd64` 후 ECR에 dev-latest/prd-latest로 push
+./infra/aws/setup.sh ecs         # 클러스터·롤·Express 서비스 2개 (공유 ALB)
+./infra/aws/setup.sh github      # GitHub Environment 변수 + DEPLOY_ENABLED → 이후 dev/main push가 자동 배포
+./infra/aws/setup.sh domains     # 도쿄 ACM 인증서 + ALB 호스트 규칙, Squarespace에 넣을 DNS 레코드 출력
 ./infra/aws/setup.sh cron        # CRON_SECRET 채운 뒤 — 경매 마감 스케줄러
 ./infra/aws/setup.sh status
 ```
@@ -72,17 +73,19 @@ aws ssm put-parameter --profile personal --region ap-northeast-1 --overwrite --t
 | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` + GitHub 변수 `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | `npx web-push generate-vapid-keys` (환경별로 별도 생성) |
 | `CRON_SECRET` | `setup.sh core`가 자동 생성 |
 
-시크릿을 바꾼 뒤에는 `aws apprunner start-deployment`(또는 해당 브랜치에 빈 커밋 push)로 재기동해야 반영된다.
+시크릿을 바꾼 뒤에는 `aws ecs update-service --cluster iroiro --service iroiro-<env> --force-new-deployment`(또는 해당 브랜치에 빈 커밋 push)로 재기동해야 반영된다.
 
 ### DNS (Squarespace)
 
-`setup.sh domains` 출력 기준. ACM 검증용 CNAME 2~3개 + 아래 레코드.
+`setup.sh domains` 출력 기준. 인증서 검증 CNAME(`_xxx.iroiro.club`)은 us-east-1 인증서 때 넣은 것과 동일하므로 이미 있으면 그대로 두면 된다. 두 환경이 ALB를 공유하므로 세 레코드의 값이 같다.
 
 | 유형 | 이름 | 값 |
 |---|---|---|
-| ALIAS | `@` | prd App Runner DNS target |
-| CNAME | `www` | prd App Runner DNS target |
-| CNAME | `dev` | dev App Runner DNS target |
+| ALIAS | `@` | 공유 ALB DNS 이름 (`iroiro-….ap-northeast-1.elb.amazonaws.com`) |
+| CNAME | `www` | 같은 ALB DNS 이름 |
+| CNAME | `dev` | 같은 ALB DNS 이름 |
+
+라우팅은 ALB 리스너의 host-header 규칙이 담당한다(iroiro.club·www → prd 타깃 그룹, dev.iroiro.club → dev 타깃 그룹). `setup.sh ecs`로 Express 서비스를 다시 업데이트했다면 `setup.sh domains`를 재실행해 규칙을 복구한다.
 
 ## DB 스키마 변경 운영
 
@@ -94,13 +97,14 @@ aws ssm put-parameter --profile personal --region ap-northeast-1 --overwrite --t
 
 | 항목 | dev | prd |
 |---|---|---|
-| App Runner 1 vCPU / 2 GB (유휴 시 메모리만 과금) | ~$10–25 | ~$10–30 |
+| Fargate (dev 0.5 vCPU/1 GB · prd 1 vCPU/2 GB, 상시 1 태스크) | ~$22 | ~$45 |
+| ALB (두 환경 공유) | ~$18 (합산) | |
 | RDS db.t4g.micro + 20GB gp3 | ~$15 | ~$15 |
 | S3 · ECR · SSM · EventBridge | ~$1 | ~$1–3 |
 
-트래픽이 거의 없는 기간에는 dev 서비스를 `aws apprunner pause-service`로 멈춰 App Runner 비용을 0에 가깝게 줄일 수 있다.
+트래픽이 거의 없는 기간에는 dev 서비스를 `aws ecs update-service --cluster iroiro --service iroiro-dev --desired-count 0`으로 멈춰 Fargate 비용을 0으로 줄일 수 있다(ALB 비용은 남는다).
 
 ## 롤백
 
-- App Runner: 콘솔 또는 `aws apprunner update-service --source-configuration`으로 이전 `iroiro:<env>-<sha>` 태그를 지정 후 `start-deployment`.
+- ECS: `aws ecr batch-get-image`/`put-image`로 이전 `iroiro:<env>-<sha>` 매니페스트를 `<env>-latest` 태그에 다시 붙인 뒤 `update-service --force-new-deployment`.
 - Git: `main`에 revert 커밋을 머지하면 자동으로 이전 상태가 배포된다.

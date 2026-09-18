@@ -2,7 +2,7 @@
 
 K-pop·J-pop 굿즈 커머스 — 카탈로그·주문·결제부터 구매한 굿즈의 컬렉션 전시와 팬 커뮤니티까지.
 
-**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · S3 호환 오브젝트 스토리지 (운영 AWS S3 · 로컬 MinIO) · 카카오·네이버 자체 OAuth · Vitest · AWS App Runner + GitHub Actions
+**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · S3 호환 오브젝트 스토리지 (운영 AWS S3 · 로컬 MinIO) · 카카오·네이버 자체 OAuth · Vitest · AWS ECS Express Mode + GitHub Actions
 
 ```mermaid
 flowchart TD
