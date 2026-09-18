@@ -20,25 +20,28 @@ function res(status: number, headers: Record<string, string> = {}, body = ""): R
   return new Response(NULL_BODY_STATUS.has(status) ? null : body, { status, headers });
 }
 
-// backoff 타이머는 r2.sign·fetch await 뒤에야 스케줄된다. runAllTimersAsync()를 한 번 호출하면
-// 그 시점에 타이머가 없어 no-op으로 끝나고, 고정 횟수로 진행하면 부하 상황에서 타이머가 생기기
-// 전에 반복이 소진돼 플레이크가 된다(실측: 5회 중 3회 실패). 대상 promise가 settle될 때까지
-// 짧게 진행하고 상한으로 무한 대기를 막는다. 총 진행량은 REQUEST_TIMEOUT_MS(10초) 미만이다.
+// backoff 타이머는 r2.sign(WebCrypto, 실제 비동기)·fetch await 뒤에야 스케줄된다. 가짜 시간을
+// 고정 횟수만 진행하면 느린 러너에서 타이머가 생기기 전에 루프가 소진돼 영원히 멈춘다(CI 플레이크).
+// 그래서 (1) 대상 promise가 settle될 때까지 (2) 매 반복 실제 이벤트 루프에 양보(setImmediate는 가짜로
+// 바꾸지 않는다)하며 (3) 실제 경과 시간 상한으로 무한 대기를 막는다.
 async function settle<T>(pending: Promise<T>): Promise<T> {
   let settled = false;
   const tracked = pending.finally(() => {
     settled = true;
   });
   tracked.catch(() => {}); // 루프 동안 미처리 거부로 보고되지 않게 핸들러를 붙여둔다
-  for (let i = 0; i < 60 && !settled; i++) {
+  const deadline = performance.now() + 10_000;
+  while (!settled && performance.now() < deadline) {
     await vi.advanceTimersByTimeAsync(100);
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
   return tracked;
 }
 
 beforeEach(() => {
   vi.resetModules();
-  vi.useFakeTimers();
+  // setImmediate는 실제로 둔다 — settle()이 이벤트 루프에 양보하는 통로.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -89,7 +92,6 @@ describe("headUgcObject", () => {
     await expect(headUgcObject("posts/tmp/none.jpg")).resolves.toBeNull();
   });
 
-  // 재시도 테스트는 실제 백오프(300ms→900ms + jitter)를 기다린다 — 느린 CI 러너에서 5초 기본값을 넘긴 적이 있어 여유를 둔다.
   it("5xx는 최대 2회 재시도 후 성공을 수용한다", async () => {
     const fetchMock = vi
       .fn()
