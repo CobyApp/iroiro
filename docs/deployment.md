@@ -13,6 +13,7 @@
 - 컴퓨트는 **Amazon ECS Express Mode**(Fargate + 자동 생성 ALB). App Runner는 2026-04-30부터 신규 고객을 받지 않아 AWS가 권장하는 대체다. 두 서비스는 같은 클러스터 `iroiro`·같은 네트워크 설정을 써서 **ALB 1대를 공유**한다.
 - 리전은 **도쿄(ap-northeast-1)**. 계정 `852382801109`, CLI 프로파일 `personal`. 기본 VPC(172.31.0.0/16)의 퍼블릭 서브넷에 Fargate 태스크가 뜬다(NAT 불필요).
 - DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업. 보안 그룹은 VPC CIDR(ECS 태스크)과 명시적으로 허용한 운영자 IP만 5432를 열어 둔다(`db-apply.sh`가 현재 IP를 자동 추가).
+- 앱→RDS 연결은 `sslmode=verify-full&sslrootcert=/app/rds-ca.pem`. RDS CA 번들은 Dockerfile이 이미지에 넣는다(`pg`는 `require`도 체인을 검증하므로 CA 없이는 self-signed 오류).
 - 시크릿은 SSM Parameter Store `/iroiro/<env>/<NAME>`(SecureString)에 두고 ECS 태스크 실행 롤이 기동 시 주입한다. 코드·CI에는 시크릿이 없다.
 - 이미지 스토리지는 AWS S3. 앱 코드의 `R2_*` 환경변수 이름은 그대로 두고 값만 S3를 가리킨다(`R2_REGION=ap-northeast-1`).
 

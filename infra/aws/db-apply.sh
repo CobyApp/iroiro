@@ -21,4 +21,4 @@ if [ "${2:-}" = "--reset" ]; then
 fi
 psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -f db/schema.sql
 psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -c "ALTER ROLE app WITH LOGIN PASSWORD '${APP_PW}';"
-psql "$APP_URL" -tAc "select 'app role ok — tables: ' || count(*) from pg_tables where schemaname='public'"
+psql "${APP_URL%%\?*}?sslmode=require" -tAc "select 'app role ok — tables: ' || count(*) from pg_tables where schemaname='public'"

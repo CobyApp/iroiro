@@ -151,7 +151,8 @@ phase_db() {
     local host; host=$(aws rds describe-db-instances --db-instance-identifier "$id" --query 'DBInstances[0].Endpoint.Address' --output text)
     local master_pw; master_pw=$(ssm_get "/${APP}/${e}/DB_MASTER_PASSWORD")
     ssm_put_if_missing "/${APP}/${e}/DATABASE_URL_OWNER" "postgresql://iroiro_admin:${master_pw}@${host}:5432/iroiro?sslmode=require"
-    ssm_put_if_missing "/${APP}/${e}/DATABASE_URL"       "postgresql://app:$(rand)@${host}:5432/iroiro?sslmode=require"
+    # verify-full against the RDS CA bundle baked into the image (Dockerfile). pg treats sslmode=require as verifying too.
+    ssm_put_if_missing "/${APP}/${e}/DATABASE_URL"       "postgresql://app:$(rand)@${host}:5432/iroiro?sslmode=verify-full&sslrootcert=/app/rds-ca.pem"
     ok "$id → $host"
   done
   warn "next: ./infra/aws/db-apply.sh <env>  (applies db/schema.sql and grants the app role LOGIN)"
@@ -205,11 +206,14 @@ phase_ecs() {
     local arn; arn=$(express_arn "$e")
     say "waiting for ${APP}-${e}"
     for i in $(seq 1 60); do
-      local st; st=$(aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.statusCode' --output text)
-      case "$st" in ACTIVE|RUNNING|STEADY_STATE) break ;; *FAIL*|INACTIVE) die "service status $st — $(aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.statusReason' --output text)" ;; esac
+      local st; st=$(aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.status.statusCode' --output text)
+      case "$st" in ACTIVE) break ;; *FAIL*|INACTIVE) die "service status $st — $(aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.status.statusReason' --output text)" ;; esac
       sleep 15
     done
-    aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.ingressPaths[].endpoint' --output text | sed 's/^/  https:\/\//'
+    aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.activeConfigurations[0].ingressPaths[].endpoint' --output text | sed 's/^/  https:\/\//'
+    say "waiting for ${APP}-${e} tasks to pass the ALB health check"
+    aws ecs wait services-stable --cluster "$APP" --services "${APP}-${e}" || warn "not stable yet — check: aws ecs describe-services --cluster $APP --services ${APP}-${e} --query 'services[0].events[:5]'"
+    ok "running/desired: $(aws ecs describe-services --cluster "$APP" --services "${APP}-${e}" --query 'services[0].[runningCount,desiredCount]' --output text | tr '\t' '/')" 
   done
 }
 
@@ -235,10 +239,11 @@ phase_github() {
 }
 
 # ───────────────────────────── domains ─────────────────────────────
-alb_for() { # env → load balancer ARN (via the Express service's target group)
-  local tg; tg=$(aws ecs describe-services --cluster "$APP" --services "${APP}-$1" --query 'services[0].loadBalancers[0].targetGroupArn' --output text)
-  [ "$tg" != "None" ] && [ -n "$tg" ] || die "no target group for ${APP}-$1 (service not ready?)"
-  aws elbv2 describe-target-groups --target-group-arns "$tg" --query 'TargetGroups[0].LoadBalancerArns[0]' --output text
+# Express services deploy blue/green: each owns two target groups and one "production" listener rule
+# on the shared ALB. We add our hostnames to that rule's host-header condition and attach the cert.
+prod_rule_for() { # env → production listener rule ARN
+  local rev; rev=$(aws ecs describe-express-gateway-service --service-arn "$(express_arn "$1")" --query 'service.activeConfigurations[0].serviceRevisionArn' --output text)
+  aws ecs describe-service-revisions --service-revision-arns "$rev" --query 'serviceRevisions[0].loadBalancers[0].advancedConfiguration.productionListenerRule' --output text
 }
 phase_domains() {
   say "ACM certificate ($REGION) for $DOMAIN + *.$DOMAIN"
@@ -254,38 +259,34 @@ phase_domains() {
   [ "$(aws acm describe-certificate --certificate-arn "$cert" --query 'Certificate.Status' --output text)" = ISSUED ] || die "certificate not issued yet — rerun 'domains' once the validation CNAME propagates"
   ok "certificate issued"
 
+  local alb_dns=""
   for e in $ENVS; do
-    say "ALB host rules for ${APP}-${e}"
-    local alb; alb=$(alb_for "$e")
-    local listener; listener=$(aws elbv2 describe-listeners --load-balancer-arn "$alb" --query "Listeners[?Port==\`443\`].ListenerArn | [0]" --output text)
-    [ "$listener" != "None" ] || die "no HTTPS listener on $alb"
+    say "ALB host rule for ${APP}-${e}"
+    local rule; rule=$(prod_rule_for "$e"); [ "$rule" != "None" ] && [ -n "$rule" ] || die "no production listener rule for ${APP}-${e}"
+    local listener; listener=$(aws elbv2 describe-rules --rule-arns "$rule" --query 'Rules[0].RuleArn' --output text | sed -E 's#:listener-rule/#:listener/#; s#/[^/]+$##')
     aws elbv2 add-listener-certificates --listener-arn "$listener" --certificates "CertificateArn=$cert" >/dev/null
-    local tg; tg=$(aws ecs describe-services --cluster "$APP" --services "${APP}-$e" --query 'services[0].loadBalancers[0].targetGroupArn' --output text)
-    aws elbv2 describe-rules --listener-arn "$listener" --output json > /tmp/${APP}-rules.json
-    python3 - "$tg" $(hosts_for "$e") <<'PY'
+    aws elbv2 describe-rules --rule-arns "$rule" --output json > /tmp/${APP}-rule.json
+    python3 - $(hosts_for "$e") <<'PY2'
 import json, sys, subprocess
-tg, hosts = sys.argv[1], sys.argv[2:]
-rules = json.load(open(f"/tmp/iroiro-rules.json"))["Rules"]
-for r in rules:
-    if r.get("IsDefault"): continue
-    if not any(a.get("TargetGroupArn") == tg or any(t.get("TargetGroupArn") == tg for t in a.get("ForwardConfig", {}).get("TargetGroups", [])) for a in r["Actions"]): continue
-    conds = []
-    seen_host = False
-    for c in r["Conditions"]:
-        if c["Field"] == "host-header":
-            vals = list(dict.fromkeys(c["HostHeaderConfig"]["Values"] + hosts))
-            conds.append({"Field": "host-header", "HostHeaderConfig": {"Values": vals}}); seen_host = True
-        else:
-            c = {k: v for k, v in c.items() if k in ("Field", "PathPatternConfig", "HttpHeaderConfig", "QueryStringConfig", "SourceIpConfig", "HttpRequestMethodConfig")}
-            conds.append(c)
-    if not seen_host: conds.append({"Field": "host-header", "HostHeaderConfig": {"Values": hosts}})
-    subprocess.run(["aws", "elbv2", "modify-rule", "--rule-arn", r["RuleArn"], "--conditions", json.dumps(conds)], check=True, stdout=subprocess.DEVNULL)
-    print(f"  rule {r['Priority']}: hosts → {vals if seen_host else hosts}")
-PY
-    local dns; dns=$(aws elbv2 describe-load-balancers --load-balancer-arns "$alb" --query 'LoadBalancers[0].DNSName' --output text)
-    echo "  Squarespace DNS:"
-    if [ "$e" = prd ]; then printf '    ALIAS  @    %s\n    CNAME  www  %s\n' "$dns" "$dns"; else printf '    CNAME  dev  %s\n' "$dns"; fi
+hosts = sys.argv[1:]
+r = json.load(open("/tmp/iroiro-rule.json"))["Rules"][0]
+conds, seen = [], False
+for c in r["Conditions"]:
+    if c["Field"] == "host-header":
+        vals = list(dict.fromkeys(c["HostHeaderConfig"]["Values"] + hosts)); seen = True
+        conds.append({"Field": "host-header", "HostHeaderConfig": {"Values": vals}})
+    else:
+        conds.append({k: v for k, v in c.items() if k in ("Field", "PathPatternConfig", "HttpHeaderConfig", "QueryStringConfig", "SourceIpConfig", "HttpRequestMethodConfig")})
+if not seen: vals = hosts; conds.append({"Field": "host-header", "HostHeaderConfig": {"Values": hosts}})
+subprocess.run(["aws", "elbv2", "modify-rule", "--rule-arn", r["RuleArn"], "--conditions", json.dumps(conds)], check=True, stdout=subprocess.DEVNULL)
+print("  hosts:", ", ".join(vals))
+PY2
+    local alb; alb=$(aws elbv2 describe-listeners --listener-arns "$listener" --query 'Listeners[0].LoadBalancerArn' --output text)
+    alb_dns=$(aws elbv2 describe-load-balancers --load-balancer-arns "$alb" --query 'LoadBalancers[0].DNSName' --output text)
   done
+  echo
+  echo "  Squarespace DNS (shared ALB):"
+  printf '    ALIAS  @    %s\n    CNAME  www  %s\n    CNAME  dev  %s\n' "$alb_dns" "$alb_dns" "$alb_dns"
 }
 
 # ───────────────────────────── cron ─────────────────────────────
@@ -319,7 +320,7 @@ phase_status() {
   aws rds describe-db-instances --query "DBInstances[?starts_with(DBInstanceIdentifier,'${APP}-')].[DBInstanceIdentifier,DBInstanceStatus,Endpoint.Address]" --output text 2>/dev/null | sed 's/^/  rds: /'
   for e in $ENVS; do
     local arn; arn=$(express_arn "$e"); [ "$arn" != "None" ] || continue
-    aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.[statusCode, ingressPaths[0].endpoint]' --output text | sed "s/^/  ecs ${APP}-${e}: /"
+    aws ecs describe-express-gateway-service --service-arn "$arn" --query 'service.[status.statusCode, activeConfigurations[0].ingressPaths[0].endpoint]' --output text | sed "s/^/  ecs ${APP}-${e}: /"
     aws ecs describe-services --cluster "$APP" --services "${APP}-${e}" --query 'services[0].[runningCount,desiredCount]' --output text | sed 's/^/    tasks running\/desired: /'
     aws ssm get-parameters-by-path --path "/${APP}/${e}" --with-decryption --query "Parameters[?Value=='CHANGE_ME'].Name" --output text 2>/dev/null | tr '\t' '\n' | sed 's/^/  TODO secret: /'
   done

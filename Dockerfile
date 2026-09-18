@@ -11,6 +11,8 @@ RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nod
 COPY --chown=nextjs:nodejs .next/standalone ./
 COPY --chown=nextjs:nodejs .next/static ./.next/static
 COPY --chown=nextjs:nodejs public ./public
+# RDS CA bundle so DATABASE_URL can use sslmode=verify-full&sslrootcert=/app/rds-ca.pem
+ADD --chown=nextjs:nodejs https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem ./rds-ca.pem
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
