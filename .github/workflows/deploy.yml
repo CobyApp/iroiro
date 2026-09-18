@@ -107,6 +107,11 @@ jobs:
           SERVICE: ${{ vars.ECS_SERVICE }}
         run: |
           aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --force-new-deployment --query 'service.deployments[0].id' --output text
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          # Express blue/green rollouts (bake time) can exceed the waiter's built-in 10 min — allow up to 30.
+          for i in 1 2 3; do
+            aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE" && break
+            [ "$i" = 3 ] && { echo "service not stable after 30 min" >&2; exit 1; }
+            echo "still rolling out ($i/3)…"
+          done
           aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
             --query 'services[0].{running:runningCount,desired:desiredCount,status:status}' --output table
