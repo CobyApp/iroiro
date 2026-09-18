@@ -47,14 +47,25 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # Prisma client types are generated, not committed — typecheck needs them.
+      - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
+        run: npx prisma generate
+
       - name: Validate
         run: npm run lint && npm run typecheck && npm run test
 
       # Prerendering touches the DB, so build against a throwaway schema-only Postgres.
       - name: Apply schema to build DB
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: iroiro
         run: |
-          psql "postgresql://postgres:postgres@localhost:5432/iroiro" -v ON_ERROR_STOP=1 -q -f db/schema.sql
-          psql "postgresql://postgres:postgres@localhost:5432/iroiro" -c "ALTER ROLE app WITH LOGIN PASSWORD 'app';"
+          psql -v ON_ERROR_STOP=1 -q -f db/schema.sql
+          psql -c "ALTER ROLE app WITH LOGIN PASSWORD 'app';"
 
       - name: Build
         env:

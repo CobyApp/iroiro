@@ -21,6 +21,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Prisma client types are generated, not committed — typecheck needs them.
+      - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
+        run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
