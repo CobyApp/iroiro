@@ -1,4 +1,4 @@
-// 실 DB(Supabase local) + 실 스토리지(MinIO) 통합 검증 — 단위 테스트가 tx를 mock하므로
+// 실 DB(로컬 Postgres) + 실 스토리지(MinIO) 통합 검증 — 단위 테스트가 tx를 mock하므로
 // "조건부 UPDATE가 정말 원자적인가 / 부분 실패가 정말 롤백되는가"는 여기서만 확인된다.
 //
 // 실행: npm run services:up 후

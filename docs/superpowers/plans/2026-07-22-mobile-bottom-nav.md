@@ -491,7 +491,7 @@ Expected: 성공(`prisma generate && next build` 통과).
 
 - [ ] **Step 3: 브라우저 프리뷰 — 모바일 뷰포트 검증**
 
-preview_start(name: `oshikore-web-beta`) → 375px(mobile)로 resize_window →
+preview_start(name: `iroiro-beta`) → 375px(mobile)로 resize_window →
 `/`, `/cart`, `/collections` 이동하며 확인:
 - 하단 5탭 노출, 현재 경로 탭 활성 강조.
 - 상단 헤더가 로고만(장바구니·계정 숨김).

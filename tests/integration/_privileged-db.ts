@@ -21,7 +21,7 @@ function privilegedUrl(): string {
   if (!base) throw new Error("DATABASE_URL이 없습니다 — 통합 테스트는 .env.local이 필요합니다");
   const url = new URL(base);
   url.username = "postgres";
-  url.password = "postgres"; // 로컬 Supabase 고정 자격 (공개 개발 디폴트)
+  url.password = "postgres"; // 로컬 compose.yml postgres 고정 자격 (공개 개발 디폴트)
   return url.toString();
 }
 

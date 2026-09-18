@@ -24,7 +24,6 @@ describe("env", () => {
   it("선택 환경변수의 빈 문자열은 미설정으로 취급한다 (.env.local.example 복사 대비)", async () => {
     baseProdEnv();
     for (const key of [
-      "SUPABASE_SECRET_KEY",
       "APP_URL",
       "KAKAO_CLIENT_SECRET",
       "KAKAO_SCOPE",
@@ -42,18 +41,18 @@ describe("env", () => {
   it("설정된 환경변수 값은 그대로 노출한다", async () => {
     baseProdEnv();
     vi.stubEnv("KAKAO_REST_API_KEY", "kakao-key");
-    vi.stubEnv("APP_URL", "https://oshikore.example");
+    vi.stubEnv("APP_URL", "https://iroiro.example");
 
     const mod = await import("@/lib/env");
 
     expect(mod.env.KAKAO_REST_API_KEY).toBe("kakao-key");
-    expect(mod.env.APP_URL).toBe("https://oshikore.example");
+    expect(mod.env.APP_URL).toBe("https://iroiro.example");
   });
 
-  it("R2_UGC_BUCKET 기본값은 oshikore-ugc-dev", async () => {
+  it("R2_UGC_BUCKET 기본값은 iroiro-ugc-dev", async () => {
     const { env } = await import("@/lib/env");
 
-    expect(env.R2_UGC_BUCKET).toBe("oshikore-ugc-dev");
+    expect(env.R2_UGC_BUCKET).toBe("iroiro-ugc-dev");
   });
 
 

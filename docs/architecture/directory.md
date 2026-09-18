@@ -3,7 +3,7 @@
 ## 전체 트리
 
 ```
-oshikore-web/                      (단일 앱 — 모노레포 X)
+iroiro/                      (단일 앱 — 모노레포 X)
 ├── app/                           라우트 셸만 (얇게)
 │   ├── (shop)/                    공개 쇼핑 영역
 │   │   ├── layout.tsx
@@ -28,7 +28,7 @@ oshikore-web/                      (단일 앱 — 모노레포 X)
 │   ├── not-found.tsx
 │   └── global-error.tsx
 │
-├── middleware.ts                  Supabase updateSession만
+├── middleware.ts                  x-pathname 헤더 전달만
 │
 ├── modules/                       도메인 응집
 │   ├── products/
@@ -50,10 +50,7 @@ oshikore-web/                      (단일 앱 — 모노레포 X)
 │   └── ui/                        도메인 무관 디자인 시스템 확장
 │
 ├── lib/                           횡단 관심사만
-│   ├── supabase/
-│   │   ├── server.ts              createServerClient
-│   │   ├── client.ts              createBrowserClient
-│   │   └── middleware.ts          updateSession 헬퍼
+│   ├── db.ts                      Prisma + adapter-pg
 │   ├── r2/
 │   │   ├── client.ts              S3 호환 SDK
 │   │   └── presign.ts

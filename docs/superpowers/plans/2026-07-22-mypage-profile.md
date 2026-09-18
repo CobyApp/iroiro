@@ -60,7 +60,7 @@ describe("resolveHref", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npx vitest run "tests/app/(shop)/_components/mobile-tabs.test.ts"`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npx vitest run "tests/app/(shop)/_components/mobile-tabs.test.ts"`
 Expected: FAIL — `resolveHref(my, true)`가 `/login`(현재값)이라 `/mypage` 기대와 불일치.
 
 - [ ] **Step 3: Implement — my 탭 href 변경**
@@ -73,7 +73,7 @@ Expected: FAIL — `resolveHref(my, true)`가 `/login`(현재값)이라 `/mypage
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npx vitest run "tests/app/(shop)/_components/mobile-tabs.test.ts"`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npx vitest run "tests/app/(shop)/_components/mobile-tabs.test.ts"`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -191,7 +191,7 @@ export async function MobileTabBar() {
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -218,7 +218,7 @@ git commit --no-verify -m "refactor: mobile 마이 tab is a plain link (remove p
 
 - [ ] **Step 2: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -254,7 +254,7 @@ export async function updateAccountDisplayName(
 
 - [ ] **Step 2: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -331,7 +331,7 @@ describe("updateProfile", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npx vitest run tests/modules/auth/actions.test.ts`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npx vitest run tests/modules/auth/actions.test.ts`
 Expected: FAIL — `updateProfile`가 아직 export되지 않음(import 에러).
 
 - [ ] **Step 3: Implement — updateProfile 액션 추가**
@@ -372,7 +372,7 @@ export async function updateProfile(input: {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npx vitest run tests/modules/auth/actions.test.ts`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npx vitest run tests/modules/auth/actions.test.ts`
 Expected: PASS (기존 logout·completeSignupAction + 신규 updateProfile 3케이스).
 
 - [ ] **Step 5: Commit**
@@ -440,7 +440,7 @@ export function ProfileSettingsMenu() {
 
 - [ ] **Step 2: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -508,7 +508,7 @@ export default async function MyPage() {
 
 - [ ] **Step 2: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -650,7 +650,7 @@ export default async function EditProfilePage() {
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS. (`account.email`·`account.phoneNumber`는 `Account`에서 `string | null`.)
 
 - [ ] **Step 4: Commit**
@@ -683,7 +683,7 @@ export default function CollectionsIndexRedirect() {
 
 - [ ] **Step 2: Typecheck**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run typecheck`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -701,17 +701,17 @@ git commit --no-verify -m "feat: redirect /collections to /mypage"
 
 - [ ] **Step 1: Lint + Typecheck + Test**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npm run lint && npm run typecheck && npx vitest run`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npm run lint && npm run typecheck && npx vitest run`
 Expected: 모두 PASS.
 
 - [ ] **Step 2: Build**
 
-Run: `cd /Users/doyoung_kim/Documents/Git/oshikore-web && npx dotenv -e .env.local -- next build`
+Run: `cd /Users/doyoung_kim/Documents/Git/iroiro && npx dotenv -e .env.local -- next build`
 Expected: 성공(`/mypage`, `/mypage/edit`, `/collections` 라우트 포함).
 
 - [ ] **Step 3: 브라우저 검증 (로그인 상태)**
 
-preview_start(name: `oshikore-web-beta`). 로그인 세션이 있는 브라우저에서:
+preview_start(name: `iroiro-beta`). 로그인 세션이 있는 브라우저에서:
 - 모바일(375px) `/mypage`: 프로필 헤더 + ⚙ 설정 + 컬렉션 그리드. 하단 마이 탭이 /mypage로.
 - ⚙ → 회원정보 변경·로그아웃 노출. 회원정보 변경 → `/mypage/edit`.
 - `/mypage/edit`: 닉네임 수정 후 저장 → `/mypage`에서 반영 확인, 이메일·전화 읽기전용.

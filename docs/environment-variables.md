@@ -13,14 +13,11 @@
 
 > `NEXT_PUBLIC_*` 접두어 변수는 빌드 시 **브라우저로 전송**된다(공개 값만 둘 것).
 
-## 데이터베이스 · Supabase
+## 데이터베이스 (Postgres)
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `DATABASE_URL` 🔒 | ⚙️ 운영 필수 | Prisma 직접 연결 문자열(비밀번호 포함). **비특권 `app` 롤로 접속한다** — 소유자 `postgres`로 붙으면 GRANT가 무효라 soft delete 강제 등 DB 방어선이 작동하지 않는다([db-authorization-review](./architecture/db-authorization-review.md)). 로컬은 `supabase/seed.sql`이 `ALTER ROLE app WITH LOGIN`을 자동 실행하므로 `postgresql://app:app@127.0.0.1:54322/postgres` 그대로 사용. `env.ts` 검증 밖이지만 Prisma가 사용 — 없으면 `prisma generate`부터 실패. 운영: Supabase Cloud › Settings › Database › Connection string(**Shared Pooler 권장**). 비밀번호 특수문자 주의 → [lessons/10](./lessons/10-database-url-password.md) |
-| `NEXT_PUBLIC_SUPABASE_URL` | ⚙️ 운영 필수 | Supabase 프로젝트 API URL. **브라우저 노출(공개)**. 로컬은 `http://127.0.0.1:54321`, 운영은 Cloud 프로젝트 고유 URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ⚙️ 운영 필수 | Supabase publishable(anon) 키. **브라우저 노출(공개)**. 운영은 Cloud 프로젝트 키로 교체 |
-| `SUPABASE_SECRET_KEY` 🔒 | ◯ 선택(현재 미사용) | Supabase secret/service_role 키. **RLS 우회 가능 → 클라이언트 절대 노출 금지**. `env.ts`에 optional로 선언돼 있으나 **현재 앱 코드에서 읽는 곳이 없다** — 서버 DB 접근은 비특권 `app` 롤 + GRANT/RLS로 처리한다. service_role이 실제로 필요한 작업을 도입하면 ⚙️ 운영 필수로 승격할 것 |
+| `DATABASE_URL` 🔒 | ⚙️ 운영 필수 | Prisma 직접 연결 문자열(비밀번호 포함). **비특권 `app` 롤로 접속한다** — 소유자 `postgres`로 붙으면 GRANT가 무효라 soft delete 강제 등 DB 방어선이 작동하지 않는다([db-authorization-review](./architecture/db-authorization-review.md)). 로컬은 `npm run db:reset`이 `db/schema.sql` 적용 + `ALTER ROLE app WITH LOGIN`을 실행하므로 `postgresql://app:app@127.0.0.1:5432/iroiro` 그대로 사용. `env.ts` 검증 밖이지만 Prisma가 사용 — 없으면 `prisma generate`부터 실패. 운영(AWS RDS 등): `db/schema.sql`을 소유자로 1회 적용하고 `app` 롤에 LOGIN·비밀번호를 부여한 뒤 그 자격으로 접속. 비밀번호 특수문자 주의 → [lessons/10](./lessons/10-database-url-password.md) |
 
 ## 스토리지 (Cloudflare R2 / 로컬 MinIO)
 
@@ -73,10 +70,10 @@
 
 ## 자동 설정 (구성 불필요)
 
-`NODE_ENV`, `NEXT_PHASE` — Next.js/Vercel이 자동 주입한다. 직접 설정하지 않는다.
+`NODE_ENV`, `NEXT_PHASE` — Next.js가 자동 주입한다. 직접 설정하지 않는다.
 
 ## 보안 메모
 
 - 🔒 변수는 **서버 전용 secret**이다. `NEXT_PUBLIC_` 접두어를 붙이거나 클라이언트 코드·로그에 노출하면 안 된다.
 - `.env*` 파일은 커밋하지 않는다(허용 파일은 `.env.local.example`뿐).
-- 환경별로 같은 변수라도 값이 다르다(로컬 기본값 ≠ 운영 값). 운영은 호스팅 대시보드(Vercel 등)의 환경변수로 관리한다.
+- 환경별로 같은 변수라도 값이 다르다(로컬 기본값 ≠ 운영 값). 운영은 호스팅 환경(컨테이너 env / SSM Parameter Store 등)의 환경변수로 관리한다.

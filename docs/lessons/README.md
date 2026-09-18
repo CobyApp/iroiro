@@ -1,7 +1,7 @@
 # 데이터베이스 설계 레슨
 
-`oshikore-web` 마이그레이션(`supabase/migrations/`)을 설계하면서 마주친 결정과 그 배경을 정리한 학습 노트.
-스키마를 보다가 *"왜 이렇게 됐지?"* 가 궁금하거나, Postgres·Supabase가 처음이라면 읽어보세요.
+`iroiro` DB 스키마(`db/schema.sql`, 구 Supabase 마이그레이션)를 설계하면서 마주친 결정과 그 배경을 정리한 학습 노트.
+스키마를 보다가 *"왜 이렇게 됐지?"* 가 궁금하거나, Postgres가 처음이라면 읽어보세요.
 
 ## 디렉토리 분류
 
@@ -32,7 +32,6 @@
 8. [R2 스토리지 패턴](./08-r2-storage-pattern.md) — DB는 메타데이터, 객체 스토리지는 바이트.
 9. [URL Slug 전략](./09-url-slug-strategy.md) — 영미권 vs 한국 패턴, slug 도입 시점.
 10. [Database URL 비밀번호 인코딩](./10-database-url-password.md) — Supabase connection string에 비밀번호 특수문자가 들어갈 때 percent-encoding 규칙. `#`·`/`는 즉시 `ERR_INVALID_URL`.
-11. [Vercel Function Region](./11-vercel-function-region.md) — edge region과 function region의 분리. 함수와 DB region이 다르면 매 쿼리에 태평양 왕복 latency. `x-vercel-id` 헤더로 진단.
 12. [R2 CORS 정책](./12-r2-cors-policy.md) — 브라우저 직접 PUT 업로드의 preflight 요구. 로컬 MinIO는 관용적·R2는 엄격해서 *로컬에선 OK인데 운영에서 403* 함정.
 
 ### 인증·세션
@@ -60,6 +59,6 @@
 
 ## 관련 파일
 
-- 실제 마이그레이션: [`supabase/migrations/20260508132935_init_catalog.sql`](../../supabase/migrations/20260508132935_init_catalog.sql)
+- 실제 스키마: [`db/schema.sql`](../../db/schema.sql)
 - 인증·데이터 룰: [`docs/architecture/auth-and-data.md`](../architecture/auth-and-data.md)
 - 스택 결정 기록: [`docs/database-strategy.md`](../database-strategy.md), [`docs/image-strategy.md`](../image-strategy.md)

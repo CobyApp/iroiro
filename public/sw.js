@@ -11,8 +11,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: payload.body || "",
-      icon: "/brand/oshikore-mark.png",
-      badge: "/brand/oshikore-mark.png",
+      icon: "/brand/iroiro-mark.png",
+      badge: "/brand/iroiro-mark.png",
       data: { link: payload.link || "/" },
     }),
   );

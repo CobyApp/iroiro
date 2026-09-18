@@ -1,4 +1,4 @@
-// Prisma schema — Supabase migrations(supabase/migrations/)가 단일 진실 소스.
+// Prisma schema — db/schema.sql이 단일 진실 소스.
 // `npm run db:pull`로 introspect 후 수동으로 camelCase 매핑 유지.
 // Prisma는 @map/@@map을 db pull에서도 보존한다.
 

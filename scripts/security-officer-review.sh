@@ -27,10 +27,10 @@
 set -eu
 
 # 재진입 방지: 자식 claude가 또 hook을 트리거하는 무한 루프 차단
-if [ -n "${OSHIKORE_SECURITY_OFFICER_RUNNING:-}" ]; then
+if [ -n "${IROIRO_SECURITY_OFFICER_RUNNING:-}" ]; then
   exit 0
 fi
-export OSHIKORE_SECURITY_OFFICER_RUNNING=1
+export IROIRO_SECURITY_OFFICER_RUNNING=1
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "[security-officer] not in a git repo — skip" >&2

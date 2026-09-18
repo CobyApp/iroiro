@@ -59,7 +59,7 @@ R2가 S3·Supabase Storage 대비 가지는 단 하나의 가장 큰 차별점.
 |---|---|
 | Cloudflare 계정 | https://dash.cloudflare.com 가입 (또는 로그인) |
 | 결제 카드 등록 | R2 활성화에 필요 (무료 한도 안에선 청구 0이지만 카드 필요) |
-| oshikore-web에 사용할 도메인 | 추후 커스텀 도메인 연결 시 필요 |
+| iroiro에 사용할 도메인 | 추후 커스텀 도메인 연결 시 필요 |
 
 ### 1. R2 활성화 (계정당 1회)
 
@@ -526,7 +526,7 @@ R2 작업은 단가 기준 세 단계로 나뉜다 — **상태 변경이냐(A) 
 | 매 요청마다 LIST로 최신 N장 | DB INDEX로 `created_at DESC LIMIT N` |
 | 백업 스크립트가 매시간 LIST | DB 메타 기준으로 필요 키만 처리 |
 
-oshikore-web은 [`product_photo.r2_key`](../supabase/migrations/20260508132935_init_catalog.sql)로 DB가 R2 키를 관리하는 패턴 ([lessons/08-r2-storage-pattern.md](./lessons/08-r2-storage-pattern.md)). LIST 호출 없이도 모든 사진 목록·메타 조회 가능 — 비용·성능 양쪽에서 옳은 설계.
+iroiro은 [`product_photo.r2_key`](../supabase/migrations/20260508132935_init_catalog.sql)로 DB가 R2 키를 관리하는 패턴 ([lessons/08-r2-storage-pattern.md](./lessons/08-r2-storage-pattern.md)). LIST 호출 없이도 모든 사진 목록·메타 조회 가능 — 비용·성능 양쪽에서 옳은 설계.
 
 ### Storage GB-Hr
 
@@ -653,7 +653,7 @@ R2의 저장 측정은 supabase Storage와 동일한 **GB-Hours** 방식 (1 GB �
 
 ---
 
-## oshikore-web 통합 패턴
+## iroiro 통합 패턴
 
 ### 환경 분리 — 로컬 MinIO vs 운영 R2
 
@@ -866,7 +866,7 @@ R2는 기본적으로 단일 region이지만, **자동 jurisdictional routing**�
 
 ## 변경 이력
 
-- 2026-05-19 — 최초 작성: 무료 한도 (Storage 10 GB·Class A 1M·Class B 10M·Egress 무료) + Free 초과 시 단가 + Dashboard 운영 셋업 실전 절차(계정·버킷·API Token·공개 액세스 옵션 A/B·CORS·Vercel 환경변수·검증) + 항목별 세부(Class A/B·Storage Class·Egress 무료의 진짜 의미) + oshikore-web 통합(MinIO/R2 환경 분리·환경변수 매트릭스·보안 모범 사례) + CORS 정책 상세(AllowedOrigins·Methods·ExposeHeaders) + 모니터링·비용 추적 + 향후 검토(Cloudflare Images·Workers Bindings·Multi-region).
+- 2026-05-19 — 최초 작성: 무료 한도 (Storage 10 GB·Class A 1M·Class B 10M·Egress 무료) + Free 초과 시 단가 + Dashboard 운영 셋업 실전 절차(계정·버킷·API Token·공개 액세스 옵션 A/B·CORS·Vercel 환경변수·검증) + 항목별 세부(Class A/B·Storage Class·Egress 무료의 진짜 의미) + iroiro 통합(MinIO/R2 환경 분리·환경변수 매트릭스·보안 모범 사례) + CORS 정책 상세(AllowedOrigins·Methods·ExposeHeaders) + 모니터링·비용 추적 + 향후 검토(Cloudflare Images·Workers Bindings·Multi-region).
 - 2026-05-20 — Class A vs Class B vs Free operations 섹션 정정·확장: **DELETE는 Class A가 아니라 Free**로 수정. Class A 전체 API 목록을 3그룹(객체 조작·목록 메타 조회·버킷 설정)으로 표로 정리. Class B·Free 전체 목록 별도 표. ListObjects가 Class A라는 함정과 DB 메타 기반 회피 패턴(`product_photo.r2_key`) 명시.
 - 2026-05-20 — Step 3 (API Token) 대폭 확장: **계정 vs 사용자 API 토큰** 차이와 계정 선택 이유, **Bearer Token vs S3 자격 증명** 구분 (4개 값 중 3개만 사용), TTL "계속" 권장 근거(자동 만료는 사고 트리거)와 6개월 수동 회전 정책, Client IP Filter 비우는 이유(Vercel 동적 IP), 엔드포인트 관할지(Default·EU·FedRAMP) 선택 가이드, 베타용 별도 토큰 발급 절차.
 - 2026-05-20 — Step 4 (공개 액세스) 확장: R2.dev URL의 운영 부적합 사유 7가지 표로 정리 (Rate Limit·ToS 위반·CDN 캐시 제한·응답 헤더 통제 불가·URL 변경 위험·신뢰도·Workers 통합 X·SEO 약함). 커스텀 도메인 비용 분석(Cloudflare $0 + 도메인 등록비만), Cloudflare Registrar 등 도메인 등록처 비교.

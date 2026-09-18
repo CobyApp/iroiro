@@ -16,7 +16,7 @@
 
 ```
 1. OPTIONS /presigned-url → R2
-   - Origin: https://oshikore-web-beta.vercel.app
+   - Origin: https://iroiro-beta.vercel.app
    - Access-Control-Request-Method: PUT
    - Access-Control-Request-Headers: content-type
 2. R2 응답:
@@ -70,7 +70,7 @@ R2 Dashboard → 버킷 선택 → **Settings** → **CORS Policy** → **Add CO
 [
   {
     "AllowedOrigins": [
-      "https://oshikore-web-beta.vercel.app"
+      "https://iroiro-beta.vercel.app"
     ],
     "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
     "AllowedHeaders": ["*"],
@@ -84,7 +84,7 @@ PR preview·로컬 R2 직접 검증 필요 시 origin 추가:
 
 ```json
 "AllowedOrigins": [
-  "https://oshikore-web-beta.vercel.app",
+  "https://iroiro-beta.vercel.app",
   "http://localhost:3000"
 ]
 ```
@@ -133,7 +133,7 @@ Safari 사용자 비중이 크면 *effective 상한이 10분*이라 자주 prefl
 
 ### 1. CORS 정책 — 베타엔 단일 origin
 
-`https://oshikore-web-beta.vercel.app`만 등록. wildcard는 R2에서 매칭되지 않으므로 대안이 아니다 — PR preview에서 업로드 검증이 필요하면 그 배포에 **고정 도메인을 붙이고** 해당 origin을 한시적으로 추가한 뒤 검증 종료 시 제거한다.
+`https://iroiro-beta.vercel.app`만 등록. wildcard는 R2에서 매칭되지 않으므로 대안이 아니다 — PR preview에서 업로드 검증이 필요하면 그 배포에 **고정 도메인을 붙이고** 해당 origin을 한시적으로 추가한 뒤 검증 종료 시 제거한다.
 
 ### 2. 검증 채널 — incognito 창 우선
 
@@ -144,7 +144,7 @@ CORS 정책 변경 후 *반드시* incognito로 첫 검증. 일반 창에서의 
 | 환경 | R2 endpoint | 버킷 | CORS origin |
 |---|---|---|---|
 | 로컬 | MinIO `http://localhost:9000` | `oshikore-products-dev` | anonymous public (정책 무관) |
-| 베타 | Cloudflare R2 | `oshikore-beta` | `oshikore-web-beta.vercel.app` |
+| 베타 | Cloudflare R2 | `oshikore-beta` | `iroiro-beta.vercel.app` |
 | production (예정) | Cloudflare R2 | `oshikore-products-prod` | `oshikore.kr` 등 |
 
 새 환경 추가 시 *버킷 생성 + CORS 정책 등록 + Vercel env 등록* 3 단계 모두 수행. 누락 시 사고 자리.
@@ -158,7 +158,7 @@ CORS 정책 변경 후 *반드시* incognito로 첫 검증. 일반 창에서의 
 - [`docs/r2-adoption.md` §5](../r2-adoption.md) — 셋업 절차의 CORS 단계
 - [`docs/lessons/08-r2-storage-pattern.md`](./08-r2-storage-pattern.md) — R2 도입 전체 패턴
 - [`docs/lessons/11-vercel-function-region.md`](./11-vercel-function-region.md) — 함께 자주 만나는 *로컬↔운영 환경 불일치* 함정
-- 사고 사례: 2026-05-24 베타 배포 직후 어드민 사진 업로드 시 OPTIONS 403. CORS 정책 미설정이 원인. `https://oshikore-web-beta.vercel.app` origin 등록 후 정상화.
+- 사고 사례: 2026-05-24 베타 배포 직후 어드민 사진 업로드 시 OPTIONS 403. CORS 정책 미설정이 원인. `https://iroiro-beta.vercel.app` origin 등록 후 정상화.
 
 ---
 

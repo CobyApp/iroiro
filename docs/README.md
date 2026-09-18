@@ -1,4 +1,4 @@
-# oshikore-web 문서
+# iroiro 문서
 
 MVP 단계의 기술 결정과 아키텍처를 정리한 문서.
 
@@ -11,9 +11,7 @@ MVP 단계의 기술 결정과 아키텍처를 정리한 문서.
 - [MVP 기술 스택](./mvp-stack.md) — 전체 스택 요약과 비용 구조
 - [이미지 저장 및 최적화 전략](./image-strategy.md) — R2 선택 이유, 후보 비교
 - [이미지 경로(R2 객체 키) 설계 전략](./image-path-strategy.md) — 키 레이아웃·식별자(UUIDv7)·샤딩·캐싱 결정
-- [데이터베이스 및 인증 전략](./database-strategy.md) — Supabase 선택 이유, 후보 비교
-- [Supabase 도입 검토](./supabase-adoption.md) — 무료 플랜 할당량과 운영 결정 (살아있는 문서)
-- [Vercel 도입 검토](./vercel-adoption.md) — Hobby 상업적 제한, 한도, 대안 호스팅 비교 (살아있는 문서)
+- [데이터베이스 및 인증 전략](./database-strategy.md) — 초기 Supabase 선택 이유, 후보 비교 (역사 기록 — 현재는 자체 Postgres · `db/schema.sql`)
 - [Cloudflare R2 도입 검토](./r2-adoption.md) — 한도, Dashboard 셋업 절차, CORS·API Token·환경 분리 (살아있는 문서)
 - [관리자 페이지 아키텍처](./admin-architecture.md) — 동일 프로젝트로 시작, 분리 시점 기준
 - [계정 연동·병합 설계](./account-linking.md) — 소셜 로그인 다중 account를 전화 인증 축으로 통합·병합 (자동 병합 금지·step-up 확인·감사 기록)

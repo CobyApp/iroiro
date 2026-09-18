@@ -20,13 +20,11 @@
 
 ## 프로젝트 보안 모델
 
-- 인증은 Supabase Auth를 사용한다.
-- 역할은 `auth.jwt() -> 'app_metadata' ->> 'role'`에서 읽는다.
-- 권한 부여에 `user_metadata`를 절대 사용하지 않는다.
+- 인증은 자체 세션(`account_session`) + 카카오·네이버 OAuth다. 외부 인증 SaaS를 쓰지 않는다.
+- 역할은 `account.is_admin` 컬럼에서만 읽는다.
 - 관리자 검사 단일 진실은 `modules/admin/lib/isAdmin.ts`다.
 - 관리자 가드는 `app/(admin)/layout.tsx`에 둔다.
-- 카탈로그 테이블은 RLS가 활성화되어 있고, 공개 읽기/어드민 전용 쓰기 정책을 사용한다.
-- RLS 정책은 `is_admin()` SQL 함수를 사용한다.
+- DB 방어선은 비특권 `app` 롤의 GRANT 매트릭스다(`db/schema.sql`). 앱은 반드시 `app` 롤로 접속한다.
 - `app/api/`는 webhook 전용이다. mutation은 `modules/<도메인>/actions.ts`의 Server Action에 둔다.
 - 아키텍처 진입점은 `docs/architecture/overview.md`다.
 
@@ -34,7 +32,7 @@
 
 다음 값은 `"use client"` 파일이나 `NEXT_PUBLIC_*` 변수에 등장하면 안 된다.
 
-- `SUPABASE_SECRET_KEY`
+- `DATABASE_URL`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `NEXT_PUBLIC_` 접두어가 없는 모든 다른 키

@@ -15,7 +15,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 룰 1: 도메인 명사면 `modules/`, 횡단 인프라면 `lib/`. 중간지대 금지.
 - 룰 2: Server Actions는 `modules/<도메인>/actions.ts`. `app/api/`는 webhook만.
 - 룰 3: 권한 가드는 layout에서. `isAdmin`은 `modules/admin/lib/isAdmin.ts` 단일 진실.
-- 룰 4: 인증은 Supabase 공식 가이드만. NextAuth/Better-auth 도입 금지.
+- 룰 4: 인증은 자체 세션(`account_session`) + 카카오·네이버 OAuth만. NextAuth/Better-auth 도입 금지.
 
 DB 스키마 작업(테이블·컬럼 신설/변경, 마이그레이션 작성) 전에는 **[docs/architecture/data-modeling.md](./docs/architecture/data-modeling.md)를 반드시 확인하라** — 네이밍·키·타입·제약 등 스키마 설계 규칙의 단일 진실.
 

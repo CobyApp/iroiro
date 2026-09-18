@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: iroiro
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d iroiro" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   minio:
     image: minio/minio
     ports:
@@ -21,9 +37,12 @@ services:
     entrypoint: >
       /bin/sh -c "
       until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
-      /usr/bin/mc mb -p local/oshikore-products-dev || true;
-      /usr/bin/mc anonymous set public local/oshikore-products-dev;
-      /usr/bin/mc mb -p local/oshikore-ugc-dev || true;
-      /usr/bin/mc ilm rule add local/oshikore-ugc-dev --expire-days 1 --prefix posts/tmp/ || true;
+      /usr/bin/mc mb -p local/iroiro-products-dev || true;
+      /usr/bin/mc anonymous set public local/iroiro-products-dev;
+      /usr/bin/mc mb -p local/iroiro-ugc-dev || true;
+      /usr/bin/mc ilm rule add local/iroiro-ugc-dev --expire-days 1 --prefix posts/tmp/ || true;
       exit 0;
       "
+
+volumes:
+  pgdata:

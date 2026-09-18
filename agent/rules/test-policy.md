@@ -26,7 +26,7 @@
 | `modules/<도메인>/actions.ts` (Server Actions) | 필수 - 입력 검증 + 권한 + happy/error path | `tests/<src 경로>` | Vitest unit |
 | `modules/admin/lib/*.ts` + 권한/인증 함수 | 필수 - 모든 분기 | `tests/<src 경로>` | Vitest unit |
 | `lib/env.ts` + 환경 검증 | 필수 - 모든 분기 | `tests/<src 경로>` | Vitest unit |
-| `lib/<sdk>/*.ts` (외부 SDK 래퍼: supabase, r2 등) | 필수 - mock 기반 happy/error path | `tests/<src 경로>` | Vitest unit |
+| `lib/<sdk>/*.ts` (외부 SDK 래퍼: r2 등) | 필수 - mock 기반 happy/error path | `tests/<src 경로>` | Vitest unit |
 | `lib/*.ts` (분기 있는 횡단 유틸) | 필수 - 1:1 비율 + 분기/경계 케이스 | `tests/<src 경로>` | Vitest unit |
 | `modules/<도메인>/components/**.tsx` (폼, 다이얼로그, 검색, 필터 등 인터랙션) | 권장 - 행동 위주 | `tests/<src 경로>` | RTL + userEvent |
 | `modules/<도메인>/components/**.tsx` (목록, 카드, 뱃지 등 프레젠테이션) | 면제 | - | - |
@@ -40,9 +40,6 @@
 
 boilerplate SDK factory 예:
 
-- `lib/supabase/server.ts`
-- `lib/supabase/client.ts`
-- `lib/supabase/middleware.ts`
 - `lib/r2/client.ts`
 
 ## 30초 결정 트리
@@ -71,7 +68,7 @@ boilerplate SDK factory 예:
 2. 권한 거부: 비-admin이 admin action 시도
 3. 입력 검증 실패: 잘못된 zod schema 입력
 
-Supabase client와 `isAdmin(user)`는 mock한다.
+DB 클라이언트(Prisma)와 `isAdmin(account)`는 mock한다.
 
 ## 인터랙션 컴포넌트
 
