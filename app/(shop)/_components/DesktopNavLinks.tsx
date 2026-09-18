@@ -7,14 +7,9 @@ import { isTabActive, visibleTabs } from "./mobile-tabs";
 import { SHOP_NAVIGATION_ICONS } from "./shop-navigation-icons";
 
 // 데스크톱 주요 메뉴 — 모바일과 같은 탭 구조(마이 제외).
-// 중고거래 탭은 전역 설정이 켜져 있을 때만 노출한다.
-export function DesktopNavLinks({
-  usedTradeEnabled,
-}: {
-  usedTradeEnabled: boolean;
-}) {
+export function DesktopNavLinks() {
   const pathname = usePathname();
-  const links = visibleTabs({ usedTradeEnabled }).filter(
+  const links = visibleTabs().filter(
     (tab) => tab.key !== "mypage",
   );
 

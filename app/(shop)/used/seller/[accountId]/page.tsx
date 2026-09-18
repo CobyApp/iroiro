@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Store } from "lucide-react";
 import { env } from "@/lib/env";
 import { PageBack } from "@/components/PageBack";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import {
   getSellerSummary,
@@ -27,7 +26,6 @@ export default async function UsedSellerPage({
   params: Promise<{ accountId: string }>;
   searchParams: Promise<{ page?: string }>;
 }) {
-  if (!(await isUsedTradeEnabled())) notFound();
   const { accountId } = await params;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);

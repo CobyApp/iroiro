@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import {
@@ -17,7 +16,6 @@ import { UsedListingForm } from "@/modules/used/components/UsedListingForm";
 export const metadata: Metadata = { title: "중고 판매하기" };
 
 export default async function UsedNewPage() {
-  if (!(await isUsedTradeEnabled())) notFound();
   const account = await getCurrentAccount();
   if (!account) redirect("/login-required?from=/used/new");
 

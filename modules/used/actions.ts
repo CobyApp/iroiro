@@ -31,13 +31,6 @@ async function requireLogin() {
   return account;
 }
 
-async function requireUsedTradeEnabled() {
-  const settings = await getSiteSettings();
-  if (!settings.usedTradeEnabled) {
-    throw new DomainError("중고거래 기능이 꺼져 있습니다", "feature_off");
-  }
-  return settings;
-}
 
 function revalidateUsed(listingId?: number) {
   revalidatePath("/used");
@@ -51,7 +44,6 @@ export async function presignUsedPhotos(
 ): Promise<ActionResult<{ r2Key: string; uploadUrl: string }[]>> {
   return runAction(async () => {
     await requireLogin();
-    await requireUsedTradeEnabled();
     if (files.length === 0) throw new DomainError("파일이 없습니다");
     if (files.length > 8) throw new DomainError("매물당 최대 8장");
     for (const file of files) {
@@ -90,7 +82,6 @@ export async function uploadUsedPhotoFile(
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
     await requireLogin();
-    await requireUsedTradeEnabled();
     const file = formData.get("file");
     const filename = String(formData.get("filename") ?? "photo.jpg");
     if (!(file instanceof Blob)) throw new DomainError("파일이 없습니다");
@@ -124,7 +115,6 @@ export async function createUsedListing(
 ): Promise<ActionResult<{ id: number }>> {
   return runAction(async () => {
     const account = await requireLogin();
-    await requireUsedTradeEnabled();
     const data = usedListingCreateSchema.parse(input);
 
     // 선택한 토레카에서 제목·계층 파생 — 공개(active) 카드만 허용.
@@ -234,7 +224,7 @@ export async function buyUsedListing(
 ): Promise<ActionResult<{ tradeId: number }>> {
   return runAction(async () => {
     const account = await requireLogin();
-    const settings = await requireUsedTradeEnabled();
+    const settings = await getSiteSettings();
     const data = usedBuySchema.parse(input);
 
     const trade = await db.$transaction(async (tx) => {
@@ -314,7 +304,6 @@ export async function placeUsedBid(
 ): Promise<ActionResult<{ currentPrice: number; endsAt: string }>> {
   return runAction(async () => {
     const account = await requireLogin();
-    await requireUsedTradeEnabled();
 
     const result = await db.$transaction(async (tx) => {
       const listing = await tx.usedListing.findUnique({

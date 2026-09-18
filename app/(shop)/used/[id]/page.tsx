@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { formatKstDate } from "@/lib/datetime";
 import { getCurrentAccount } from "@/modules/auth/dal";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import Link from "next/link";
 import { ArrowUpRight, Store } from "lucide-react";
 import {
@@ -43,7 +42,6 @@ export async function generateMetadata({
 }
 
 export default async function UsedDetailPage({ params }: { params: Params }) {
-  if (!(await isUsedTradeEnabled())) notFound();
   const { id } = await params;
   const listingId = Number(id);
   if (!Number.isInteger(listingId) || listingId <= 0) notFound();

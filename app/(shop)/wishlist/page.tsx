@@ -8,7 +8,6 @@ import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { ProductGrid } from "@/modules/products/components/ProductGrid";
 import { listWishlistProducts } from "@/modules/wishlist/lib/queries";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { listUsedWishlistListings } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
@@ -32,10 +31,9 @@ export default async function WishlistPage() {
     );
   }
 
-  const usedEnabled = await isUsedTradeEnabled();
   const [products, usedListings, teams, members] = await Promise.all([
     listWishlistProducts(account.id),
-    usedEnabled ? listUsedWishlistListings(account.id) : Promise.resolve([]),
+    listUsedWishlistListings(account.id),
     listTeams(),
     listMembers(),
   ]);

@@ -27,7 +27,6 @@ import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import { ProfileAvatar } from "./_components/ProfileAvatar";
 import { DeleteAccountItem } from "./_components/DeleteAccountItem";
 import { PushToggle } from "@/modules/notifications/components/PushToggle";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 
 // 메뉴를 성격별 섹션으로 — 쇼핑(사고 파는 일), 활동(내 취향·참여), 계정(관리).
 const MY_LINK_SECTIONS = [
@@ -51,7 +50,6 @@ const MY_LINK_SECTIONS = [
         label: "중고거래",
         description: "내 매물 · 판매/구매 진행",
         icon: Repeat,
-        usedOnly: true,
       },
       {
         href: "/mypage/points",
@@ -114,7 +112,6 @@ export const metadata: Metadata = { title: "마이페이지" };
 // 마이페이지 — 컬렉션을 내 공간의 첫 행동으로 두고, 쇼핑 활동과 계정 관리를 분리한다.
 export default async function MyPage() {
   const account = await getCurrentAccount().catch(() => null);
-  const usedTradeEnabled = await isUsedTradeEnabled();
 
   if (!account) {
     return (
@@ -214,11 +211,7 @@ export default async function MyPage() {
         </div>
         <nav aria-label="마이페이지 메뉴" className="space-y-5">
           {MY_LINK_SECTIONS.map((section) => {
-            const links = section.links.filter(
-              (link) =>
-                !("usedOnly" in link && link.usedOnly) || usedTradeEnabled,
-            );
-            if (links.length === 0) return null;
+            const links = section.links;
             return (
               <div key={section.title} className="space-y-2">
                 <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">

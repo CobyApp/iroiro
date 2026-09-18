@@ -7,14 +7,10 @@ import { isTabActive, visibleTabs } from "./mobile-tabs";
 import { SHOP_NAVIGATION_ICONS } from "./shop-navigation-icons";
 
 // 모바일 전용 하단 고정 탭바. sm 이상에선 숨김(sm:hidden).
-// 둘러보기·컬렉션·커뮤니티·마이 4탭. 장바구니는 상단 헤더가 담당.
-export function MobileTabBarClient({
-  usedTradeEnabled,
-}: {
-  usedTradeEnabled: boolean;
-}) {
+// 둘러보기·중고거래·커뮤니티·마이 4탭. 장바구니는 상단 헤더가 담당.
+export function MobileTabBarClient() {
   const pathname = usePathname();
-  const tabs = visibleTabs({ usedTradeEnabled });
+  const tabs = visibleTabs();
 
   return (
     <nav

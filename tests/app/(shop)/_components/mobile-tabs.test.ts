@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   TAB_DEFS,
   isTabActive,
+  visibleTabs,
 } from "@/app/(shop)/_components/mobile-tabs";
 
 describe("TAB_DEFS", () => {
-  it("둘러보기·중고거래·컬렉션·커뮤니티·마이 5탭을 순서대로 정의한다", () => {
-    expect(TAB_DEFS.map((t) => t.key)).toEqual([
-      "discover",
-      "used",
-      "collection",
-      "community",
-      "mypage",
-    ]);
+  it("둘러보기·중고거래·커뮤니티·마이 4탭을 순서대로 정의한다(중고거래가 2번째, 컬렉션 탭 없음)", () => {
+    expect(TAB_DEFS.map((t) => t.key)).toEqual(["discover", "used", "community", "mypage"]);
+    expect(TAB_DEFS[1]).toMatchObject({ key: "used", href: "/used" });
+    expect(TAB_DEFS.some((t) => t.href.startsWith("/collections"))).toBe(false);
+  });
+});
+
+describe("visibleTabs", () => {
+  it("기능 플래그 없이 정의 그대로 노출한다(중고거래 상시)", () => {
+    expect(visibleTabs()).toEqual(TAB_DEFS);
   });
 });
 
@@ -22,26 +25,15 @@ describe("isTabActive", () => {
     expect(isTabActive("discover", "/products")).toBe(true);
     expect(isTabActive("discover", "/products/117")).toBe(true);
   });
-  it("컬렉션·커뮤니티·마이페이지는 하위 경로 포함 활성", () => {
-    expect(isTabActive("collection", "/collections")).toBe(true);
-    expect(isTabActive("collection", "/collections/abc123")).toBe(true);
+  it("중고거래·커뮤니티·마이페이지는 하위 경로 포함 활성", () => {
+    expect(isTabActive("used", "/used")).toBe(true);
+    expect(isTabActive("used", "/used/42")).toBe(true);
     expect(isTabActive("community", "/posts")).toBe(true);
     expect(isTabActive("community", "/posts/notice-1")).toBe(true);
     expect(isTabActive("mypage", "/mypage")).toBe(true);
     expect(isTabActive("mypage", "/mypage/edit")).toBe(true);
   });
-});
-
-describe("visibleTabs", () => {
-  it("중고거래 OFF면 used 탭이 목록에서 빠진다", async () => {
-    const { visibleTabs } = await import(
-      "@/app/(shop)/_components/mobile-tabs"
-    );
-    expect(
-      visibleTabs({ usedTradeEnabled: false }).map((t) => t.key),
-    ).toEqual(["discover", "collection", "community", "mypage"]);
-    expect(
-      visibleTabs({ usedTradeEnabled: true }).map((t) => t.key),
-    ).toContain("used");
+  it("컬렉션 경로는 어느 탭도 활성화하지 않는다(마이페이지에서 진입)", () => {
+    expect(TAB_DEFS.some((t) => isTabActive(t.key, "/collections"))).toBe(false);
   });
 });

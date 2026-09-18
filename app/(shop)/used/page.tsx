@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
 import { ArrowUpRight, Clock, Plus, Search } from "lucide-react";
 import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
@@ -38,7 +36,6 @@ export default async function UsedHomePage({
 }: {
   searchParams: Promise<UsedSearchParams>;
 }) {
-  if (!(await isUsedTradeEnabled())) notFound();
   const sp = await searchParams;
   const mode =
     sp.mode === "fixed" || sp.mode === "auction" ? sp.mode : undefined;

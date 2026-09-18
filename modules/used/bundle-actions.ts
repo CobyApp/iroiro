@@ -17,13 +17,6 @@ async function requireLogin() {
   if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
   return account;
 }
-async function requireUsedTradeEnabled() {
-  const settings = await getSiteSettings();
-  if (!settings.usedTradeEnabled) {
-    throw new DomainError("중고거래 기능이 꺼져 있습니다", "feature_off");
-  }
-  return settings;
-}
 function revalidateBundle(id?: number) {
   revalidatePath("/used");
   if (id) revalidatePath(`/used/bundle/${id}`);
@@ -35,7 +28,7 @@ export async function buyUsedBundle(
 ): Promise<ActionResult<{ bundleId: number }>> {
   return runAction(async () => {
     const account = await requireLogin();
-    const settings = await requireUsedTradeEnabled();
+    const settings = await getSiteSettings();
     const data = usedBundleBuySchema.parse(input);
     const ids = data.listingIds.map((n) => BigInt(n));
 

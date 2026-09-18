@@ -1,6 +1,5 @@
 import {
   Compass,
-  LibraryBig,
   MessageSquare,
   Repeat,
   User,
@@ -12,7 +11,6 @@ import type { TabKey } from "./mobile-tabs";
 export const SHOP_NAVIGATION_ICONS: Record<TabKey, LucideIcon> = {
   discover: Compass,
   used: Repeat,
-  collection: LibraryBig,
   community: MessageSquare,
   mypage: User,
 };

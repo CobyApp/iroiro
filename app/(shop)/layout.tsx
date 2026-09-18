@@ -13,7 +13,6 @@ import { AccountNav } from "@/modules/auth/components/AccountNav";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { NavigationFeedback } from "./_components/NavigationFeedback";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -22,7 +21,6 @@ export default async function ShopLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const usedTradeEnabled = await isUsedTradeEnabled();
   return (
     <TooltipProvider>
       <div className="relative flex min-h-screen flex-col">
@@ -48,7 +46,7 @@ export default async function ShopLayout({
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
             <div className="flex items-center gap-0.5 sm:gap-2">
               <div className="hidden sm:block">
-                <DesktopNavLinks usedTradeEnabled={usedTradeEnabled} />
+                <DesktopNavLinks />
               </div>
               <span
                 className="hidden h-6 w-px bg-border/60 sm:block"

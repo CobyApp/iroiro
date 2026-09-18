@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { env } from "@/lib/env";
 import { PageBack } from "@/components/PageBack";
-import { isUsedTradeEnabled } from "@/modules/site-settings/lib/queries";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getUsedBundleById } from "@/modules/used/lib/queries";
 import { BundleProgress } from "@/modules/used/components/BundleProgress";
@@ -17,7 +16,6 @@ export default async function UsedBundlePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await isUsedTradeEnabled())) notFound();
   const { id } = await params;
   const bundleId = Number(id);
   if (!Number.isInteger(bundleId) || bundleId <= 0) notFound();
