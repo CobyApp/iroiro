@@ -1,0 +1,4 @@
+root = true
+
+[supabase/migrations/*.sql]
+ij_sql_keep_line_breaks = true

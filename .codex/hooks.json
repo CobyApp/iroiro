@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ./scripts/codex-precommit-check.sh",
+            "statusMessage": "git commit 전 프로젝트 정책 검사"
+          }
+        ]
+      }
+    ]
+  }
+}

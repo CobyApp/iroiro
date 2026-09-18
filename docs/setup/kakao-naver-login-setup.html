@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>카카오·네이버 로그인 설정 가이드 — oshikore-web</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --ink: #1e293b;
+        --ink-strong: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --brand: #2563eb;
+        --brand-dark: #1d4ed8;
+        --kakao: #fee500;
+        --kakao-ink: #191600;
+        --naver: #03c75a;
+        --code-bg: #f1f5f9;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Pretendard", "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+      header.page {
+        background: linear-gradient(135deg, #1e3a8a, #2563eb);
+        color: #fff;
+        border-radius: 16px;
+        padding: 32px 28px;
+        margin-bottom: 28px;
+      }
+      header.page h1 { margin: 0 0 8px; font-size: 26px; }
+      header.page p { margin: 0; opacity: 0.9; font-size: 15px; }
+      .meta { margin-top: 14px; font-size: 13px; opacity: 0.92; }
+      /* 헤더(진한 블루) 안의 code 칩 — 흰 글자+밝은 배경으로 안 보이던 문제 수정 */
+      .meta code { background: rgba(255, 255, 255, 0.18); color: #fff; }
+
+      section.card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px 26px;
+        margin-bottom: 22px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 0 0 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--line);
+        color: var(--ink-strong);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      h3 { font-size: 16px; margin: 22px 0 10px; color: var(--ink-strong); }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--brand);
+        flex: none;
+      }
+      .badge.kakao { background: var(--kakao); color: var(--kakao-ink); }
+      .badge.naver { background: var(--naver); }
+
+      ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+      ol.steps > li {
+        counter-increment: step;
+        position: relative;
+        padding: 0 0 18px 44px;
+        margin: 0;
+      }
+      ol.steps > li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 30px;
+        height: 30px;
+        background: var(--brand);
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      ol.steps.kakao > li::before { background: var(--kakao); color: var(--kakao-ink); }
+      ol.steps.naver > li::before { background: var(--naver); }
+      ol.steps > li:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        left: 14px;
+        top: 32px;
+        bottom: 2px;
+        width: 2px;
+        background: var(--line);
+      }
+      ol.steps b { font-weight: 700; }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 4px;
+        font-size: 14px;
+      }
+      th, td { text-align: left; padding: 10px 12px; border: 1px solid var(--line); vertical-align: top; }
+      th { background: #f1f5f9; font-weight: 600; }
+      tbody tr:nth-child(even) { background: #f8fafc; }
+
+      code, kbd {
+        font-family: "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+        font-size: 13px;
+        background: var(--code-bg);
+        padding: 2px 6px;
+        border-radius: 5px;
+        word-break: break-all;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 16px 18px;
+        border-radius: 10px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      pre code { background: none; padding: 0; color: inherit; }
+
+      .callout {
+        border-left: 4px solid var(--brand);
+        background: #eff6ff;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        margin: 14px 0;
+        font-size: 14px;
+      }
+      .callout.warn { border-color: #f59e0b; background: #fffbeb; }
+      .callout.danger { border-color: #ef4444; background: #fef2f2; }
+      .callout.ok { border-color: #10b981; background: #ecfdf5; }
+      .callout b { display: block; margin-bottom: 2px; }
+
+      ul.check { list-style: none; padding: 0; margin: 8px 0; }
+      ul.check li { padding: 4px 0; display: flex; gap: 10px; align-items: flex-start; }
+      ul.check input { margin-top: 6px; flex: none; width: 16px; height: 16px; }
+
+      .toc { font-size: 14px; }
+      .toc a { color: var(--brand); text-decoration: none; }
+      .toc a:hover { text-decoration: underline; }
+      .toc ol { list-style: none; margin: 6px 0 0; padding-left: 2px; }
+
+      a { color: var(--brand); }
+      .muted { color: var(--muted); font-size: 13px; }
+      footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 30px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="page">
+        <h1>카카오·네이버 소셜 로그인 설정 가이드</h1>
+        <p>oshikore-web 자체 인증(OAuth) — 콘솔 등록부터 로컬 테스트까지</p>
+        <div class="meta">최종 업데이트: 2026-06-14 · 대상: 운영자/개발자 · 관련 코드: <code>modules/auth/</code></div>
+      </header>
+
+      <section class="card">
+        <h2>이 문서는</h2>
+        <p>
+          카카오·네이버 로그인은 <b>각 제공자 콘솔에 앱을 등록</b>하고 키를 발급받아야만 동작합니다.
+          코드는 이미 구현돼 있으니, 이 문서의 체크리스트대로 <b>외부 등록 + 환경변수</b>만 채우면 됩니다.
+        </p>
+        <div class="callout">
+          <b>큰 그림 — 로그인 한 번에 일어나는 일</b>
+          <code>/login</code> 버튼 → <code>/api/auth/{provider}</code>(우리 서버) → 카카오·네이버 동의 화면 →
+          <code>/api/auth/{provider}/callback</code>(우리 서버, 계정·세션 생성) → 로그인 완료. 소셜 로그인은
+          <b>로그인 = 회원가입</b>이라 첫 로그인 시 계정이 자동 생성됩니다.
+        </div>
+        <div class="callout ok">
+          <b>사업자등록증이 필요한가요? — 아니요 (둘 다 개인 개발자로 가능)</b>
+          카카오·네이버 로그인은 <b>사업자 없이 개인(본인인증)만으로 정식 오픈까지 가능</b>합니다.
+          카카오는 이메일을 받으려면 비즈 앱이 필요하지만, 사업자 대신 <b>본인인증(개인 개발자 비즈 앱)</b>으로
+          대체됩니다(아래 ① 참고). 네이버는 검수까지 포함해 사업자 정보가 필요 없습니다(아래 ② 참고).
+          사업자는 "있으면 편한" 요소일 뿐 <b>로그인의 필수 조건은 아닙니다</b>.
+        </div>
+        <div class="toc">
+          <b>목차</b>
+          <ol>
+            <li><a href="#kakao">① 카카오 앱 등록</a></li>
+            <li><a href="#naver">② 네이버 앱 등록</a></li>
+            <li><a href="#env">③ 환경변수(.env.local) 채우기</a></li>
+            <li><a href="#uri">④ Redirect/Callback URI 레퍼런스</a></li>
+            <li><a href="#local">⑤ 로컬 테스트</a></li>
+            <li><a href="#prod">⑥ 운영(배포) 체크리스트</a></li>
+            <li><a href="#trouble">⑦ 문제 해결</a></li>
+            <li><a href="#design">⑧ 설계·아키텍처</a></li>
+            <li><a href="#security">⑨ 적용된 보안</a></li>
+            <li><a href="#todo">⑩ 한계·후속 작업</a></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="card" id="kakao">
+        <h2><span class="badge kakao">K</span> 카카오 앱 등록</h2>
+        <p class="muted">콘솔: <a href="https://developers.kakao.com" target="_blank" rel="noreferrer">developers.kakao.com</a></p>
+        <ol class="steps kakao">
+          <li><b>애플리케이션 추가</b> — [내 애플리케이션] → [애플리케이션 추가하기]. 앱 이름 입력(<b>사업자명은 개인 개발자는 선택</b>).</li>
+          <li><b>REST API 키 복사</b> — [앱 설정] → [앱 키] → <b>REST API 키</b> → 환경변수 <code>KAKAO_REST_API_KEY</code>.</li>
+          <li><b>카카오 로그인 활성화</b> — [제품 설정] → [카카오 로그인] → 활성화 설정 <b>ON</b>.</li>
+          <li>
+            <b>Redirect URI 등록</b> — [카카오 로그인] → Redirect URI에 아래를 <b>정확히</b> 추가.
+            <pre><code>http://localhost:3000/api/auth/kakao/callback</code></pre>
+            운영 도메인이 있으면 <code>https://{도메인}/api/auth/kakao/callback</code>도 함께 등록.
+          </li>
+          <li>
+            <b>Client Secret 발급</b> — <b>[앱 설정] → [앱 키] → REST API 키를 클릭</b>하면 그 안에서
+            <b>클라이언트 시크릿</b> 코드를 확인/생성합니다(2번에서 복사한 그 REST API 키 화면 내부). 값을 <code>KAKAO_CLIENT_SECRET</code>에 입력.
+            <div class="callout warn">
+              <b>활성화 상태와 env 값을 일치시키세요</b>
+              개편된 콘솔은 클라이언트 시크릿이 <b>활성화('사용')된 채로 자동 추가</b>되곤 합니다. 활성화 상태면 카카오가
+              토큰 교환 때 <code>client_secret</code>을 <b>요구</b>하므로 <code>KAKAO_CLIENT_SECRET</code>을 반드시 채워야 합니다(비우면 <code>oauth_failed</code>).
+              즉 <b>"콘솔 활성화 ↔ env 값"은 한 몸</b> — 둘 다 켜거나 둘 다 끄세요. (구버전 콘솔이면 <code>[제품 설정] → [카카오 로그인] → [보안]</code>에 같은 항목이 있습니다.)
+            </div>
+          </li>
+          <li>
+            <b>동의항목 설정</b> — [카카오 로그인] → [동의항목]에서 <b>닉네임</b>(profile_nickname) 사용 설정.
+            <div class="callout warn">
+              <b>이메일은 비즈니스 앱(Biz App)에서만</b>
+              <b>카카오계정(이메일)</b>(account_email)은 비즈 앱 전환 후에만 받을 수 있습니다. 그전까지는
+              이메일이 비어 있는 채로 가입됩니다(정상). 이메일까지 받으려면 비즈 앱 전환 후
+              <code>KAKAO_SCOPE="profile_nickname,account_email"</code>로 설정하세요.
+            </div>
+            <div class="callout ok">
+              <b>사업자등록증 없이도 이메일을 받을 수 있습니다</b>
+              비즈 앱 전환은 두 경로입니다 — ① <b>일반 비즈 앱</b>(사업자등록번호 입력), ② <b>개인 개발자 비즈 앱</b>:
+              사업자 없이 앱 소유자 <b>본인인증</b>([계정 설정] → [본인인증]) + 카카오비즈니스 약관 동의만으로
+              [앱] → [일반] → [비즈니스 정보]에서 전환합니다. 개인 개발자 비즈 앱도 <b>이메일 필수 동의</b>가 가능하므로
+              이메일 때문에 사업자를 낼 필요는 없습니다. (단, 개인 개발자 비즈 앱은 <b>비즈니스 채널 연결 불가</b> — 필요 시 일반 비즈 앱으로 전환.)
+            </div>
+          </li>
+        </ol>
+        <div class="callout">
+          <b>왜 scope를 명시해야 하나</b>
+          카카오는 동의항목을 콘솔에 켜두는 것만으론 부족하고, 로그인 요청에 <code>scope</code>로 명시해야
+          닉네임·이메일을 받습니다. 코드가 자동으로 <code>profile_nickname</code>(또는 <code>KAKAO_SCOPE</code>)을 보냅니다.
+        </div>
+      </section>
+
+      <section class="card" id="naver">
+        <h2><span class="badge naver">N</span> 네이버 앱 등록</h2>
+        <p class="muted">콘솔: <a href="https://developers.naver.com/apps" target="_blank" rel="noreferrer">developers.naver.com/apps</a></p>
+        <ol class="steps naver">
+          <li><b>애플리케이션 등록</b> — [Application] → [애플리케이션 등록]. 앱 이름 입력.</li>
+          <li><b>사용 API 선택</b> — <b>네이버 로그인</b> 선택.</li>
+          <li><b>제공 정보 선택</b> — 필요한 항목 체크: <b>이름·이메일·별명(닉네임)</b> 등. (앱이 사용자에게 요청할 정보)</li>
+          <li>
+            <b>서비스 환경 + Callback URL</b> — [환경 추가] → <b>PC웹</b>. 서비스 URL과 Callback URL 등록.
+            <pre><code>서비스 URL : http://localhost:3000
+Callback URL: http://localhost:3000/api/auth/naver/callback</code></pre>
+            운영 도메인이 있으면 <code>https://{도메인}</code> / <code>https://{도메인}/api/auth/naver/callback</code>도 등록.
+          </li>
+          <li><b>Client ID / Secret 확인</b> — 등록 후 [개요]에서 <code>NAVER_CLIENT_ID</code> / <code>NAVER_CLIENT_SECRET</code> 복사.</li>
+          <li>
+            <b>검수 요청</b> — 본인(등록 개발자) 외 일반 사용자도 로그인하려면 [검수] 요청이 필요합니다.
+            <div class="callout warn">
+              <b>검수 전에는 등록된 개발자 계정만 로그인됩니다</b>
+              개발·테스트 단계에선 앱 소유자 네이버 계정으로만 로그인이 됩니다. 정식 오픈 전 검수를 통과해야
+              모든 사용자가 로그인할 수 있습니다(제공 정보 심사 포함). <b>검수에 사업자등록증은 필요 없으며</b>,
+              개인 서비스도 통과할 수 있습니다(필수 수집 정보를 이메일·별명·프로필 사진 정도로 최소화하면 유리).
+            </div>
+            <div class="callout ok">
+              <b>네이버 검수 통과 요건 — 신청 전 갖춰두면 한 번에 통과</b>
+              네이버는 <b>"꼭 필요한 정보만 받는지"</b>와 <b>"로그인 UI가 실제로 붙어 있는지"</b>를 심사합니다. 신청 전 아래를 준비하세요:
+              <ul class="check">
+                <li><input type="checkbox" /> <span>로그인·회원가입 화면에 <b>네이버 공식 버튼 디자인</b>으로 로그인 버튼을 실제 노출</span></li>
+                <li><input type="checkbox" /> <span><b>제공 정보(필수 수집) 최소화</b> — 특별한 사유가 없으면 <b>이메일·별명·프로필 사진</b>만 필수 체크. 휴대전화번호 등 과한 항목은 사용 목적 소명이 필요하며 <b>거절 사유 1순위</b></span></li>
+                <li><input type="checkbox" /> <span><b>회원가입 프로세스 화면 캡처</b> 업로드</span></li>
+                <li><input type="checkbox" /> <span>네이버 로그인이 가능한 <b>테스트 아이디</b> 등록</span></li>
+              </ul>
+              <b>신청 위치</b> — 네이버 개발자센터 → [Application] → [내 애플리케이션] → 해당 앱 → <b>개발 상태</b> 항목의 <code>검수 요청</code> 버튼.
+              <br /><b>실무 팁</b> — ① 검수 전에도 <b>멤버(매니저)·테스트 계정을 추가</b>하면 그 계정들은 바로 로그인 테스트가 됩니다(팀 내부 확인용). ② 심사에 <b>영업일이 소요</b>되니 정식 오픈 일정에 여유를 두세요.
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="card" id="env">
+        <h2><span class="badge">③</span> 환경변수 채우기 (<code>.env.local</code>)</h2>
+        <p>위에서 발급받은 값을 <code>.env.local</code>에 채웁니다. (템플릿: <code>.env.local.example</code>)</p>
+        <table>
+          <thead><tr><th>변수</th><th>값 출처</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>APP_URL</code></td><td>직접 지정</td><td>로컬 <code>http://localhost:3000</code>. <b>끝에 슬래시(/) 금지</b></td></tr>
+            <tr><td><code>KAKAO_REST_API_KEY</code></td><td>카카오 [앱 키]</td><td>필수</td></tr>
+            <tr><td><code>KAKAO_CLIENT_SECRET</code></td><td>카카오 [앱 키] → REST API 키 → 클라이언트 시크릿</td><td>Client Secret 활성화 시 필수</td></tr>
+            <tr><td><code>KAKAO_SCOPE</code></td><td>직접 지정</td><td>비우면 <code>profile_nickname</code>. 이메일은 비즈앱+<code>"profile_nickname,account_email"</code></td></tr>
+            <tr><td><code>NAVER_CLIENT_ID</code></td><td>네이버 [개요]</td><td>필수</td></tr>
+            <tr><td><code>NAVER_CLIENT_SECRET</code></td><td>네이버 [개요]</td><td>필수</td></tr>
+            <tr><td><code>DATABASE_URL</code></td><td><code>supabase status</code>의 DB URL</td><td>세션 저장 → <b>실 DB 필수</b>(mock 모드 불가)</td></tr>
+          </tbody>
+        </table>
+        <pre><code># .env.local 예시 (값은 본인 것으로 교체)
+APP_URL=http://localhost:3000
+KAKAO_REST_API_KEY=xxxxxxxxxxxxxxxx
+KAKAO_CLIENT_SECRET=xxxxxxxxxxxxxxxx
+KAKAO_SCOPE=
+NAVER_CLIENT_ID=xxxxxxxxxx
+NAVER_CLIENT_SECRET=xxxxxxxxxx
+# DATABASE_URL: supabase status 의 "DB URL" 을 그대로 사용 (로컬 기본 포트 54322)
+DATABASE_URL=</code></pre>
+        <div class="callout danger">
+          <b>보안 — 비밀키 취급</b>
+          <code>KAKAO_CLIENT_SECRET</code>·<code>NAVER_CLIENT_SECRET</code>·<code>DATABASE_URL</code>은
+          <b>절대 git에 커밋하거나 클라이언트에 노출하지 마세요</b>. <code>.env.local</code>은 <code>.gitignore</code> 대상입니다.
+        </div>
+      </section>
+
+      <section class="card" id="uri">
+        <h2><span class="badge">④</span> Redirect / Callback URI 레퍼런스</h2>
+        <p>콘솔에 등록하는 URI는 코드의 콜백 경로와 <b>한 글자도 다르면 안 됩니다</b>(가장 흔한 실패 원인).</p>
+        <table>
+          <thead><tr><th>제공자</th><th>로컬</th><th>운영</th></tr></thead>
+          <tbody>
+            <tr><td>카카오</td><td><code>http://localhost:3000/api/auth/kakao/callback</code></td><td><code>https://{도메인}/api/auth/kakao/callback</code></td></tr>
+            <tr><td>네이버</td><td><code>http://localhost:3000/api/auth/naver/callback</code></td><td><code>https://{도메인}/api/auth/naver/callback</code></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <b>자주 틀리는 부분</b>
+          ① <code>http</code> vs <code>https</code> 혼동, ② <code>APP_URL</code> 끝 슬래시(→ <code>//api</code>),
+          ③ 포트 누락, ④ 로컬·운영 URI를 둘 다 등록 안 함. 콘솔 등록값과 <code>APP_URL</code> 기준 생성값이 정확히 같아야 합니다.
+        </div>
+      </section>
+
+      <section class="card" id="local">
+        <h2><span class="badge">⑤</span> 로컬 테스트</h2>
+        <p>세션이 DB에 저장되므로 <b>실 DB가 필요</b>합니다(<code>npm run dev</code> mock 모드로는 로그인 불가).</p>
+        <pre><code>npm run services:up      # supabase + docker(MinIO) 기동
+npm run db:reset         # 마이그레이션 적용(init_catalog, init_account)
+npm run db:generate      # Prisma 클라이언트 생성
+# .env.local에 DATABASE_URL + 카카오/네이버 키 채우기 (위 ③)
+npm run dev:all          # USE_MOCK_DATA=false 로 개발 서버</code></pre>
+        <ul class="check">
+          <li><input type="checkbox" /> <span><code>http://localhost:3000/login</code> 접속 → 카카오/네이버 버튼이 보인다</span></li>
+          <li><input type="checkbox" /> <span>카카오 버튼 → 카카오 동의 화면 → 승인 → <code>/</code>로 돌아오고 로그인됨</span></li>
+          <li><input type="checkbox" /> <span>네이버 버튼 → (등록 개발자 계정으로) 동의 → 로그인됨</span></li>
+          <li><input type="checkbox" /> <span>DB <code>account</code>·<code>account_identity</code>·<code>account_session</code>에 행이 생긴다 (<code>npm run db:studio</code>로 확인)</span></li>
+        </ul>
+        <div class="callout ok">
+          <b>PKCE 라이브 확인(카카오)</b>
+          현재 카카오에 PKCE(<code>code_challenge</code>)를 함께 보냅니다(보안 강화). 첫 로그인이 정상 동작하면 그대로 두면 되고,
+          혹시 카카오가 거부하면 <code>modules/auth/lib/oauth/kakao.ts</code>의 <code>usesPkce: true → false</code> 한 줄만 바꾸면 됩니다.
+        </div>
+      </section>
+
+      <section class="card" id="prod">
+        <h2><span class="badge">⑥</span> 운영(배포) 체크리스트</h2>
+        <ul class="check">
+          <li><input type="checkbox" /> <span><code>APP_URL</code>을 운영 도메인(<b>https</b>)으로 설정</span></li>
+          <li><input type="checkbox" /> <span>카카오·네이버 콘솔에 <b>운영 Redirect/Callback URI</b> 등록</span></li>
+          <li><input type="checkbox" /> <span>네이버 <b>검수 통과</b>(일반 사용자 로그인 가능 상태)</span></li>
+          <li><input type="checkbox" /> <span>이메일이 필요하면 카카오 <b>비즈 앱 전환</b> + <code>KAKAO_SCOPE</code>에 <code>account_email</code> 추가</span></li>
+          <li><input type="checkbox" /> <span>운영 <code>DATABASE_URL</code>은 <b>커넥션 풀러</b>(Supavisor 등) 경유로 설정(서버리스)</span></li>
+          <li><input type="checkbox" /> <span>비밀키는 배포 플랫폼의 <b>환경변수/시크릿</b>으로 주입(코드·git 금지)</span></li>
+          <li><input type="checkbox" /> <span>로그인 버튼은 정식 배포 전 <b>카카오·네이버 공식 버튼 가이드</b> 준수</span></li>
+        </ul>
+      </section>
+
+      <section class="card" id="trouble">
+        <h2><span class="badge">⑦</span> 문제 해결</h2>
+
+        <h3>로그인 페이지에 뜨는 에러 코드 (<code>/login?error=…</code>)</h3>
+        <table>
+          <thead><tr><th>코드</th><th>의미</th><th>주요 원인 / 조치</th></tr></thead>
+          <tbody>
+            <tr><td><code>provider_unavailable</code></td><td>제공자 비활성</td><td>해당 제공자 env 키 미설정 → <code>.env.local</code> 확인</td></tr>
+            <tr><td><code>state_mismatch</code></td><td>CSRF 검증 실패</td><td>쿠키 차단/삭제, 10분 초과 방치, 다른 브라우저로 콜백 등. 다시 시도</td></tr>
+            <tr><td><code>denied</code></td><td>사용자 동의 거부</td><td>사용자가 동의 화면에서 취소</td></tr>
+            <tr><td><code>invalid_request</code></td><td>code/state 누락</td><td>콜백 URL 직접 접근 등 비정상 요청</td></tr>
+            <tr><td><code>oauth_failed</code></td><td>교환·프로필·DB 오류</td><td>redirect_uri 불일치, client_secret 누락/오타, DB 미연결 등. 서버 로그(<code>[oauth callback]</code>) 확인</td></tr>
+          </tbody>
+        </table>
+
+        <h3>증상별 원인</h3>
+        <table>
+          <thead><tr><th>증상</th><th>원인 / 조치</th></tr></thead>
+          <tbody>
+            <tr><td>카카오 <code>KOE006</code> / redirect_uri 오류</td><td>콘솔 Redirect URI 미등록 또는 불일치. <code>APP_URL</code> 끝 슬래시·http/https 확인</td></tr>
+            <tr><td>로그인은 되는데 <b>닉네임·이메일이 비어 있음</b></td><td>동의항목 미설정 / scope 미포함. 이메일은 카카오 비즈 앱 필요</td></tr>
+            <tr><td>네이버 "다른 사용자 로그인 불가"</td><td>검수 전 상태 — 등록 개발자 계정만 가능. 검수 요청 필요</td></tr>
+            <tr><td><code>oauth_failed</code>이 계속 남</td><td>대개 redirect_uri 불일치 또는 client_secret. 서버 콘솔 로그의 OAuthError 메시지 확인</td></tr>
+            <tr><td>로컬에서 세션이 안 생김</td><td>mock 모드(<code>npm run dev</code>)로 실행 중. <code>npm run dev:all</code> + <code>DATABASE_URL</code> 필요</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="design">
+        <h2><span class="badge">⑧</span> 설계 · 아키텍처</h2>
+        <p>
+          <b>자체 인증</b>(Supabase Auth 미사용) + <b>DB 세션</b> 방식입니다. 제공자에서 받은 신원으로
+          <code>account</code>·<code>account_identity</code>를 만들거나 연결하고,
+          <code>account_session</code>(해시 토큰)으로 세션을 발급해 httpOnly 쿠키로 로그인 상태를 유지합니다.
+        </p>
+        <div class="callout">
+          <b>설계 배경</b>
+          초기엔 Supabase Auth(<code>auth.users</code>) 기반을 검토했으나, "어떤 Postgres에서도 동작하는
+          자체 인증(DB 세션)"으로 방향을 바꿨습니다. 그래서 <code>auth.users</code>에 의존하지 않고 앱이
+          직접 <code>account</code> 테이블과 세션을 소유합니다.
+        </div>
+
+        <h3>로그인 한 사이클</h3>
+        <ol class="steps">
+          <li><b>시작</b> — <code>/login</code> 버튼 → <code>GET /api/auth/{provider}</code>(우리 서버). state(CSRF)와 PKCE(카카오) 값을 쿠키에 심고 제공자 인증 페이지로 302.</li>
+          <li><b>동의</b> — 제공자 화면에서 사용자가 승인.</li>
+          <li><b>콜백</b> — 제공자가 <code>?code&amp;state</code>로 <code>GET /api/auth/{provider}/callback</code>(Node)로 리다이렉트. state 검증 → code를 토큰으로 교환 → 프로필 조회 → <code>account</code> 찾기/생성 + <code>account_identity</code> 연결 → <code>account_session</code> 발급(해시 저장) → 세션 쿠키 설정 → <code>/</code>로 302.</li>
+          <li><b>이후 요청</b> — DAL이 쿠키의 토큰 해시로 <code>account_session</code> 행을 조회해 로그인 상태를 확인(요청당 1회 캐시).</li>
+        </ol>
+
+        <h3>코드 구조</h3>
+        <table>
+          <thead><tr><th>파일</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>modules/auth/lib/session.ts</code></td><td>토큰 생성·SHA-256 해시·세션 CRUD(고정 30일 만료)</td></tr>
+            <tr><td><code>modules/auth/lib/cookies.ts</code></td><td>세션 쿠키(httpOnly·Secure·SameSite=Lax)</td></tr>
+            <tr><td><code>modules/auth/lib/oauth/*</code></td><td>OAuth 클라이언트(kakao·naver)·state/PKCE·프로필 정규화·dispatch</td></tr>
+            <tr><td><code>modules/auth/lib/account.ts</code></td><td>제공자 신원으로 account find-or-create(트랜잭션)</td></tr>
+            <tr><td><code>modules/auth/dal.ts</code></td><td><code>getSession</code>·<code>getCurrentAccount</code>(세션 검증, 요청당 1회 캐시)</td></tr>
+            <tr><td><code>modules/auth/actions.ts</code></td><td><code>logout</code> Server Action</td></tr>
+            <tr><td><code>modules/auth/components/</code></td><td><code>AccountNav</code>(헤더 로그인/계정 영역), <code>LogoutButton</code></td></tr>
+            <tr><td><code>app/api/auth/[provider]/route.ts</code></td><td>OAuth 시작</td></tr>
+            <tr><td><code>app/api/auth/[provider]/callback/route.ts</code></td><td>OAuth 콜백(Node 런타임)</td></tr>
+            <tr><td><code>app/(auth)/login/page.tsx</code></td><td>로그인 화면</td></tr>
+            <tr><td><code>prisma/schema.prisma</code></td><td>Account / AccountIdentity / AccountSession 모델</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          DB 스키마(테이블·RLS) 단일 진실은 <code>supabase/migrations/</code>의 <code>init_account</code> 마이그레이션입니다.
+          단위 테스트는 <code>tests/modules/auth/</code>(토큰 해시·PKCE RFC 벡터·프로필 정규화).
+        </p>
+      </section>
+
+      <section class="card" id="security">
+        <h2><span class="badge">⑨</span> 적용된 보안</h2>
+        <table>
+          <thead><tr><th>보안 조치</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><b>state (CSRF)</b></td><td>시작 시 쿠키로 심고 콜백에서 일치 검증(불일치 거부, 단일 사용)</td></tr>
+            <tr><td><b>PKCE S256</b>(카카오)</td><td>code 가로채기 방어. 네이버는 미지원이라 state로 방어</td></tr>
+            <tr><td><b>서버측 code 교환</b></td><td>client_secret은 서버에서만 사용 — 브라우저 노출 없음</td></tr>
+            <tr><td><b>세션 토큰 해시 저장</b></td><td>원본 토큰은 httpOnly 쿠키, DB엔 SHA-256만 → DB 유출 시 토큰 복원 불가</td></tr>
+            <tr><td><b>쿠키 플래그</b></td><td>httpOnly · Secure(운영) · SameSite=Lax</td></tr>
+            <tr><td><b>즉시 폐기</b></td><td>로그아웃 = <code>account_session</code> 행 DELETE(전 기기 로그아웃도 지원)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="todo">
+        <h2><span class="badge">⑩</span> 한계 · 후속 작업 (TODO)</h2>
+        <p>현재는 <b>소셜 로그인 + 세션</b>까지 구현돼 있습니다. 아래는 미구현(후속) 항목입니다.</p>
+        <ol class="steps">
+          <li><b>전화 인증 온보딩</b> — 전화번호가 가입 필수. OAuth 직후 <code>phone_number_verified_at = NULL</code>(미완료) 상태이며, 콜백 TODO 지점에서 <code>/onboarding/phone</code>로 유도해야 함. SMS 게이트웨이(솔라피/알리고)+발신번호 사전등록(영업일 소요)이 외부 선결과제.</li>
+          <li><b>계정 연결/병합</b> — 현재 신원당 1계정. 같은 사람이 카카오·네이버로 각각 로그인하면 계정이 2개가 됨. 이메일/전화 기반 병합은 후속.</li>
+          <li><b>동의(consent) 수집</b> — 가입 시 약관·개인정보·만14세 필수 동의 + 마케팅 선택 동의 저장소 추가.</li>
+          <li><b>Proxy 전환</b> — <code>middleware.ts</code>(Edge)를 <code>proxy.ts</code>(Node)로 옮기고 보호 경로 사전 체크 추가. 현재 admin 게이트는 임시 Basic Auth.</li>
+          <li><b>app 롤 전환</b> — DB 접속을 <code>postgres</code>→<code>app</code>으로 바꿔 RLS 활성화(현재는 정의만 돼 있고 우회 중).</li>
+          <li><b>브랜드 자산</b> — 로그인 버튼을 카카오·네이버 공식 버튼 가이드에 맞춰 정식화.</li>
+          <li><b>레이트리밋·남용 방어</b> — 로그인/콜백 rate limit.</li>
+        </ol>
+      </section>
+
+      <footer>
+        oshikore-web · 카카오·네이버 소셜 로그인(자체 인증, DB 세션) · 이 문서가 설정·설계 정본입니다.
+      </footer>
+    </div>
+  </body>
+</html>

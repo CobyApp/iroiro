@@ -1,0 +1,15 @@
+<!-- Storybook에서는 next/font가 동작하지 않으므로 Google Fonts를 직접 로드하고
+     globals.css가 참조하는 폰트 CSS 변수를 실제 패밀리명으로 채운다. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Jua&family=Mochiy+Pop+One&family=Mochiy+Pop+P+One&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --font-jua: "Jua";
+    --font-mochiy: "Mochiy Pop One";
+    --font-mochiy-p: "Mochiy Pop P One";
+  }
+</style>

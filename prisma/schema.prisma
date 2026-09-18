@@ -1,0 +1,979 @@
+// Prisma schema — Supabase migrations(supabase/migrations/)가 단일 진실 소스.
+// `npm run db:pull`로 introspect 후 수동으로 camelCase 매핑 유지.
+// Prisma는 @map/@@map을 db pull에서도 보존한다.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider     = "postgresql"
+  relationMode = "prisma"
+}
+
+model Team {
+  id          BigInt       @id @default(autoincrement())
+  name        String
+  nameI18n    Json?        @map("name_i18n")
+  debutDate   DateTime?    @map("debut_date") @db.Date
+  disbandDate DateTime?    @map("disband_date") @db.Date
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String?      @map("created_by")
+  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?      @map("updated_by")
+  memberships TeamMember[]
+
+  @@index([name])
+  @@index([createdAt], map: "team_created_at_idx")
+  @@index([updatedAt], map: "team_updated_at_idx")
+  @@map("team")
+}
+
+model Member {
+  id          BigInt       @id @default(autoincrement())
+  name        String
+  nameI18n    Json?        @map("name_i18n")
+  debutDate   DateTime?    @map("debut_date") @db.Date
+  retireDate  DateTime?    @map("retire_date") @db.Date
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String?      @map("created_by")
+  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?      @map("updated_by")
+  memberships TeamMember[]
+
+  @@index([name])
+  @@index([createdAt], map: "member_created_at_idx")
+  @@index([updatedAt], map: "member_updated_at_idx")
+  @@map("member")
+}
+
+model TeamMember {
+  id              BigInt    @id @default(autoincrement())
+  teamId          BigInt    @map("team_id")
+  memberId        BigInt    @map("member_id")
+  activeStartDate DateTime  @map("active_start_date") @db.Date
+  activeEndDate   DateTime? @map("active_end_date") @db.Date
+  role            String?
+  displayOrder    Int?      @map("display_order")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       String?   @map("created_by")
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy       String?   @map("updated_by")
+  team            Team      @relation(fields: [teamId], references: [id])
+  member          Member    @relation(fields: [memberId], references: [id])
+
+  @@unique([memberId, teamId], map: "team_member_active_member_team_unique", where: raw("(active_end_date IS NULL)"))
+  @@index([teamId, memberId], map: "team_member_active_idx", where: raw("(active_end_date IS NULL)"))
+  @@index([teamId, displayOrder], map: "team_member_team_order_idx")
+  @@index([createdAt], map: "team_member_created_at_idx")
+  @@index([updatedAt], map: "team_member_updated_at_idx")
+  @@map("team_member")
+}
+
+model Product {
+  id                   BigInt   @id @default(autoincrement())
+  itemCode             String?  @map("item_code")
+  sourceId             String?  @map("source_id")
+  itemType             String   @map("item_type")
+  teamId               BigInt?  @map("team_id")
+  memberId             BigInt?  @map("member_id")
+  name                 String
+  description          String?
+  purchasePriceJpy     Int      @map("purchase_price_jpy")
+  purchaseExchangeRate Decimal  @map("purchase_exchange_rate") @db.Decimal(8, 4)
+  purchasePriceKrw     Int      @map("purchase_price_krw")
+  packagingCostKrw     Int      @default(0) @map("packaging_cost_krw")
+  overseasShippingKrw  Int      @default(0) @map("overseas_shipping_krw")
+  domesticShippingKrw  Int      @default(0) @map("domestic_shipping_krw")
+  otherCostKrw         Int      @default(0) @map("other_cost_krw")
+  purchaser            String?  @map("purchaser")
+  purchaseDate         DateTime @map("purchase_date") @db.Date
+  regularPrice         Int      @map("regular_price")
+  salePrice            Int      @map("sale_price")
+  condition            String?
+  stockQuantity        Int      @default(0) @map("stock_quantity")
+  saleStatus           String   @map("sale_status")
+  // ── 카탈로그 계층·외부 시세 (임포트 시 스냅샷) ──
+  seriesId             BigInt?  @map("series_id")
+  marketAvgJpy         Int      @default(0) @map("market_avg_jpy")
+  marketMinJpy         Int      @default(0) @map("market_min_jpy")
+  marketMaxJpy         Int      @default(0) @map("market_max_jpy")
+  marketSoldCount      Int      @default(0) @map("market_sold_count")
+  retailPriceJpy       Int      @default(0) @map("retail_price_jpy")
+  // ── 입찰 경매 (sale_mode='auction'일 때만 의미) ──
+  saleMode               String    @default("fixed") @map("sale_mode")
+  auctionStartPrice      Int?      @map("auction_start_price")
+  auctionCurrentPrice    Int?      @map("auction_current_price")
+  auctionBidCount        Int       @default(0) @map("auction_bid_count")
+  auctionEndsAt          DateTime? @map("auction_ends_at") @db.Timestamptz(6)
+  auctionStatus          String?   @map("auction_status")
+  auctionWinnerAccountId String?   @map("auction_winner_account_id") @db.Uuid
+  auctionPayDueAt        DateTime? @map("auction_pay_due_at") @db.Timestamptz(6)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy            String?  @map("created_by")
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy            String?  @map("updated_by")
+
+  @@index([itemCode, itemType, condition], map: "product_item_code_idx", where: raw("(item_code IS NOT NULL)"))
+  @@index([sourceId], map: "product_source_id_idx", where: raw("(source_id IS NOT NULL)"))
+  @@index([saleStatus, createdAt], map: "product_sale_status_created_at_idx")
+  @@index([saleStatus, itemType], map: "product_sale_status_item_type_idx")
+  @@index([saleStatus, memberId], map: "product_sale_status_member_idx")
+  @@index([saleStatus, teamId], map: "product_sale_status_team_idx")
+  @@index([createdAt], map: "product_created_at_idx")
+  @@index([updatedAt], map: "product_updated_at_idx")
+  @@index([salePrice], map: "product_sale_price_idx")
+  @@index([seriesId], map: "product_series_idx")
+  @@map("product")
+}
+
+// 인앱 알림 — 입찰·주문/배송 이벤트. FK 없음(data-modeling.md 정책).
+model Notification {
+  id        BigInt    @id @default(autoincrement())
+  accountId String    @map("account_id") @db.Uuid
+  type      String
+  title     String
+  body      String?
+  linkPath  String?   @map("link_path")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId, createdAt(sort: Desc)], map: "notification_account_idx")
+  @@map("notification")
+}
+
+// 1:1 쪽지 스레드 — pair당 1개. a_account_id < b_account_id로 정규화. FK 없음(정책).
+model MessageThread {
+  id            BigInt    @id @default(autoincrement())
+  aAccountId    String    @map("a_account_id") @db.Uuid
+  bAccountId    String    @map("b_account_id") @db.Uuid
+  aLastReadAt   DateTime? @map("a_last_read_at") @db.Timestamptz(6)
+  bLastReadAt   DateTime? @map("b_last_read_at") @db.Timestamptz(6)
+  lastMessageAt DateTime  @default(now()) @map("last_message_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([aAccountId, bAccountId], map: "message_thread_pair_unique")
+  @@index([aAccountId, lastMessageAt(sort: Desc)], map: "message_thread_a_idx")
+  @@index([bAccountId, lastMessageAt(sort: Desc)], map: "message_thread_b_idx")
+  @@map("message_thread")
+}
+
+// 쪽지 메시지 — append-only. FK 없음(정책).
+model Message {
+  id              BigInt   @id @default(autoincrement())
+  threadId        BigInt   @map("thread_id")
+  senderAccountId String   @map("sender_account_id") @db.Uuid
+  body            String
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([threadId, createdAt], map: "message_thread_created_idx")
+  @@index([senderAccountId, createdAt], map: "message_sender_created_idx")
+  @@map("message")
+}
+
+// 포인트 원장 — append-only, 잔액 = SUM(amount). FK 없음(정책).
+model PointTransaction {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  amount    Int
+  reason    String
+  orderId   BigInt?  @map("order_id")
+  /** 리뷰 적립의 대상 상품 — reason='review'일 때만 사용. */
+  productId BigInt?  @map("product_id")
+  memo      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId, createdAt(sort: Desc)], map: "point_tx_account_idx")
+  @@map("point_transaction")
+}
+
+// 계정 보유 쿠폰 — v1은 무료배송(free_shipping)만. FK 없음(정책).
+model AccountCoupon {
+  id           BigInt    @id @default(autoincrement())
+  accountId    String    @map("account_id") @db.Uuid
+  kind         String
+  issuedReason String    @map("issued_reason")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  usedAt       DateTime? @map("used_at") @db.Timestamptz(6)
+  usedOrderId  BigInt?   @map("used_order_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId, usedAt, kind], map: "account_coupon_account_idx")
+  @@map("account_coupon")
+}
+
+// 도착 인증 리뷰 — 배송된 주문의 구매자만, 주문·상품·계정 조합당 1건. FK 없음(정책).
+model ProductReview {
+  id        BigInt   @id @default(autoincrement())
+  productId BigInt   @map("product_id")
+  orderId   BigInt   @map("order_id")
+  accountId String   @map("account_id") @db.Uuid
+  rating    Int      @db.SmallInt
+  body      String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([orderId, productId, accountId], map: "product_review_once_per_order")
+  @@index([productId, createdAt(sort: Desc)], map: "product_review_product_idx")
+  @@index([accountId], map: "product_review_account_idx")
+  @@map("product_review")
+}
+
+// 친구 초대 — 초대 코드는 account.public_code 재사용, 피초대자당 1건. FK 없음(정책).
+model Referral {
+  id               BigInt   @id @default(autoincrement())
+  inviterAccountId String   @map("inviter_account_id") @db.Uuid
+  inviteeAccountId String   @unique(map: "referral_invitee_once") @map("invitee_account_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([inviterAccountId, createdAt(sort: Desc)], map: "referral_inviter_idx")
+  @@map("referral")
+}
+
+// 최애 그룹·멤버 — 가입/회원정보 복수 선택, 홈 추천용. FK 없음(정책).
+model AccountFavorite {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  kind      String
+  targetId  BigInt   @map("target_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([accountId, kind, targetId], map: "account_favorite_uq")
+  @@index([accountId], map: "account_favorite_account_idx")
+  @@map("account_favorite")
+}
+
+// 웹 푸시 구독(기기별) — endpoint 고유. FK 없음(data-modeling.md 정책).
+model PushSubscription {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  endpoint  String   @unique(map: "push_subscription_endpoint_uq")
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId], map: "push_subscription_account_idx")
+  @@map("push_subscription")
+}
+
+// 경매 입찰 원장 — 취소 불가(append-only). FK 없음(data-modeling.md 정책).
+model AuctionBid {
+  id        BigInt   @id @default(autoincrement())
+  productId BigInt   @map("product_id")
+  accountId String   @map("account_id") @db.Uuid
+  amount    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([productId, amount(sort: Desc), id], map: "auction_bid_product_idx")
+  @@index([accountId, createdAt(sort: Desc)], map: "auction_bid_account_idx")
+  @@map("auction_bid")
+}
+
+model ProductPhoto {
+  id           BigInt   @id @default(autoincrement())
+  productId    BigInt   @map("product_id")
+  r2Key        String   @map("r2_key")
+  altText      String?  @map("alt_text")
+  displayOrder Int      @default(0) @map("display_order")
+  isThumbnail  Boolean  @default(false) @map("is_thumbnail")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by")
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy    String?  @map("updated_by")
+
+  @@unique([productId], map: "product_photo_one_thumbnail_unique", where: raw("(is_thumbnail = true)"))
+  @@index([productId, displayOrder], map: "product_photo_product_idx")
+  @@index([createdAt], map: "product_photo_created_at_idx")
+  @@index([updatedAt], map: "product_photo_updated_at_idx")
+  @@map("product_photo")
+}
+
+// ── 회원·자체 인증 (init_account 마이그레이션이 단일 진실) ─────────────────────
+model Account {
+  id                    String            @id @db.Uuid // 앱 생성 UUIDv7 (DB default 없음)
+  email                 String?
+  emailVerifiedAt       DateTime?         @map("email_verified_at") @db.Timestamptz(6)
+  phoneNumber           String?           @map("phone_number")
+  phoneNumberVerifiedAt DateTime?         @map("phone_number_verified_at") @db.Timestamptz(6)
+  displayName           String            @map("display_name")
+  publicCode            String            @map("public_code") // 공개 작성자 코드 (Base58 8자)
+  avatarKey             String?           @map("avatar_key")
+  deletedAt             DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  isAdmin               Boolean           @default(false) @map("is_admin")
+  boardRole             String            @default("member") @map("board_role")
+  postingBannedAt       DateTime?         @map("posting_banned_at") @db.Timestamptz(6)
+  postingBanReason      String?           @map("posting_ban_reason")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  identities            AccountIdentity[]
+  sessions              AccountSession[]
+
+  @@unique([phoneNumber], map: "account_phone_number_verified_uq", where: raw("(phone_number_verified_at IS NOT NULL)"))
+  @@unique([publicCode], map: "account_public_code_unique")
+  @@index([email], map: "account_email_idx", where: raw("(email IS NOT NULL)"))
+  @@index([createdAt], map: "account_created_at_idx")
+  @@index([updatedAt], map: "account_updated_at_idx")
+  @@map("account")
+}
+
+model AccountIdentity {
+  id             BigInt   @id @default(autoincrement())
+  accountId      String   @map("account_id") @db.Uuid
+  provider       String // 'kakao' | 'naver'
+  providerUserId String   @map("provider_user_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  account        Account  @relation(fields: [accountId], references: [id])
+
+  @@unique([provider, providerUserId], map: "account_identity_provider_uq")
+  @@index([accountId], map: "account_identity_account_idx")
+  @@index([createdAt], map: "account_identity_created_at_idx")
+  @@map("account_identity")
+}
+
+model AccountSession {
+  tokenHash String   @id @map("token_hash") // 세션 토큰의 SHA-256 해시
+  accountId String   @map("account_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  account   Account  @relation(fields: [accountId], references: [id])
+
+  @@index([accountId], map: "account_session_account_idx")
+  @@index([expiresAt], map: "account_session_expires_idx")
+  @@index([createdAt], map: "account_session_created_at_idx")
+  @@map("account_session")
+}
+
+model PendingAccount {
+  tokenHash      String   @id @map("token_hash") // 가입 토큰 해시
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  email          String?
+  displayName    String?  @map("display_name")
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([expiresAt], map: "pending_account_expires_idx")
+  @@index([createdAt], map: "pending_account_created_at_idx")
+  @@map("pending_account")
+}
+
+// ── 공지사항 (init_notice 마이그레이션이 단일 진실) ──
+model Notice {
+  id         BigInt        @id @default(autoincrement())
+  publicCode String        @map("public_code")
+  category   String        @default("general") // 'general' | 'event' — 앱 zod 검증
+  title      String
+  body       String
+  isPinned   Boolean       @default(false) @map("is_pinned")
+  deletedAt  DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String?       @map("created_by")
+  updatedAt  DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?       @map("updated_by")
+  photos     NoticePhoto[]
+
+  @@unique([publicCode], map: "notice_public_code_unique")
+  @@index([createdAt], map: "notice_created_at_idx")
+  @@index([updatedAt], map: "notice_updated_at_idx")
+  @@map("notice")
+}
+
+model NoticePhoto {
+  id           BigInt   @id @default(autoincrement())
+  noticeId     BigInt   @map("notice_id")
+  r2Key        String   @map("r2_key")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  notice       Notice   @relation(fields: [noticeId], references: [id])
+
+  @@unique([r2Key], map: "notice_photo_r2_key_unique")
+  @@index([noticeId, displayOrder], map: "notice_photo_notice_id_idx")
+  @@index([createdAt], map: "notice_photo_created_at_idx")
+  @@map("notice_photo")
+}
+
+// ── 자유게시판 (init_post 마이그레이션이 단일 진실) ──
+model Post {
+  id           BigInt         @id @default(autoincrement())
+  accountId    String         @map("account_id") @db.Uuid
+  publicCode   String         @map("public_code")
+  topic        String
+  title        String
+  body         String
+  teamId       BigInt?        @map("team_id")
+  memberId     BigInt?        @map("member_id")
+  cardId       BigInt?        @map("card_id")
+  linkUrl      String?        @map("link_url")
+  linkLabel    String?        @map("link_label")
+  eventStartsAt DateTime?     @map("event_starts_at") @db.Timestamptz(6)
+  eventEndsAt  DateTime?      @map("event_ends_at") @db.Timestamptz(6)
+  eventPlace   String?        @map("event_place")
+  editedAt     DateTime?      @map("edited_at") @db.Timestamptz(6)
+  hiddenAt     DateTime?      @map("hidden_at") @db.Timestamptz(6)
+  hiddenReason String?        @map("hidden_reason")
+  hiddenBy     String?        @map("hidden_by")
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  comments     PostComment[]
+  photos       PostPhoto[]
+
+  @@unique([publicCode], map: "post_public_code_unique")
+  @@index([accountId, createdAt], map: "post_account_created_at_idx")
+  @@index([createdAt], map: "post_created_at_idx")
+  @@index([updatedAt], map: "post_updated_at_idx")
+  @@index([eventStartsAt], map: "post_event_starts_at_idx")
+  @@index([teamId], map: "post_team_idx")
+  @@index([memberId], map: "post_member_idx")
+  @@index([cardId], map: "post_card_idx")
+  @@map("post")
+}
+
+model PostComment {
+  id           BigInt    @id @default(autoincrement())
+  postId       BigInt    @map("post_id")
+  accountId    String    @map("account_id") @db.Uuid
+  parentId     BigInt?   @map("parent_id")
+  body         String
+  hiddenAt     DateTime? @map("hidden_at") @db.Timestamptz(6)
+  hiddenReason String?   @map("hidden_reason")
+  hiddenBy     String?   @map("hidden_by")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  editedAt     DateTime? @map("edited_at") @db.Timestamptz(6) // 본문 편집 시각 (수정됨 표시 전용)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  post         Post      @relation(fields: [postId], references: [id])
+
+  @@index([postId], map: "post_comment_post_idx")
+  @@index([parentId], map: "post_comment_parent_idx")
+  @@index([accountId, createdAt], map: "post_comment_account_created_at_idx")
+  @@index([createdAt], map: "post_comment_created_at_idx")
+  @@index([updatedAt], map: "post_comment_updated_at_idx")
+  @@map("post_comment")
+}
+
+model PostReport {
+  id                BigInt    @id @default(autoincrement())
+  postId            BigInt    @map("post_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([postId, reporterAccountId], map: "post_report_post_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "post_report_reporter_created_at_idx")
+  @@index([createdAt], map: "post_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([createdAt], map: "post_report_created_at_idx")
+  @@index([updatedAt], map: "post_report_updated_at_idx")
+  @@map("post_report")
+}
+
+model PostCommentReport {
+  id                BigInt    @id @default(autoincrement())
+  commentId         BigInt    @map("comment_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([commentId, reporterAccountId], map: "post_comment_report_comment_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "post_comment_report_reporter_created_at_idx")
+  @@index([createdAt], map: "post_comment_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([createdAt], map: "post_comment_report_created_at_idx")
+  @@index([updatedAt], map: "post_comment_report_updated_at_idx")
+  @@map("post_comment_report")
+}
+
+model PostPhoto {
+  id           BigInt    @id @default(autoincrement())
+  postId       BigInt    @map("post_id")
+  r2Key        String    @map("r2_key")
+  displayOrder Int       @default(0) @map("display_order")
+  isThumbnail  Boolean   @default(false) @map("is_thumbnail")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  post         Post      @relation(fields: [postId], references: [id])
+
+  @@unique([r2Key], map: "post_photo_r2_key_unique")
+  @@unique([postId], map: "post_photo_one_thumbnail_unique", where: raw("(is_thumbnail = true AND deleted_at IS NULL)"))
+  @@index([postId, displayOrder], map: "post_photo_post_idx")
+  @@index([createdAt], map: "post_photo_created_at_idx")
+  @@index([updatedAt], map: "post_photo_updated_at_idx")
+  @@map("post_photo")
+}
+
+model PendingPostPhoto {
+  id          BigInt    @id @default(autoincrement())
+  accountId   String    @map("account_id") @db.Uuid
+  r2Key       String    @map("r2_key")
+  contentType String    @map("content_type")
+  sizeBytes   Int       @map("size_bytes")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([r2Key], map: "pending_post_photo_r2_key_unique")
+  @@index([accountId, createdAt], map: "pending_post_photo_account_created_at_idx")
+  @@index([expiresAt], map: "pending_post_photo_expires_at_idx")
+  @@index([createdAt], map: "pending_post_photo_created_at_idx")
+  @@index([updatedAt], map: "pending_post_photo_updated_at_idx")
+  @@map("pending_post_photo")
+}
+
+// ── 장바구니·주문·결제(mock) (init_order 마이그레이션이 단일 진실) ───────────────
+// 주문 도메인 내부만 관계 선언. account_id/product_id는 bare 스칼라(교차 도메인,
+// product_photo 선례) + 자식 테이블에 account_id 비정규화로 owner-RLS 단순화.
+model CartItem {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  productId BigInt   @map("product_id")
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([accountId, productId], map: "cart_item_account_product_unique")
+  @@index([productId], map: "cart_item_product_idx")
+  @@index([createdAt], map: "cart_item_created_at_idx")
+  @@index([updatedAt], map: "cart_item_updated_at_idx")
+  @@map("cart_item")
+}
+
+model Wishlist {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  productId BigInt   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([accountId, productId], map: "wishlist_account_product_unique")
+  @@index([productId], map: "wishlist_product_idx")
+  @@index([accountId, createdAt], map: "wishlist_account_created_idx")
+  @@map("wishlist")
+}
+
+model AccountAddress {
+  id             BigInt   @id @default(autoincrement())
+  accountId      String   @map("account_id") @db.Uuid
+  label          String?
+  recipientName  String   @map("recipient_name")
+  recipientPhone String   @map("recipient_phone")
+  zipcode        String
+  baseAddress    String   @map("base_address")
+  detailAddress  String?  @map("detail_address")
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([accountId, createdAt], map: "account_address_account_created_idx")
+  @@map("account_address")
+}
+
+model Card {
+  id                   BigInt   @id @default(autoincrement())
+  source               String   @default("admin")
+  externalId           BigInt?  @map("external_id")
+  itemCode             String?  @map("item_code")
+  itemType             String   @default("photocard") @map("item_type")
+  teamId               BigInt?  @map("team_id")
+  memberId             BigInt?  @map("member_id")
+  seriesId             BigInt?  @map("series_id")
+  name                 String
+  description          String?
+  frontR2Key           String?  @map("front_r2_key")
+  backR2Key            String?  @map("back_r2_key")
+  frontImageUrl        String?  @map("front_image_url")
+  backImageUrl         String?  @map("back_image_url")
+  marketAvgJpy         Int      @default(0) @map("market_avg_jpy")
+  marketMinJpy         Int      @default(0) @map("market_min_jpy")
+  marketMaxJpy         Int      @default(0) @map("market_max_jpy")
+  marketSoldCount      Int      @default(0) @map("market_sold_count")
+  retailPriceJpy       Int      @default(0) @map("retail_price_jpy")
+  pose                 Int      @default(1)
+  status               String   @default("active")
+  submittedByAccountId String?  @map("submitted_by_account_id") @db.Uuid
+  reviewNote           String?  @map("review_note")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([teamId, memberId], map: "card_team_member_idx")
+  @@index([seriesId], map: "card_series_idx")
+  @@index([status], map: "card_status_idx")
+  @@index([createdAt], map: "card_created_at_idx")
+  @@map("card")
+}
+
+model UsedWishlist {
+  id        BigInt   @id @default(autoincrement())
+  accountId String   @map("account_id") @db.Uuid
+  listingId BigInt   @map("listing_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([accountId, listingId], map: "used_wishlist_account_listing_unique")
+  @@index([listingId], map: "used_wishlist_listing_idx")
+  @@index([accountId, createdAt], map: "used_wishlist_account_created_idx")
+  @@map("used_wishlist")
+}
+
+model Banner {
+  id        BigInt    @id @default(autoincrement())
+  title     String
+  imageKey  String    @map("image_key")
+  linkUrl   String    @map("link_url")
+  startsAt  DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(6)
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([sortOrder], map: "banner_sort_order_idx")
+  @@map("banner")
+}
+
+model Order {
+  id             BigInt               @id @default(autoincrement())
+  orderNo        String               @map("order_no")
+  accountId      String               @map("account_id") @db.Uuid
+  status         String
+  productAmount  Int                  @map("product_amount")
+  discountAmount Int                  @map("discount_amount")
+  deliveryAmount Int                  @map("delivery_amount")
+  totalAmount    Int                  @map("total_amount")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
+  items          OrderItem[]
+  address        OrderAddress?
+  payments       Payment[]
+  statusHistory  OrderStatusHistory[]
+
+  @@unique([orderNo], map: "order_order_no_unique")
+  @@index([accountId, createdAt], map: "order_account_created_at_idx")
+  @@index([status], map: "order_status_idx")
+  @@index([createdAt], map: "order_created_at_idx")
+  @@index([updatedAt], map: "order_updated_at_idx")
+  @@map("order")
+}
+
+model OrderNoSeq {
+  id        BigInt   @id @default(autoincrement())
+  seqDate   DateTime @map("seq_date") @db.Date
+  seq       BigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([seqDate], map: "order_no_seq_date_unique")
+  @@map("order_no_seq")
+}
+
+model OrderItem {
+  id                  BigInt   @id @default(autoincrement())
+  orderId             BigInt   @map("order_id")
+  productId           BigInt   @map("product_id")
+  productName         String   @map("product_name")
+  productThumbnailKey String?  @map("product_thumbnail_key")
+  itemType            String   @map("item_type")
+  condition           String?
+  unitPrice           Int      @map("unit_price")
+  quantity            Int
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order               Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId], map: "order_item_order_idx")
+  @@index([productId], map: "order_item_product_idx")
+  @@index([createdAt], map: "order_item_created_at_idx")
+  @@map("order_item")
+}
+
+model OrderAddress {
+  id              BigInt   @id @default(autoincrement())
+  orderId         BigInt   @map("order_id")
+  accountId       String   @map("account_id") @db.Uuid
+  recipientName   String   @map("recipient_name")
+  recipientPhone  String   @map("recipient_phone")
+  zipcode         String
+  baseAddress     String   @map("base_address")
+  detailAddress   String?  @map("detail_address")
+  deliveryMessage String?  @map("delivery_message")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order           Order    @relation(fields: [orderId], references: [id])
+
+  @@unique([orderId], map: "order_address_order_unique")
+  @@index([accountId], map: "order_address_account_idx")
+  @@index([createdAt], map: "order_address_created_at_idx")
+  @@map("order_address")
+}
+
+model Payment {
+  id              BigInt    @id @default(autoincrement())
+  orderId         BigInt    @map("order_id")
+  accountId       String    @map("account_id") @db.Uuid
+  orderNo         String    @map("order_no")
+  provider        String
+  method          String?
+  status          String
+  requestedAmount Int       @map("requested_amount")
+  approvedAmount  Int?      @map("approved_amount")
+  tradeNo         String?   @map("trade_no")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  canceledAt      DateTime? @map("canceled_at") @db.Timestamptz(6)
+  failMessage     String?   @map("fail_message")
+  rawRequest      Json?     @map("raw_request")
+  rawResponse     Json?     @map("raw_response")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  order           Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([tradeNo], map: "payment_trade_no_unique", where: raw("(trade_no IS NOT NULL)"))
+  @@unique([orderId], map: "payment_order_unique")
+  @@index([accountId], map: "payment_account_idx")
+  @@index([orderNo], map: "payment_order_no_idx")
+  @@index([status], map: "payment_status_idx")
+  @@index([createdAt], map: "payment_created_at_idx")
+  @@index([updatedAt], map: "payment_updated_at_idx")
+  @@map("payment")
+}
+
+model OrderStatusHistory {
+  id              BigInt   @id @default(autoincrement())
+  orderId         BigInt   @map("order_id")
+  status          String
+  statusChangedAt DateTime @map("status_changed_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order           Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, statusChangedAt], map: "order_status_history_order_idx")
+  @@index([createdAt], map: "order_status_history_created_at_idx")
+  @@map("order_status_history")
+}
+
+// 배송비 정책 — 항상 1행(singleton, DB CHECK id=1). 어드민이 값만 수정.
+model DeliveryPolicy {
+  id                  BigInt   @id
+  deliveryFee         Int      @map("delivery_fee")
+  freeThresholdAmount Int?     @map("free_threshold_amount")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("delivery_policy")
+}
+
+// ── 카드 컬렉션 도메인: 보유 원장 + 전시 컬렉션 (init_collection 마이그레이션이 단일 진실) ──
+// 컬렉션 도메인 내부만 관계 선언. account_id/product_id/order_id/order_item_id/team_id/
+// member_id는 bare 스칼라(교차 도메인). RLS 미적용 — 인가는 앱 DAL(accountId 스코프).
+model Collection {
+  id         BigInt           @id @default(autoincrement())
+  accountId  String           @map("account_id") @db.Uuid
+  publicCode String           @map("public_code")
+  title      String
+  isPublic   Boolean          @default(false) @map("is_public")
+  sortOrder  Int              @map("sort_order")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  items      CollectionItem[]
+
+  @@unique([publicCode], map: "collection_public_code_unique")
+  @@index([accountId, sortOrder], map: "collection_account_sort_order_idx")
+  @@index([createdAt], map: "collection_created_at_idx")
+  @@index([updatedAt], map: "collection_updated_at_idx")
+  @@map("collection")
+}
+
+model CollectionItem {
+  id           BigInt     @id @default(autoincrement())
+  collectionId BigInt     @map("collection_id")
+  productId    BigInt     @map("product_id")
+  sortOrder    Int        @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
+  collection   Collection @relation(fields: [collectionId], references: [id])
+
+  @@unique([collectionId, productId], map: "collection_item_collection_product_unique")
+  @@index([collectionId, sortOrder], map: "collection_item_collection_sort_order_idx")
+  @@index([productId], map: "collection_item_product_idx")
+  @@index([createdAt], map: "collection_item_created_at_idx")
+  @@index([updatedAt], map: "collection_item_updated_at_idx")
+  @@map("collection_item")
+}
+
+model InventoryItem {
+  id                  BigInt    @id @default(autoincrement())
+  accountId           String    @map("account_id") @db.Uuid
+  productId           BigInt    @map("product_id")
+  orderItemId         BigInt    @map("order_item_id")
+  productName         String    @map("product_name")
+  productThumbnailKey String?   @map("product_thumbnail_key")
+  itemType            String    @map("item_type")
+  teamId              BigInt?   @map("team_id")
+  memberId            BigInt?   @map("member_id")
+  quantity            Int
+  acquiredAt          DateTime  @map("acquired_at") @db.Timestamptz(6)
+  reversedAt          DateTime? @map("reversed_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([orderItemId], map: "inventory_item_order_item_unique")
+  @@index([accountId, productId], map: "inventory_item_account_product_idx")
+  @@index([createdAt], map: "inventory_item_created_at_idx")
+  @@index([updatedAt], map: "inventory_item_updated_at_idx")
+  @@map("inventory_item")
+}
+
+// ── 카탈로그 시리즈 (그룹→멤버→종류→시리즈 계층의 최하위) ─────────────────────
+// 외부 분석기 sku가 단일 진실 — 임포트 시 find-or-create로 자동 생성.
+model Series {
+  id         BigInt   @id @default(autoincrement())
+  sku        String
+  teamId     BigInt?  @map("team_id")
+  kind       String
+  label      String
+  productUrl String?  @map("product_url")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([sku], map: "series_sku_unique")
+  @@index([teamId, kind], map: "series_team_kind_idx")
+  @@index([createdAt], map: "series_created_at_idx")
+  @@map("series")
+}
+
+// ── 사이트 전역 설정 — 항상 1행(singleton, DB CHECK id=1) ────────────────────
+model SiteSetting {
+  id               BigInt   @id
+  usedTradeEnabled Boolean  @default(false) @map("used_trade_enabled")
+  usedTradeFeeBp   Int      @default(1000) @map("used_trade_fee_bp")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("site_setting")
+}
+
+// ── 중고거래 (C2C) — 유저 등록 매물·사진·입찰·거래 ────────────────────────────
+model UsedListing {
+  id                     BigInt    @id @default(autoincrement())
+  sellerAccountId        String    @map("seller_account_id") @db.Uuid
+  itemType               String    @default("photocard") @map("item_type")
+  cardId                 BigInt?   @map("card_id")
+  teamId                 BigInt?   @map("team_id")
+  memberId               BigInt?   @map("member_id")
+  seriesId               BigInt?   @map("series_id")
+  sourceProductId        BigInt?   @map("source_product_id")
+  title                  String
+  description            String?
+  condition              String
+  saleMode               String    @default("fixed") @map("sale_mode")
+  price                  Int?
+  shippingMethod         String    @default("post") @map("shipping_method")
+  shippingFee            Int       @default(0) @map("shipping_fee")
+  status                 String    @default("active")
+  auctionStartPrice      Int?      @map("auction_start_price")
+  auctionCurrentPrice    Int?      @map("auction_current_price")
+  auctionBidCount        Int       @default(0) @map("auction_bid_count")
+  auctionEndsAt          DateTime? @map("auction_ends_at") @db.Timestamptz(6)
+  auctionStatus          String?   @map("auction_status")
+  auctionWinnerAccountId String?   @map("auction_winner_account_id") @db.Uuid
+  auctionPayDueAt        DateTime? @map("auction_pay_due_at") @db.Timestamptz(6)
+  viewCount              Int       @default(0) @map("view_count")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  photos                 UsedListingPhoto[]
+
+  @@index([status, createdAt(sort: Desc)], map: "used_listing_status_created_idx")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_listing_seller_idx")
+  @@index([seriesId], map: "used_listing_series_idx")
+  @@index([memberId], map: "used_listing_member_idx")
+  @@index([auctionStatus, auctionEndsAt], map: "used_listing_auction_due_idx")
+  @@index([cardId], map: "used_listing_card_idx")
+  @@map("used_listing")
+}
+
+model UsedListingPhoto {
+  id           BigInt      @id @default(autoincrement())
+  listingId    BigInt      @map("listing_id")
+  r2Key        String      @map("r2_key")
+  displayOrder Int         @default(0) @map("display_order")
+  isPrimary    Boolean     @default(false) @map("is_primary")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  listing      UsedListing @relation(fields: [listingId], references: [id])
+
+  @@unique([listingId], map: "used_listing_photo_primary_unique", where: raw("(is_primary = true)"))
+  @@index([listingId, displayOrder], map: "used_listing_photo_listing_idx")
+  @@map("used_listing_photo")
+}
+
+model UsedBid {
+  id        BigInt   @id @default(autoincrement())
+  listingId BigInt   @map("listing_id")
+  accountId String   @map("account_id") @db.Uuid
+  amount    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([listingId, amount(sort: Desc), id], map: "used_bid_listing_idx")
+  @@index([accountId, createdAt(sort: Desc)], map: "used_bid_account_idx")
+  @@map("used_bid")
+}
+
+model UsedTrade {
+  id               BigInt    @id @default(autoincrement())
+  listingId        BigInt    @map("listing_id")
+  buyerAccountId   String    @map("buyer_account_id") @db.Uuid
+  sellerAccountId  String    @map("seller_account_id") @db.Uuid
+  price            Int
+  shippingFee      Int       @default(0) @map("shipping_fee")
+  feeBp            Int       @map("fee_bp")
+  feeAmount        Int       @map("fee_amount")
+  sellerPayout     Int       @map("seller_payout")
+  status           String    @default("pending")
+  bundleId         BigInt?   @map("bundle_id")
+  recipientName    String?   @map("recipient_name")
+  recipientPhone   String?   @map("recipient_phone")
+  recipientAddress String?   @map("recipient_address")
+  postTrackingCode String?   @map("post_tracking_code")
+  postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([listingId], map: "used_trade_listing_unique", where: raw("(status <> 'canceled')"))
+  @@index([buyerAccountId, createdAt(sort: Desc)], map: "used_trade_buyer_idx")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_trade_seller_idx")
+  @@index([status, createdAt(sort: Desc)], map: "used_trade_status_idx")
+  @@index([bundleId], map: "used_trade_bundle_idx")
+  @@map("used_trade")
+}
+
+model UsedBundle {
+  id               BigInt    @id @default(autoincrement())
+  buyerAccountId   String    @map("buyer_account_id") @db.Uuid
+  sellerAccountId  String    @map("seller_account_id") @db.Uuid
+  itemTotal        Int       @map("item_total")
+  shippingFee      Int       @default(0) @map("shipping_fee")
+  pointsUsed       Int       @default(0) @map("points_used")
+  feeAmount        Int       @default(0) @map("fee_amount")
+  sellerPayout     Int       @default(0) @map("seller_payout")
+  status           String    @default("paid")
+  recipientName    String?   @map("recipient_name")
+  recipientPhone   String?   @map("recipient_phone")
+  recipientAddress String?   @map("recipient_address")
+  postTrackingCode String?   @map("post_tracking_code")
+  postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([buyerAccountId, createdAt(sort: Desc)], map: "used_bundle_buyer_idx")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_bundle_seller_idx")
+  @@map("used_bundle")
+}
