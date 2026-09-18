@@ -116,7 +116,15 @@ phase_core() {
     || aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com \
          --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 1c58a3a8518e8759bf075b76b750d4f2df264fcd >/dev/null
   local role="${APP}-github-deploy"
-  ensure_role "$role" "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"${oidc_arn}\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":[\"repo:${GH_REPO}:ref:refs/heads/dev\",\"repo:${GH_REPO}:ref:refs/heads/main\",\"repo:${GH_REPO}:environment:dev\",\"repo:${GH_REPO}:environment:production\"]}}}]}"
+  # GitHub may issue "immutable subject" claims (repo:Owner@<ownerId>/name@<repoId>:...). Trust both
+  # the plain and the immutable prefix; the ids come from the GitHub API when gh is available.
+  local prefixes="repo:${GH_REPO}"
+  if command -v gh >/dev/null 2>&1; then
+    local owner_id repo_id; owner_id=$(gh api "repos/${GH_REPO}" --jq .owner.id 2>/dev/null || true); repo_id=$(gh api "repos/${GH_REPO}" --jq .id 2>/dev/null || true)
+    [ -n "$owner_id" ] && [ -n "$repo_id" ] && prefixes="$prefixes repo:${GH_REPO%%/*}@${owner_id}/${GH_REPO##*/}@${repo_id}"
+  fi
+  local subs=""; for pfx in $prefixes; do for s in "ref:refs/heads/dev" "ref:refs/heads/main" "environment:dev" "environment:production"; do subs+="\"${pfx}:${s}\","; done; done; subs="${subs%,}"
+  ensure_role "$role" "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"${oidc_arn}\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":[${subs}]}}}]}"
   aws iam put-role-policy --role-name "$role" --policy-name deploy --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[
     {\"Effect\":\"Allow\",\"Action\":\"ecr:GetAuthorizationToken\",\"Resource\":\"*\"},
     {\"Effect\":\"Allow\",\"Action\":[\"ecr:BatchCheckLayerAvailability\",\"ecr:CompleteLayerUpload\",\"ecr:InitiateLayerUpload\",\"ecr:PutImage\",\"ecr:UploadLayerPart\",\"ecr:BatchGetImage\",\"ecr:GetDownloadUrlForLayer\"],\"Resource\":\"arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/${APP}\"},
