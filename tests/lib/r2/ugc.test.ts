@@ -89,6 +89,7 @@ describe("headUgcObject", () => {
     await expect(headUgcObject("posts/tmp/none.jpg")).resolves.toBeNull();
   });
 
+  // 재시도 테스트는 실제 백오프(300ms→900ms + jitter)를 기다린다 — 느린 CI 러너에서 5초 기본값을 넘긴 적이 있어 여유를 둔다.
   it("5xx는 최대 2회 재시도 후 성공을 수용한다", async () => {
     const fetchMock = vi
       .fn()
@@ -99,7 +100,7 @@ describe("headUgcObject", () => {
     const { headUgcObject } = await import("@/lib/r2/ugc");
     await expect(settle(headUgcObject("posts/tmp/a.jpg"))).resolves.toMatchObject({ etag: '"e"' });
     expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
+  }, 15_000);
 
   it("네트워크 오류도 재시도하고, 3회 모두 실패하면 throw", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
@@ -109,7 +110,7 @@ describe("headUgcObject", () => {
       TypeError,
     );
     expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
+  }, 15_000);
 
   it("4xx(400)는 재시도 없이 즉시 throw", async () => {
     const fetchMock = vi.fn().mockResolvedValue(res(400));
@@ -220,5 +221,5 @@ describe("deleteUgcObject", () => {
     mod = await import("@/lib/r2/ugc");
     await expect(settle(mod.deleteUgcObject("k"))).resolves.toBe(false); // 실패는 호출부가 로그(보상)
     expect(failing).toHaveBeenCalledTimes(3);
-  });
+  }, 15_000);
 });
