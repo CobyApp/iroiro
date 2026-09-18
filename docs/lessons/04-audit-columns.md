@@ -9,7 +9,7 @@
 | 컬럼 | 의미 | 권장 NULL 정책 |
 |---|---|---|
 | `created_at` | 행 생성 시각 | NOT NULL, DEFAULT now() |
-| `created_by` | 행을 만든 사용자 | nullable (시드·service_role 호출 대비) |
+| `created_by` | 행을 만든 사용자 | nullable (시드·배치 작업 대비) |
 | `updated_at` | 마지막 수정 시각 | NOT NULL, DEFAULT now() + 트리거로 갱신 |
 | `updated_by` | 마지막 수정자 | nullable |
 
@@ -26,9 +26,9 @@
 
 **솔로 운영이면 `*_by`는 인덱스 공간 차지하는 노이즈.** 다수 admin이거나 향후 가능성이 있으면 처음부터 추가가 후회 적음.
 
-## Supabase에서 구현
+## 이 프로젝트에서 구현
 
-`auth.uid()`는 UUID를 반환하지만, 이 프로젝트는 **`*_by`를 TEXT로 둠** — 비-UUID 식별자(시스템 액션, 외부 동기화 주체 등) 표기 가능성을 열어두기 위함:
+세션의 `account_id`는 UUID지만, 이 프로젝트는 **`*_by`를 TEXT로 둠** — 비-UUID 식별자(시스템 액션, 외부 동기화 주체 등) 표기 가능성을 열어두기 위함:
 
 ```sql
 created_by TEXT,
@@ -51,13 +51,14 @@ updated_by TEXT,
 #### 옵션 A: DB 트리거로 자동 갱신 (이 프로젝트는 미채택)
 
 ```sql
+-- 트리거는 "지금 누구인가"를 DB 안에서 알아야 한다 → 요청 컨텍스트 GUC에 의존(16 참고)
 CREATE OR REPLACE FUNCTION public.set_audit_columns() RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
-        NEW.created_by := auth.uid()::text;
+        NEW.created_by := current_setting('app.current_account_id', true);
     END IF;
     NEW.updated_at := now();
-    NEW.updated_by := auth.uid()::text;
+    NEW.updated_by := current_setting('app.current_account_id', true);
     RETURN NEW;
 END;
 $$;
@@ -66,8 +67,8 @@ CREATE TRIGGER team_audit BEFORE INSERT OR UPDATE ON team
     FOR EACH ROW EXECUTE FUNCTION set_audit_columns();
 ```
 
-장점: 모든 INSERT/UPDATE에 자동 적용. 직접 SQL이나 SQL Editor 호출도 커버.
-단점: 숨은 동작. `auth.uid()` 의존. 테스트 어려움. 트리거 디버깅 부담.
+장점: 모든 INSERT/UPDATE에 자동 적용. psql 직접 SQL도 커버.
+단점: 숨은 동작. "누구인가"를 DB에 알려주는 컨텍스트(Supabase라면 `auth.uid()`, 자체 인증이라면 트랜잭션 GUC)에 의존. 테스트 어려움. 트리거 디버깅 부담. 이력: 초기 마이그레이션엔 `auth.uid()` 기반 `set_audit_columns`가 있었고 앱 레벨 제어로 바꾸며 제거했다.
 
 #### 옵션 B: 애플리케이션 레벨 제어 (이 프로젝트 ⭐)
 
@@ -95,13 +96,13 @@ async function updateProduct(id, data, userId) {
 
 장점:
 - **명시적**: 코드만 보면 무엇이 일어나는지 명확
-- **풍부한 컨텍스트**: `auth.uid()` 외 시스템 식별자도 자유롭게 (`'cron:nightly'`, `'admin_panel'` 등)
+- **풍부한 컨텍스트**: 회원 `account.id` 외 시스템 식별자도 자유롭게 (`'cron:nightly'`, `'admin_panel'` 등)
 - **테스트 단순**: 트리거 의존 X
-- **Supabase auth 비의존**: `auth.uid()` 함수 호출 안 함
+- **인증 시스템 비의존**: DB가 요청 신원을 알 필요가 없다 — 세션에서 꺼낸 `account.id`를 앱이 그대로 넣는다
 
 단점:
 - 모든 INSERT/UPDATE 경로에서 *명시적 설정* 필요
-- 직접 SQL·Supabase Studio 호출은 자동 갱신 X (운영 룰로 보완)
+- psql·Prisma Studio(`npm run db:studio`)·변경분 SQL 같은 직접 경로는 자동 갱신 X (운영 룰로 보완)
 - 코드 경로 늘면 누락 위험 → 헬퍼·Repository 추상화로 일관성 유지
 
 ## INSERT/UPDATE 흐름 예시
@@ -143,12 +144,12 @@ CREATE TABLE product (
 - 다수 admin 운영 가능성 있음 → audit 컬럼은 처음부터 두는 게 후회 적음
 - 앱 레벨 제어는 *명시성·테스트 용이성*이 더 가치 있다고 판단
 - 시스템 액션(`'cron:*'`, `'admin_dashboard'` 등) 표기 자유로움
-- Supabase auth와 결합 안 해서 향후 인증 시스템 변경 시 영향 X
+- DB의 인증 컨텍스트와 결합 안 함 — 실제로 Supabase Auth → 자체 세션으로 갈아탈 때 audit 스키마는 손대지 않았다(이력)
 
 운영 룰:
 - INSERT 시 앱이 `created_by` 명시 (앱 헬퍼·Repository로 강제)
 - UPDATE 시 앱이 `updated_at = now()` + `updated_by` 명시
-- 직접 SQL·Studio 사용은 *수동 명시* 필요 (또는 의도적 NULL 허용)
+- psql·Prisma Studio·변경분 SQL 사용은 *수동 명시* 필요 (또는 의도적 NULL 허용, 예: `'ops:manual'`)
 - `created_at`, `updated_at`은 컬럼 DEFAULT now()라 INSERT 시 누락해도 자동
 
 ## 알아둘 함정
@@ -156,10 +157,9 @@ CREATE TABLE product (
 - **앱이 깜빡하면 audit 누락** — Repository·헬퍼로 강제. 직접 SQL은 운영 룰로 관리
 - **`updated_at` UPDATE 자동 X** — DEFAULT는 INSERT만. UPDATE 시 명시 필요
 - **bulk INSERT** — 앱 레이어에서 일괄 처리하면 자연스럽게 audit 채워짐
-- **외부 도구(Supabase Studio 등) 직접 입력** — audit 누락. 의도된 NULL로 받아들이거나 수동 명시
+- **외부 도구(Prisma Studio·psql 등) 직접 입력** — audit 누락. 의도된 NULL로 받아들이거나 수동 명시
 
 ## 참고
 
-- [Supabase: auth.uid()](https://supabase.com/docs/guides/database/postgres/row-level-security#authentication-context)
 - [PostgreSQL Docs: Trigger Procedures](https://www.postgresql.org/docs/current/plpgsql-trigger.html)
 - [PostgreSQL Docs: TG_OP variable](https://www.postgresql.org/docs/current/plpgsql-trigger.html#PLPGSQL-DML-TRIGGER) (INSERT/UPDATE 분기)

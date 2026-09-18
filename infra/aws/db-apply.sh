@@ -3,7 +3,7 @@
 #   ./infra/aws/db-apply.sh dev|prd [--reset]
 # --reset wipes the public schema first (scripts/db-reset.sql). Never use on prd with data.
 set -euo pipefail
-export AWS_PROFILE="${AWS_PROFILE:-personal}" AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-ap-northeast-1}"
+export AWS_PROFILE="${AWS_PROFILE:-personal}" AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-ap-northeast-2}"
 ENV_NAME="${1:?usage: db-apply.sh dev|prd [--reset]}"
 cd "$(dirname "$0")/../.."
 command -v psql >/dev/null || { echo "psql required (brew install libpq)"; exit 1; }

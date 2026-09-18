@@ -10,12 +10,12 @@
 
 > **설계 전환 메모**: Obsidian `auth/오시코레-회원인증-설계-현황과-확인사항.md`(2026-06-01)는
 > Supabase Auth(`auth.users`/`signInWithIdToken`) 기반이었으나, 레슨 13~16(2026-06-09)에서
-> **자체 인증(DB 세션)** 으로 전환됐다. 이 구현은 후자(레슨 13~16 + `init_account` 마이그레이션)를 따른다.
+> **자체 인증(DB 세션)** 으로 전환됐다. 이 구현은 후자(레슨 13·15·16 + `db/schema.sql`의 `init_account` 섹션)를 따른다.
 > Obsidian 문서의 **비즈니스 요구**(카카오·네이버·전화 필수·동의·만14세)는 여전히 유효.
 
 ## 아키텍처
 
-자체 인증 + DB 세션 + Next 16 Proxy/DAL 패턴(레슨 13·14).
+자체 인증 + DB 세션 + DAL 패턴(레슨 13).
 
 ```
 브라우저 ──(1) /login 버튼─→ GET /api/auth/{provider}        (start)
@@ -70,19 +70,19 @@ KAKAO_CLIENT_SECRET=...
 KAKAO_SCOPE=                            # 비우면 profile_nickname. 이메일은 비즈앱+"profile_nickname,account_email"
 NAVER_CLIENT_ID=...
 NAVER_CLIENT_SECRET=...
-DATABASE_URL=...                       # 세션 저장 → 실 DB 필수(mock 불가)
+DATABASE_URL=postgresql://app:app@127.0.0.1:5432/iroiro   # 세션 저장 → 실 DB 필수
 ```
 
 ## 로컬 테스트 방법
 
-세션이 DB에 저장되므로 **실 DB가 필요**하다(`USE_MOCK_DATA=true` mock 모드로는 로그인 불가).
+세션이 DB에 저장되므로 **실 DB가 필요**하다(로컬 postgres 컨테이너). 콘솔 등록·환경별 콜백 URL·운영 SSM 값은 [oauth-setup.md](../oauth-setup.md) 참조.
 
 ```bash
-npm run services:up      # supabase + docker
-npm run db:reset         # 마이그레이션 적용(init_catalog, init_account)
+npm run services:up      # compose.yml — postgres + MinIO
+npm run db:reset         # db/schema.sql 적용 + app 롤 LOGIN
 npm run db:generate      # Prisma 클라이언트
-# .env.local에 DATABASE_URL(= supabase status의 DB URL) + OAuth 키 채우기
-npm run dev:all          # USE_MOCK_DATA=false
+# .env.local에 OAuth 키 채우기(DATABASE_URL은 기본값 그대로)
+npm run dev
 # http://localhost:3000/login → 카카오/네이버 버튼
 ```
 
@@ -103,9 +103,10 @@ npm run dev:all          # USE_MOCK_DATA=false
 2. **계정 연결/병합** — v1은 신원당 1계정. 같은 사람이 카카오·네이버로 각각 로그인하면 계정 2개.
    이메일/전화 기반 병합 정책은 후속.
 3. **동의(consent) 수집** — 가입 시 약관·개인정보·만14세 필수 동의 + 마케팅 선택 동의 저장소 추가.
-4. **Proxy 전환** — `middleware.ts`(Edge, Basic Auth 게이트)를 `proxy.ts`(Node)로 옮기고
-   보호 경로 optimistic 체크 추가(레슨 14). 현재 admin 게이트는 TEMP-LOGIN-BYPASS 유지.
-5. **app 롤 전환** — 런타임 접속을 `postgres`→`app`으로 바꿔 RLS 활성화(레슨 15). 현재는 정의만.
+4. ~~**Proxy 전환**~~ — 해소. `middleware.ts`는 `x-pathname` 헤더만 심고, admin 게이트는
+   `app/(admin)/layout.tsx`의 `account.is_admin` 인가로 대체됐다([admin-architecture.md](../admin-architecture.md)).
+5. ~~**app 롤 전환**~~ — 해소. 런타임 접속은 `app` 롤이며 방어선은 RLS가 아닌 GRANT 매트릭스다
+   ([db-authorization-review.md](../architecture/db-authorization-review.md)).
 6. **브랜드 자산** — 로그인 버튼은 브랜드 컬러+간이 마크. 정식 배포 전 카카오·네이버 공식 버튼 가이드 준수.
 7. **레이트리밋·남용 방어** — 로그인/콜백 rate limit(SMS pumping은 전화 단계에서).
 

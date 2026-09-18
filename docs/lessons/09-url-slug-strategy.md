@@ -13,7 +13,7 @@ URL에 넣을 수 있게 만든, **사람이 읽을 수 있는 짧은 식별자*
 ↓ slug
 slug: "txt-bring-the-soul-pob"
 ↓ URL
-URL: https://oshikore.kr/products/txt-bring-the-soul-pob
+URL: https://iroiro.club/products/txt-bring-the-soul-pob
 ```
 
 룰: 소문자, 영숫자·하이픈만, 공백·특수문자 X, 보통 3~5단어 / 60~100자 이하.

@@ -21,4 +21,6 @@
 - `CLAUDE.md`: Claude가 `AGENTS.md`를 읽도록 연결
 - `.claude/`: Claude Code용 hook/agent 어댑터
 - `.codex/`: Codex용 hook/agent 어댑터
+- `.husky/`: `pre-commit`(lint-staged + 보안 리뷰) · `commit-msg`(메시지 형식 검사) hook
 - `scripts/`: Husky와 에이전트 hook에서 호출하는 실행 스크립트
+- `.github/workflows/ci.yml`: PR 단위 최종 강제(lint · typecheck · test)

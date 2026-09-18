@@ -36,11 +36,14 @@
 | `mock.ts` | 면제 | - | - |
 | `schema.ts` | 면제 - 사용처 action/query 테스트로 cover | - | - |
 | boilerplate SDK factory | 면제 - 분기/로직 추가 시 필수로 승격 | - | - |
+| `app/api/**/route.ts`, `app/media/**/route.ts` (Route Handler) | 필수 - 인증·서명 검증 분기 + happy/error path | `tests/app/<경로>/route.test.ts` | Vitest unit |
+| 실 DB가 필요한 흐름 (GRANT 동작, 조건부 복사 등) | 권장 - `RUN_INTEGRATION=1`에서만 실행 | `tests/integration/*.integration.test.ts` | Vitest + 로컬 Postgres/MinIO |
 | `middleware.ts`, `next.config.*`, `tailwind.config.*` 등 인프라 설정 | 면제 | - | - |
 
 boilerplate SDK factory 예:
 
-- `lib/r2/client.ts`
+- `lib/r2/client.ts` (env를 `AwsClient`에 넘기기만 함 — `presign.ts`·`get.ts`·`ugc.ts`처럼 분기가 있는 파일은 필수)
+- `lib/db.ts` (Prisma 싱글턴 — 단, BigInt polyfill 같은 분기가 있으면 필수로 승격)
 
 ## 30초 결정 트리
 
@@ -68,7 +71,7 @@ boilerplate SDK factory 예:
 2. 권한 거부: 비-admin이 admin action 시도
 3. 입력 검증 실패: 잘못된 zod schema 입력
 
-DB 클라이언트(Prisma)와 `isAdmin(account)`는 mock한다.
+DB 클라이언트(`@/lib/db`)와 세션 DAL(`@/modules/auth/dal`의 `getCurrentAccount`), `requireAdmin`은 mock한다. 앱 코드를 소유자 롤로 실 DB에 붙여 테스트하지 않는다 — GRANT 검증 가치가 사라진다. 통합 테스트의 픽스처 정리만 `DATABASE_URL_PRIVILEGED`(`tests/integration/_privileged-db.ts`)를 쓴다.
 
 ## 인터랙션 컴포넌트
 

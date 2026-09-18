@@ -48,8 +48,8 @@ git 안전 절차, stage 범위, 커밋 분할, hook 실행 방식은 각 실행
 
 | 좋은 예 | 나쁜 예 |
 |---|---|
-| `docs: MVP 기술 스택 및 아키텍처 결정 문서 추가` | `Added new docs` |
-| `feat: 상품 상세 페이지 R2 이미지 업로드 추가` | `feat: 추가했음.` |
+| `docs: 배포·브랜치 전략 문서 추가` | `Added new docs` |
+| `feat: 상품 상세 페이지 이미지 업로드 추가` | `feat: 추가했음.` |
 | `refactor: modules/admin 가드 layout으로 통합` | `Refactor: ...` |
 
 ## 본문 룰
@@ -65,19 +65,19 @@ git 안전 절차, stage 범위, 커밋 분할, hook 실행 방식은 각 실행
 좋은 예:
 
 ```text
-docs: MVP 기술 스택 및 아키텍처 결정 문서 추가
+docs: 배포·브랜치 전략 문서 추가
 
-- 호스팅, 이미지, DB/Auth, 관리자 페이지 선택 근거 정리
-- 영역별 후보 비교와 비용 구조, 분리/확장 시점 기준 포함
+- ECS Express·RDS·S3 인프라와 GitHub Actions CI/CD 흐름 정리
+- dev/main 브랜치 운영과 스키마 변경 절차, 롤백 기준 포함
 ```
 
 나쁜 예:
 
 ```text
-docs: MVP 기술 스택 및 아키텍처 결정 문서 추가
+docs: 배포·브랜치 전략 문서 추가
 
-호스팅은 Vercel을 선택했고 이미지는 Cloudflare R2, DB와 Auth는
-Supabase를 사용한다. 비용 구조와 분리 시점 기준도 함께 정리.
+컴퓨트는 ECS Express를 선택했고 DB는 RDS, 이미지는 S3를
+사용한다. 브랜치 운영과 롤백 기준도 함께 정리.
 ```
 
 ## 분할 vs 한 묶음

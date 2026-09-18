@@ -10,11 +10,12 @@
 | 주제 | 위치 |
 |---|---|
 | 테이블/컬럼 네이밍, 키·타입·제약·인덱스 등 **스키마의 모양** | **이 문서** |
-| RLS 활성화, Supabase 클라이언트 분리, 세션, 마이그레이션 **운영** | [auth-and-data.md](./auth-and-data.md) |
-| DB로 Supabase를 고른 배경·후보 비교 (**왜**) | [../database-strategy.md](../database-strategy.md) |
-| 핵심 테이블 목록(데이터 모델 골자) | [../database-strategy.md](../database-strategy.md) |
+| GRANT 매트릭스·`app` 롤, 세션, 스토리지, `db/schema.sql` 적용 절차 등 **운영** | [auth-and-data.md](./auth-and-data.md) |
+| DB 인가를 RLS가 아닌 GRANT로 정한 배경 (**왜**) | [db-authorization-review.md](./db-authorization-review.md) |
+| 실제 테이블·컬럼·GRANT 정본 | [`db/schema.sql`](../../db/schema.sql) (테이블 목록은 이 파일이 곧 진실) |
+| 개별 결정의 학습 배경 (PK·FK·audit·TIMESTAMPTZ 등) | [../lessons/](../lessons/README.md) |
 
-원칙: 여기서는 **스키마 자체의 모양**만 다룬다. "RLS를 켠다" 같은 운영 규칙은 auth-and-data.md 소관이므로 복제하지 않는다.
+원칙: 여기서는 **스키마 자체의 모양**만 다룬다. "어느 롤로 접속한다" 같은 운영 규칙은 auth-and-data.md 소관이므로 복제하지 않는다.
 
 ## 규칙 (작업하며 적립)
 
@@ -32,7 +33,7 @@
 #### ❌ 반례
 - 복수 테이블명(`orders`, `products`)
 - 예약어 회피용 접두/복수 변형(`tbl_order`, `orders`)
-- 인덱스명 자동생성에 의존(마이그레이션·Prisma 중 한쪽이라도 `map` 이름 누락)
+- 인덱스명 자동생성에 의존(`db/schema.sql`·Prisma 중 한쪽이라도 `map` 이름 누락)
 
 ### 기본 키 / 식별자
 
@@ -80,16 +81,16 @@
 
 ### 외래 키 / 관계 / 삭제 정책
 
-**결정: DB 레벨 FK 제약(`REFERENCES`)을 두지 않는다.** 관계는 `<참조테이블 단수>_id` 컬럼으로 표현하고, 참조 무결성은 **애플리케이션 레이어**에서 관리한다. 결정 배경(확장성·성능·마이그레이션)은 [../database-strategy.md](../database-strategy.md)의 "참조 무결성 전략 (FK 미사용)" 절에 기록.
+**결정: DB 레벨 FK 제약(`REFERENCES`)을 두지 않는다.** 관계는 `<참조테이블 단수>_id` 컬럼으로 표현하고, 참조 무결성은 **애플리케이션 레이어**에서 관리한다. 결정 배경(확장성·성능·마이그레이션)은 [../lessons/05-foreign-keys.md](../lessons/05-foreign-keys.md)에 기록.
 
-> 트레이드오프(인지하고 채택): FK를 빼면 이 스택에서 (1) PostgREST 자동 embedding과 Studio 관계 탐색을 잃고, (2) orphan을 DB가 막아주지 않으며, (3) Prisma 기본 권장(`relationMode="foreignKeys"`)에서 벗어난다. 아래 대체 장치로 상쇄하는 것을 **규칙으로 강제**한다.
+> 트레이드오프(인지하고 채택): FK를 빼면 (1) orphan을 DB가 막아주지 않고, (2) DB 도구의 관계 자동 탐색을 잃으며, (3) Prisma 기본 권장(`relationMode="foreignKeys"`)에서 벗어난다. 아래 대체 장치로 상쇄하는 것을 **규칙으로 강제**한다.
 
 #### ✅ 규칙 (FK 없이 관계·무결성을 유지하는 법)
 - **관계 컬럼 네이밍**: `<참조테이블 단수>_id` (예: `order_id`, `product_id`). `REFERENCES` 제약은 걸지 않는다.
 - **인덱스 수동 필수**: FK가 없으면 인덱스가 자동 생성되지 않는다. 모든 관계 컬럼에 `CREATE INDEX`를 **직접** 건다 — 빠지면 join·필터가 풀 스캔이 된다.
 - **Prisma는 `relationMode = "prisma"`**: 관계는 모델에 유지하되 DB FK를 만들지 않는다. 자동 인덱스가 없으므로 관계 스칼라 필드에 `@@index`를 명시한다.
 - **쓰기 검증은 Server Action에서**: 자식 INSERT 전 부모 존재를 확인한다. 삭제는 앱 레벨 cascade로 자식을 먼저 정리한다 (DB `ON DELETE`가 없으므로).
-- **관계 조회**: PostgREST 자동 embedding(`select=*,child(*)`) 대신 명시적 다중 쿼리 후 앱에서 조합한다. 꼭 필요한 경우에만 computed relationship 함수로 한정 정의한다.
+- **관계 조회**: 도메인 내부 관계는 Prisma `@relation` + `include`로, 교차 도메인 참조는 명시적 다중 쿼리 후 앱에서 조합한다(`relationMode="prisma"`라 조인은 Prisma가 앱 레벨에서 수행).
 - **orphan 점검**: 고아 행 탐지 쿼리를 두고 정기적으로 확인한다.
 
 #### ❌ 반례
@@ -147,19 +148,20 @@
 
 ### DDL 작성 구조 — 스키마/제약/인덱스 분리 (테이블 블록형)
 
-> 제약을 *어느 레이어*에 둘지는 [제약 레이어링] 절. 여기서는 DB에 두기로 한 제약·인덱스를 *마이그레이션 파일에 어떻게 배치*하는가를 정한다.
+> 제약을 *어느 레이어*에 둘지는 [제약 레이어링] 절. 여기서는 DB에 두기로 한 제약·인덱스를 *`db/schema.sql`에 어떻게 배치*하는가를 정한다.
 
 #### ✅ 규칙
 - **`CREATE TABLE`은 "구조"만**: 컬럼·타입·`NOT NULL`·`DEFAULT`·`PRIMARY KEY`. PK는 행 정체성이라 인라인 유지.
 - **`CHECK`·FK는 `CREATE TABLE` 밖으로**: 테이블 바로 뒤 `ALTER TABLE … ADD CONSTRAINT …`로 분리한다. 여러 개면 한 `ALTER`에 콤마로 묶는다. (CHECK는 독립 생성문이 없어 `ALTER`가 유일한 분리 수단 — `CREATE CONSTRAINT`는 존재하지 않음.)
 - **`UNIQUE`/인덱스는 `CREATE [UNIQUE] INDEX`로 분리**: partial(`WHERE …`)이 필요해 인덱스 형태가 강제되며, 평범한 UNIQUE도 같은 스타일로 통일한다.
-- **블록 순서**: 테이블마다 `CREATE TABLE → ALTER ADD CONSTRAINT(CHECK) → CREATE INDEX → COMMENT`를 한 블록으로 묶고, `GRANT`·`RLS`는 파일 끝에 전역 섹션으로 모은다.
+- **블록 순서**: 테이블마다 `CREATE TABLE → ALTER ADD CONSTRAINT(CHECK) → CREATE INDEX → COMMENT`를 한 블록으로 묶고, `REVOKE`/`GRANT … TO app`은 해당 도메인 섹션 끝에 모은다(`db/schema.sql`의 `[init_*]` 섹션 선례). 새 테이블에 GRANT를 빠뜨리면 `app` 롤이 `permission denied`.
 - **비용**: 빈 신규 테이블엔 인라인이든 분리든 생성·런타임 비용이 동일하다(순수 가독성 선택). 대용량 테이블 *후속* 변경의 락·스캔 주의는 [제약 레이어링]의 운영 절 참조.
 
 #### ❌ 반례
 - `CREATE TABLE` 안에 `CHECK`/`UNIQUE`를 인라인으로 남김(구조와 제약 혼재)
 - PK·`NOT NULL`까지 `ALTER`로 빼서 구조 정의를 흩뜨림(과분리)
 - 한 테이블의 인덱스를 파일 전역에 흩어 놓아 블록 응집을 깨뜨림
+- 테이블만 추가하고 도메인 섹션의 `GRANT … TO app`을 빠뜨림
 
 ### 인덱스
 
@@ -168,7 +170,7 @@
   - 예: `CREATE INDEX account_created_at_idx ON account (created_at);`
   - 예: `CREATE INDEX account_updated_at_idx ON account (updated_at);`
 - **정렬 방향은 기본 생략**: 단일 방향 정렬은 B-tree 역방향 스캔으로 처리할 수 있으므로 `ASC`/`DESC`를 고정하지 않는다. 혼합 정렬·NULL 정렬 등 명확한 요구가 있을 때만 방향을 지정한다.
-- **Prisma 정합성**: Supabase 마이그레이션에 추가한 인덱스는 `prisma/schema.prisma`에도 같은 이름의 `@@index`로 반영한다.
+- **Prisma 정합성**: `db/schema.sql`에 추가한 인덱스는 `prisma/schema.prisma`에도 같은 이름의 `@@index`로 반영한다(`npm run db:pull` 후 확인).
 - **복합 커서 인덱스는 요구 발생 시 승격**: `(updated_at, id)` 같은 복합 인덱스는 실제 커서 페이지네이션·증분 연동 요구가 생기면 기존 단일 인덱스를 대체한다.
 - **의미별 시간 컬럼 존중**: 이력·만료·동기화처럼 목적별 시간 컬럼이 있다면, 컬럼명에 고정하지 말고 실제 조회 기준 컬럼에 인덱스를 둔다.
 
@@ -176,19 +178,20 @@
 - `created_at` / `updated_at` 정렬 조회가 많은 테이블에 시간 인덱스 누락
 - 명확한 요구 없이 시간 인덱스 방향을 `ASC`/`DESC`로 고정
 - 아직 필요하지 않은 `(created_at, id)` / `(updated_at, id)` 복합 인덱스를 선제 추가
-- 마이그레이션에는 인덱스를 추가했지만 Prisma schema에는 누락
+- `db/schema.sql`에는 인덱스를 추가했지만 Prisma schema에는 누락
 - 더 명확한 목적별 시간 기준 컬럼이 있는데 무조건 `created_at`만 인덱싱
 
-### Prisma schema ↔ Supabase 마이그레이션 정합성
+### Prisma schema ↔ `db/schema.sql` 정합성
 
 #### ✅ 규칙
-- **마이그레이션 SQL이 단일 진실**. Prisma는 introspect(`npm run db:pull`) 후 camelCase 매핑을 수동 유지(파일 상단 주석 참조).
+- **`db/schema.sql`이 단일 진실**. Prisma는 introspect(`npm run db:pull`) 후 camelCase 매핑을 수동 유지(파일 상단 주석 참조). 절차: `db/schema.sql` 편집 → `npm run db:reset` → `npm run db:pull && npm run db:generate`.
 - **인덱스/유니크/partial은 양쪽에 같은 `map` 이름으로 반영**. partial은 Prisma에서 `where: raw("(…)")`.
 - **관계는 도메인 *내부*만 `@relation` 선언**(`relationMode="prisma"`라 DB FK는 안 생김). **교차 도메인 참조**(예: `account_id`, `product_id`)는 `@relation` 없이 bare 스칼라 + `@@index`로 둔다 — `product_photo` 선례.
-- **소유키(`account_id`)를 자식마다 비정규화하지 않는다** — 소유권은 부모(`order_id`)로 도출한다. RLS backstop을 두는 **경계 데이터**(PII·결제) 테이블에 한해 `account_id`를 두어 단순 owner 정책을 쓴다(RLS 여부 판단은 [rls-best-practices.md](./rls-best-practices.md)의 "RLS를 어디에 걸까"). 그 외 자식은 스키마를 도메인-순수로 유지한다 — `order_item`·`order_status_history` 선례.
+- **소유키(`account_id`)를 자식마다 비정규화하지 않는다** — 소유권은 부모(`order_id`)로 도출한다. **경계 데이터**(PII·결제: `order_address`·`payment` 등) 테이블에 한해 `account_id`를 두어 앱 DAL의 소유권 필터(`WHERE account_id = 세션`)를 단순하게 한다. 그 외 자식은 스키마를 도메인-순수로 유지한다 — `order_item`·`order_status_history` 선례.
 - **변경 후 `prisma validate`로 정합성 확인** 후 커밋.
 
 #### ❌ 반례
-- 마이그레이션에만 또는 Prisma에만 인덱스가 존재(한쪽 누락)
+- `db/schema.sql`에만 또는 Prisma에만 인덱스가 존재(한쪽 누락)
+- `prisma/schema.prisma`를 직접 고치고 `db/schema.sql`은 두기(다음 `db:pull`에서 사라진다)
 - `map` 이름 불일치(introspect가 임의 이름을 부여하게 됨)
 - 교차 도메인까지 `@relation` 강제(모델 결합도 상승, back-relation 강제로 기존 모델 수정 유발)

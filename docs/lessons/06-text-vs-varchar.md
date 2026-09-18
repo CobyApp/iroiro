@@ -101,7 +101,7 @@ ALTER TABLE product VALIDATE CONSTRAINT product_name_length;
 | `product.name` | 1~200 | 검색·SEO 한도 |
 | `product.description` | 제한 X | 본문 |
 | `product.item_code` | `^[A-Z0-9-]{3,32}$` | 형식 강제 |
-| `product_photo.r2_key` | 1~512 | R2 키 길이 한도 |
+| `product_photo.r2_key` | 1~512 | 객체 키 길이 한도(S3는 1024바이트) 안에서 여유 있게 |
 | `product_photo.alt_text` | 1~200 | 접근성 짧게 |
 
 추가 시 패턴:

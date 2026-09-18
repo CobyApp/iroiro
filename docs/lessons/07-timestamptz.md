@@ -32,7 +32,7 @@ SELECT created_at FROM product LIMIT 1;
 ```sql
 SET TIME ZONE 'Asia/Seoul';                          -- 현재 세션만
 ALTER ROLE my_admin SET timezone = 'Asia/Seoul';     -- 사용자 영구
-ALTER DATABASE postgres SET timezone TO 'Asia/Seoul'; -- DB 영구 (Supabase Studio에서도 KST)
+ALTER DATABASE iroiro SET timezone TO 'Asia/Seoul';   -- DB 영구 (psql·Prisma Studio 세션도 KST)
 ```
 
 ## TIMESTAMP vs TIMESTAMPTZ
@@ -68,7 +68,7 @@ MySQL의 `DATETIME(6)`은 PG의 `TIMESTAMP` (without time zone)에 가깝고, My
 
 | 시나리오 | TIMESTAMPTZ | TIMESTAMP |
 |---|---|---|
-| Vercel 서버가 한국 외 리전(미국 등)에서 `now()` | KST로 일관 표시 ✅ | 미국 시간이 들어가서 9시간 어긋남 ❌ |
+| 앱 컨테이너(ECS, TZ=UTC)에서 만든 `new Date()`와 DB `now()`를 섞어 저장 | 같은 순간으로 일관 ✅ | UTC 벽시계가 그대로 들어가 9시간 어긋남 ❌ |
 | Metabase·BI 도구에서 동일 컬럼 조회 | TZ 정보 명시 → 자동 변환 ✅ | "이게 KST야 UTC야?" 추측 필요 ❌ |
 | 일본·해외 어드민 합류 | 자동 변환 ✅ | 데이터 마이그레이션 필요 ❌ |
 | 서머타임 적용 국가로 확장 | 안전 ✅ | "사라진 1시간" 버그 ❌ |
@@ -84,7 +84,7 @@ created_at TIMESTAMPTZ(0)     -- 초 단위
 
 기본 6은 안전한 디폴트. 6 이상 키울 수 없음.
 
-## Postgres·Supabase 컨센서스
+## Postgres 컨센서스
 
 [PostgreSQL Wiki: Don't Do This](https://wiki.postgresql.org/wiki/Don%27t_Do_This)에 명시:
 
@@ -94,18 +94,18 @@ created_at TIMESTAMPTZ(0)     -- 초 단위
 
 ## 이 프로젝트의 결정
 
-**모든 timestamp 컬럼은 `TIMESTAMPTZ`.** 5개 테이블의 `created_at`, `updated_at` 모두 동일.
+**모든 timestamp 컬럼은 `TIMESTAMPTZ`.** `db/schema.sql`의 `created_at`·`updated_at`·`expires_at`·`paid_at` 등 전부 동일.
 
 이유:
-- Vercel은 글로벌 배포, 서버 리전 가변 → TIMESTAMPTZ가 일관성 보장
+- 앱(ECS Fargate)·DB(RDS)는 서울 리전에서 UTC로 돌고 사용자는 KST → 서버 TZ ≠ 사용자 TZ가 상수. TIMESTAMPTZ가 이 차이를 흡수한다
 - 향후 해외 어드민 합류 / BI 도구 / 백업 분석 모두 안전
 - 비용 동일 (8 bytes)
 - 한국 어드민 환경에선 자동으로 KST 표시 → 운영상 차이 없음
 
 KST 표시를 원할 때 옵션:
 ```sql
--- 현재 마이그레이션엔 적용 X. 필요하면 추가:
-ALTER DATABASE postgres SET timezone TO 'Asia/Seoul';
+-- 현재 db/schema.sql엔 적용 X(앱은 UTC로 받아 클라이언트에서 변환). 운영자 psql 편의가 필요하면 롤 단위로:
+ALTER ROLE iroiro_admin SET timezone = 'Asia/Seoul';
 ```
 
 ## 자주 쓰는 패턴

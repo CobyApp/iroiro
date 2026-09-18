@@ -1,7 +1,7 @@
 # 공지사항 사진 첨부 설계
 
 - **작성**: 2026-08-02 · **상태**: 설계 확정(구현 전)
-- **관련 문서**: [community-design](./2026-07-19-community-design.md)(공지 도메인 원 설계) · [image-path-strategy](../../image-path-strategy.md)(R2 키 규칙) · [r2-adoption](../../r2-adoption.md)(버킷·토큰 운영) · [data-modeling](../../architecture/data-modeling.md)(스키마 규칙)
+- **관련 문서**: [community-design](./2026-07-19-community-design.md)(공지 도메인 원 설계) · [image-path-strategy](../image-path-strategy.md)(객체 키 규칙) · [deployment](../deployment.md)(S3 버킷·자격증명 운영) · [data-modeling](../architecture/data-modeling.md)(스키마 규칙)
 
 ## 배경·목표
 
@@ -147,7 +147,7 @@ prefix 정규식은 경로 오입력(타 도메인 키·경로 탈출)을 데이
 ## 문서·설정 갱신
 
 - **환경변수·버킷·토큰 변화 없음** — 기존 공개 버킷·`R2_PUBLIC_BASE` 사용.
-- `R2_BUCKET` 설명이 "상품 공개 버킷"인 3곳(README env 표 · environment-variables.md · r2-adoption 버킷 용도 표)을 "공개 버킷(상품·공지)"로 갱신.
+- `R2_BUCKET` 설명이 "상품 공개 버킷"인 곳(README env 표 · environment-variables.md)을 "공개 버킷(상품·공지)"로 갱신.
 - community-design 스펙은 수정하지 않는다(공지 사진은 본 스펙이 단일 진실).
 
 ## 범위 밖 (후속 후보)

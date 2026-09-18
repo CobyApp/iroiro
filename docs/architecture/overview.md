@@ -6,11 +6,14 @@
 ## 한 눈에 보는 구조
 
 ```
-app/         라우트 셸 (얇게 유지)
-modules/     도메인 (products, cart, orders, members, admin, auth, ui)
-lib/         횡단 인프라 (db, r2, env, utils)
-components/  shadcn 원본만
+app/           라우트 셸 (얇게 유지) — (shop) (admin) (auth) (marketing) · api/ · media/
+modules/       도메인 (products, orders, posts, collection, auth, admin, ui …)
+lib/           횡단 인프라 (db, env, r2, payments, action-result, utils)
+components/    shadcn 원본(ui/) + 소수의 도메인 무관 래퍼
+db/schema.sql  DB 스키마 단일 진실 (Prisma schema는 db:pull 파생물)
 ```
+
+스택: Next.js 16 App Router · React 19 · TypeScript · Tailwind v4 + shadcn/ui · Prisma 7 · PostgreSQL 17 · Vitest. 배포는 AWS ECS(서울) — [../deployment.md](../deployment.md).
 
 ## 핵심 룰 4가지
 
@@ -33,25 +36,32 @@ components/  shadcn 원본만
 |---|---|
 | `modules/products/actions.ts` | `utils/actions/products.ts` |
 | 커지면 `modules/products/actions/` 폴더로 승격 | `app/actions.ts` 같은 전역 |
-| webhook/콜백만 `app/api/` | `app/api/products/route.ts` (CRUD용) |
+| OAuth 콜백·헬스체크·크론·webhook만 `app/api/` | `app/api/products/route.ts` (CRUD용) |
 
 ### 룰 3 — 권한 가드는 layout, 함수는 `modules/admin/lib/isAdmin.ts`
 > 상세: [routing.md](./routing.md)
 
 | ✅ | ❌ |
 |---|---|
-| `(admin)/layout.tsx`에서 `getUser() + isAdmin()` 1회 | 페이지마다 가드 호출 |
-| 미인증 시 `redirect("/login")` | 빈 페이지 반환 |
-| `isAdmin`은 `modules/admin/lib/isAdmin.ts` 단일 진실 | 여러 곳에 중복 정의 |
+| `(admin)/layout.tsx`에서 `getCurrentAccount() + isBoardManager()/isAdmin()` 1회 | 페이지마다 가드 호출 |
+| 미인증 시 `redirect("/login")`, 권한 없음은 `redirect("/")` | 빈 페이지·404 반환 |
+| `isAdmin`은 `modules/admin/lib/isAdmin.ts` 단일 진실 (`account.is_admin`) | 여러 곳에 중복 정의 |
+| Server Action은 `requireAdmin()`으로 재검증 | layout 가드만 신뢰 |
 
 ### 룰 4 — 인증은 자체 세션 + 카카오·네이버 OAuth만
 > 상세: [auth-and-data.md](./auth-and-data.md)
 
 | ✅ | ❌ |
 |---|---|
-| `middleware.ts`는 `x-pathname` 헤더 전달만 | middleware에서 권한 분기 |
-| 세션은 `account_session` 테이블 + `modules/auth` | 외부 인증 SaaS 클라이언트 |
+| `middleware.ts`는 `x-pathname` 헤더 전달만 | middleware에서 세션 조회·권한 분기 |
+| 세션은 `account_session` 테이블 + `modules/auth` (DAL `getCurrentAccount`) | 외부 인증 SaaS 클라이언트 |
 | 권한·리다이렉트는 layout | NextAuth, Better-auth 도입 |
+
+## 데이터 한 줄 규칙
+
+- DB 접근은 `lib/db.ts`의 `db`(Prisma)만. 접속 롤은 **비특권 `app`** — GRANT 매트릭스가 DB 방어선이고 **RLS는 쓰지 않는다**([db-authorization-review](./db-authorization-review.md)).
+- 스키마 변경은 `db/schema.sql` 편집 → `npm run db:reset` → `npm run db:pull && npm run db:generate`. 새 테이블엔 GRANT를 함께 쓴다.
+- 소유권(내 주문·내 글)은 쿼리의 `WHERE account_id = 세션` — 앱 DAL 책임.
 
 ## 결정 트리 — "어디에 둘지" 30초 판단
 
@@ -63,7 +73,7 @@ components/  shadcn 원본만
 │         ├── 쿼리·헬퍼? → modules/<도메인>/lib/
 │         └── 타입?     → modules/<도메인>/types.ts
 └── NO  → lib/
-          ├── 외부 SDK 래퍼?  → lib/<sdk>/  (예: r2)
+          ├── 외부 SDK 래퍼?  → lib/<sdk>/  (예: r2, payments)
           ├── 환경변수?       → lib/env.ts
           └── 그 외 유틸?     → lib/utils.ts
 ```
@@ -71,6 +81,7 @@ components/  shadcn 원본만
 ## 작업 시작 전 자가 점검
 
 - [ ] 새 폴더가 룰 1을 어기지 않는가?
-- [ ] Server Action을 `app/api/`에 두려 하지 않는가? (webhook이 아니라면)
-- [ ] 권한 체크를 페이지가 아니라 layout에 두는가?
+- [ ] Server Action을 `app/api/`에 두려 하지 않는가? (외부 호출 엔드포인트가 아니라면)
+- [ ] 권한 체크를 페이지가 아니라 layout에 두고, 액션에서 `requireAdmin()`으로 재검증하는가?
 - [ ] 외부 인증 라이브러리(NextAuth 등)를 추가하려 하지 않는가?
+- [ ] 스키마를 바꿨다면 `db/schema.sql`을 고쳤고 GRANT를 넣었는가? (`prisma/schema.prisma`만 고치지 않았는가)

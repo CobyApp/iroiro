@@ -1,13 +1,15 @@
-# 16. 트랜잭션 GUC로 RLS에 요청 컨텍스트 주입
+# 16. 트랜잭션 GUC로 요청 컨텍스트 주입 (RLS용 — 미채택)
 
 > 🗄️ **미채택 설계 (2026-08-01).** 이 프로젝트는 RLS를 쓰지 않기로 해서 GUC 주입도 도입하지 않는다
 > ([db-authorization-review.md](../architecture/db-authorization-review.md)).
 > 문서는 **개념 설명으로 보존**한다 — RLS를 되살리면 이 설계가 그대로 필요하고,
 > 트랜잭션 스코프·커넥션 풀 수명 같은 내용은 RLS와 무관하게 유효하다.
+> 현재 코드에는 `set_config` 호출이 없다(`grep -rn set_config modules lib` → 0건). `db.$transaction`은
+> 여러 곳에서 쓰지만 원자성 목적이며 GUC 주입은 하지 않는다.
 
 ## 왜 알아야 하는가
 
-Option 3 RLS([15](./15-postgres-roles-and-rls.md))의 정책은 *"지금 이 요청이 누구냐"* — 본인 `account_id`, 어드민 여부 — 를 알아야 행을 거른다. 그런데 자체 인증이라 Supabase의 `auth.uid()`/JWT 컨텍스트가 없다. 그러면 **그 신원을 요청마다 DB 안으로 어떻게 전달**하나?
+RLS 정책([15](./15-postgres-roles-and-rls.md)의 이력)은 *"지금 이 요청이 누구냐"* — 본인 `account_id`, 어드민 여부 — 를 알아야 행을 거른다. 그런데 자체 인증이라 DB 안에는 요청 신원이 없다 — 세션은 앱이 `account_session`을 조회해 아는 것이고, 접속 롤은 누구든 `app` 하나다(Supabase처럼 JWT를 읽는 `auth.uid()` 같은 함수도 없다). 그러면 **그 신원을 요청마다 DB 안으로 어떻게 전달**하나?
 
 답은 **트랜잭션 스코프 GUC**다. DAL이 매 요청 트랜잭션에 "현재 사용자" 값을 박고, RLS 함수가 그걸 읽어 강제한다. 이 문서는 트랜잭션·GUC 개념부터 주입 코드, 그리고 풀링 환경에서 *왜 트랜잭션 스코프여야 하는지*까지 정리한다.
 
@@ -59,14 +61,14 @@ set_config('app.is_admin', 'true', true);   --    (동일, is_local=true)
 
 "트랜잭션에 GUC 주입" = ②. 값이 **딱 한 트랜잭션(= 한 요청)만큼만** 살고 자동으로 사라진다.
 
-## 왜 반드시 트랜잭션 스코프여야 하나 — 풀링/서버리스
+## 왜 반드시 트랜잭션 스코프여야 하나 — 커넥션 풀
 
-서버리스 + 커넥션 풀에선 **물리 커넥션 하나를 여러 요청·여러 사용자가 돌려 쓴다**([14](./14-serverless-session-and-proxy.md)).
+커넥션 풀에선 **물리 커넥션 하나를 여러 요청·여러 사용자가 돌려 쓴다.** 우리 앱도 그렇다 — ECS 컨테이너 안의 Prisma(`@prisma/adapter-pg`)가 프로세스 수명 동안 `pg` 풀을 유지하고, 요청마다 풀에서 커넥션을 빌려 쓰고 반납한다([`lib/db.ts`](../../lib/db.ts)). 서버리스가 아니어도 문제는 같다.
 
 - **세션 스코프(`SET`)로 박으면** → 내 요청이 끝나도 값이 커넥션에 **남는다**. 다음 요청이 같은 커넥션을 받으면 내 `app.is_admin='true'`를 물려받아 → 남이 나로 행세하거나 비-어드민이 어드민이 됨 = **컨텍스트 누수(context bleed) = 심각한 보안 사고**.
 - **트랜잭션 스코프(`SET LOCAL`)로 박으면** → 트랜잭션 끝나는 순간 자동 소거 → 다음 요청에 절대 안 샌다. 안전.
 
-> 트랜잭션 스코프라 **transaction-mode 풀러(Supavisor 6543 등)와도 호환**된다 — `SET LOCAL`은 트랜잭션 경계 안에 갇히므로.
+> 트랜잭션 스코프라 **transaction-mode 외부 풀러(PgBouncer·RDS Proxy 등)와도 호환**된다 — `SET LOCAL`은 트랜잭션 경계 안에 갇히므로. 세션 스코프 `SET`은 그런 풀러에서 아예 보장이 안 된다.
 
 **비유**: 세션 GUC = 커넥션 화이트보드에 적기(지울 때까지 남아 다음 사람이 봄). 트랜잭션 GUC = 끝나면 자동 폐기되는 포스트잇.
 
@@ -132,7 +134,7 @@ export function withAuthContext<T>(
 
 ## 함정·주의
 
-- **세션 스코프(`SET`/`is_local=false`) 금지** — 풀링 시 context bleed. 반드시 `SET LOCAL`/`set_config(..., true)`.
+- **세션 스코프(`SET`/`is_local=false`) 금지** — 풀링 시 context bleed. 반드시 `SET LOCAL`/`set_config(..., true)`. 같은 이유로 `SET TIME ZONE`·`search_path`처럼 요청별로 바꾸고 싶은 값도 트랜잭션 스코프로.
 - **GUC는 `tx`에 박고 쿼리도 `tx`로** — 전역 `db`로 쿼리하면 다른 커넥션이라 GUC 미적용 → 0행/거부. 흔한 버그.
 - **값은 text** — `set_config` 2번째 인자는 문자열. boolean은 `'true'`/`'false'`로(그래야 `is_admin()`의 `= 'true'`와 일치).
 - **트랜잭션 밖 `SET LOCAL`은 무효** — autocommit(문 단위 트랜잭션)에선 그 문장만 영향. 반드시 명시적 트랜잭션으로 GUC + 쿼리를 묶을 것.
@@ -141,9 +143,8 @@ export function withAuthContext<T>(
 ## 참고
 
 - [13. 세션 관리 — DB 세션 vs JWT](./13-session-vs-jwt.md)
-- [14. 서버리스 세션과 Next 16 Proxy/DAL](./14-serverless-session-and-proxy.md) — context bleed·풀러
-- [15. Postgres 롤·소유권과 RLS 적용](./15-postgres-roles-and-rls.md) — 접속 롤은 하나, 신원은 GUC
+- [15. Postgres 롤·소유권과 GRANT 매트릭스](./15-postgres-roles-and-rls.md) — 접속 롤은 하나(`app`), 신원은 앱 DAL(RLS 시절엔 GUC)
 - [`docs/architecture/auth-and-data.md`](../architecture/auth-and-data.md)
 - [PostgreSQL — `set_config()` / `current_setting()`](https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET)
 - [PostgreSQL — `SET` / `SET LOCAL`](https://www.postgresql.org/docs/current/sql-set.html)
-- 실제 코드: [`init_account.sql`](../../supabase/migrations/20260608142249_init_account.sql) (`current_account_id()`·RLS), [`init_catalog.sql`](../../supabase/migrations/20260508132935_init_catalog.sql) (`is_admin()`)
+- 실제 스키마: [`db/schema.sql`](../../db/schema.sql) — 2026-08-01 이후 RLS 정책·`current_account_id()`·`is_admin()` 함수가 모두 제거되어 **지금은 GUC를 읽는 SQL이 없다.** 위 설계안의 SQL은 옛 Supabase 마이그레이션(`init_account`·`init_catalog`)에 있었고 통합 시 제외됐다.

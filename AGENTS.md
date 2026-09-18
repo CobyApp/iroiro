@@ -17,7 +17,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 룰 3: 권한 가드는 layout에서. `isAdmin`은 `modules/admin/lib/isAdmin.ts` 단일 진실.
 - 룰 4: 인증은 자체 세션(`account_session`) + 카카오·네이버 OAuth만. NextAuth/Better-auth 도입 금지.
 
-DB 스키마 작업(테이블·컬럼 신설/변경, 마이그레이션 작성) 전에는 **[docs/architecture/data-modeling.md](./docs/architecture/data-modeling.md)를 반드시 확인하라** — 네이밍·키·타입·제약 등 스키마 설계 규칙의 단일 진실.
+DB 스키마 작업(테이블·컬럼 신설/변경) 전에는 **[docs/architecture/data-modeling.md](./docs/architecture/data-modeling.md)를 반드시 확인하라** — 네이밍·키·타입·제약 등 스키마 설계 규칙의 단일 진실. 스키마 정본은 `db/schema.sql` 하나다(`prisma/schema.prisma`는 `npm run db:pull` 파생물). 새 테이블에는 `GRANT … TO app`을 함께 쓴다 — 앱은 비특권 `app` 롤로 접속하고 RLS는 쓰지 않는다([db-authorization-review](./docs/architecture/db-authorization-review.md)).
+
+배포·인프라(AWS ECS·RDS·S3, GitHub Actions)와 환경변수는 [docs/deployment.md](./docs/deployment.md)·[docs/environment-variables.md](./docs/environment-variables.md)를 따른다. Vercel·Supabase·Cloudflare R2는 더 이상 사용하지 않는다(코드의 `lib/r2/`·`R2_*` 이름은 역사적 명칭 — 이름 변경 제안 금지).
 
 새 패턴 도입은 [docs/architecture/references.md](./docs/architecture/references.md)의 절차를 따른다.
 

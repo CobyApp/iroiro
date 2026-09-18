@@ -1,11 +1,12 @@
-# 이미지 경로(R2 객체 키) 설계 전략
+# 이미지 경로(S3 객체 키) 설계 전략
 
-상품 사진을 Cloudflare R2에 **어떤 키(경로) 규칙으로 저장할지**에 대한 의사결정 기록.
-[`image-strategy.md`](./image-strategy.md)가 *왜 R2인가*(스택 선택)를 다룬다면, 이 문서는 *R2 안에서 키를 어떻게 나눌 것인가*(레이아웃 설계)를 다룬다.
+상품 사진을 객체 스토리지(AWS S3, 로컬은 MinIO)에 **어떤 키(경로) 규칙으로 저장할지**에 대한 의사결정 기록. 스토리지 자체의 선택·운영은 [deployment.md](./deployment.md)가, 이 문서는 *버킷 안에서 키를 어떻게 나눌 것인가*(레이아웃 설계)를 다룬다.
 
-- **상태**: 경로·식별자(UUIDv7) 구현 완료 · 샤딩 미도입(raw) · 캐시는 Cloudflare Cache Rule로 적용(절차: [r2-adoption.md](./r2-adoption.md) > CDN 캐싱)
+> 코드·컬럼의 `r2_key` / `buildR2Key` / `lib/r2/` 이름은 Cloudflare R2를 쓰던 시기의 것이다. 현재 값은 S3 키이며 이름은 그대로 둔다(리네임 계획 없음). 키 레이아웃 규칙은 스토리지가 바뀌어도 그대로 적용된다.
+
+- **상태**: 경로·식별자(UUIDv7) 구현 완료 · 샤딩 미도입(raw) · 캐시는 CDN 규칙이 아니라 서빙 경로가 결정 — 고객용 상품 사진은 `/media/*` 라우트의 `Cache-Control`, 공지·배너 등 공개 객체는 S3 공개 URL(`R2_PUBLIC_BASE`) 직접(§6 캐시·메타데이터)
 - **작성일**: 2026-05-30
-- **관련**: [`docs/lessons/08-r2-storage-pattern.md`](./lessons/08-r2-storage-pattern.md)가 "r2_key 설계 — 운영하면서 결정"으로 열어둔 항목을 이 문서가 확정한다.
+- **관련**: [`docs/lessons/08-r2-storage-pattern.md`](./lessons/08-r2-storage-pattern.md)가 "r2_key 설계 — 운영하면서 결정"으로 열어둔 항목을 이 문서가 확정한다. 고객 서빙 경로는 [product-image-protection.md](./product-image-protection.md).
 
 ---
 
@@ -68,20 +69,20 @@
 3. **원본과 변형(파생)을 분리** — `original/` vs `variants/` 프리픽스. 원본은 백업/복제 대상, 변형은 재생성 가능하므로 lifecycle로 정리 가능. ([Solidus: Storing images on S3/CDN](https://github.com/solidusio/solidus/wiki/Storing-images-on-S3-and-CDN%27s))
 4. **불변 키 + 긴 TTL + CDN 캐시** — 키가 불변이면 `Cache-Control: max-age=1년, immutable`로 캐시 최적화.
 5. **키 안전 문자** — 영숫자 + `- _ . * ' ( )`. `/`는 폴더 구분에만. ([AWS 객체 키 명명](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html))
-6. **R2는 평면 구조 + LIST 1,000건/페이지**, 용량 확장은 버킷 샤딩 권장. ([R2 Limits](https://developers.cloudflare.com/r2/platform/limits/))
+6. **S3 호환 스토리지는 평면 구조 + LIST 1,000건/페이지**. (조사 당시 Cloudflare R2 기준 — [R2 Limits](https://developers.cloudflare.com/r2/platform/limits/); S3도 동일한 LIST 페이지 크기다)
 
-> **핵심 통찰**: "사진이 많으니 경로를 잘 나눠야 한다"의 실제 이유는 *성능*이 아니라 *운영·조직화*다. R2/S3는 알아서 스케일하므로, 우리가 얻을 실익은 ① 안정적 식별자, ② 원본/변형 분리, ③ 불변키+CDN 캐시다.
+> **핵심 통찰**: "사진이 많으니 경로를 잘 나눠야 한다"의 실제 이유는 *성능*이 아니라 *운영·조직화*다. S3는 알아서 스케일하므로, 우리가 얻을 실익은 ① 안정적 식별자, ② 원본/변형 분리, ③ 불변키+긴 캐시다.
 
 ## 5. 핵심 논점과 결정
 
 ### 5.1 평면 프리픽스의 단점과 샤딩
 
-**오해부터 정리**: S3/R2는 폴더가 없는 평면 키-값 저장소다. `products/original/`는 진짜 디렉토리가 아니라 키 접두사일 뿐이라 — 프리픽스당 객체 수 제한이 없고, **개별 GET/PUT 속도는 형제 파일 수와 무관**하다(우리는 DB의 정확한 키로 직접 fetch). 즉 파일시스템식 "한 폴더에 파일 too many" 문제는 적용되지 않는다.
+**오해부터 정리**: S3(와 MinIO 등 호환 구현)는 폴더가 없는 평면 키-값 저장소다. `products/original/`는 진짜 디렉토리가 아니라 키 접두사일 뿐이라 — 프리픽스당 객체 수 제한이 없고, **개별 GET/PUT 속도는 형제 파일 수와 무관**하다(우리는 DB의 정확한 키로 직접 fetch). 즉 파일시스템식 "한 폴더에 파일 too many" 문제는 적용되지 않는다.
 
 **진짜 단점 2가지**
 
 - **① LIST·콘솔 브라우징 부담** — LIST는 1,000건/페이지 페이지네이션이라 평면 프리픽스에 수십만 개가 쌓이면 콘솔 탐색·정합성 점검이 무거워진다. (단, 이 앱은 런타임에 LIST를 안 함 → 영향은 운영/콘솔 한정)
-- **② (S3 한정) 순차 키 쓰기 핫스팟** — 순차 키는 공통 접두사를 길게 공유해 자동 분산이 어렵다. (단, R2는 S3식 프리픽스 물리파티션 모델이 아니고, 관리자 업로드 수준 쓰기율이라 비현실적 위험)
+- **② 순차 키 쓰기 핫스팟** — 순차 키는 공통 접두사를 길게 공유해 자동 분산이 어렵다. (단, S3의 프리픽스당 한도는 3,500 write/s이고 관리자 업로드 수준 쓰기율이라 비현실적 위험)
 
 **결정 (갱신)**: 샤딩은 **도입하지 않는다(raw 유지)**.
 
@@ -89,7 +90,7 @@
 products/original/{id}.{ext}
 ```
 
-위 두 단점 모두 이 프로젝트에선 발현되지 않는다 — 앱은 런타임에 LIST를 안 하고(DB가 인덱스), R2엔 S3식 핫스팟이 없으며, 무료 한도(≈사진 5만 장)까지 평면 프리픽스로 충분하다. 샤드는 *수십만+ 객체*에서나 의미가 있어 현 규모엔 과한 보험이다.
+위 두 단점 모두 이 프로젝트에선 발현되지 않는다 — 앱은 런타임에 LIST를 안 하고(DB가 인덱스), 쓰기율은 프리픽스 한도에 한참 못 미치며, 수만 장 규모까지 평면 프리픽스로 충분하다. 샤드는 *수십만+ 객체*에서나 의미가 있어 현 규모엔 과한 보험이다.
 
 > 되돌리기: 정말 규모가 커지면 **신규 업로드부터 샤드를 추가**하면 되고(기존 키는 DB에 전체 경로 저장이라 공존), 전체 키가 DB에 있으니 일괄 마이그레이션(객체 rename + 행 업데이트)도 가능하다. 상품 폴더·실제 productId 경로·해시 샤드 모두 검토했으나 이 규모에선 순이득이 작았다.
 
@@ -117,7 +118,7 @@ CDN은 기본적으로 URL 단위로 캐싱한다. "특정 경로만 캐싱"은 
 | 표준 | 커뮤니티 | RFC 9562 | **RFC 9562** |
 | Node 생성 | 라이브러리 | **`crypto.randomUUID()` 내장** | 라이브러리 |
 
-**중요한 구분**: 웹의 "UUIDv7이 베스트 프랙티스" 합의는 **DB 기본키** 기준이다 — 그 근거는 B-tree 인덱스 지역성(insert 성능)이다. 그런데 우리 식별자는 **R2 객체 키(파일명)** 이고 `product_photo`의 PK는 별도 `bigint`라, **v7의 간판 장점(인덱스 지역성·시간정렬)이 둘 다 힘을 못 쓴다**(`created_at`이 이미 DB에 있음).
+**중요한 구분**: 웹의 "UUIDv7이 베스트 프랙티스" 합의는 **DB 기본키** 기준이다 — 그 근거는 B-tree 인덱스 지역성(insert 성능)이다. 그런데 우리 식별자는 **객체 키(파일명)** 이고 `product_photo`의 PK는 별도 `bigint`라, **v7의 간판 장점(인덱스 지역성·시간정렬)이 둘 다 힘을 못 쓴다**(`created_at`이 이미 DB에 있음).
 
 **검증한 사실**
 
@@ -176,8 +177,12 @@ export function buildR2Key(filename: string): string {
 
 ### 캐시·메타데이터
 
-- 키가 불변이므로 1년 적극 캐싱. **적용 위치 = Cloudflare Cache Rule**(엣지+브라우저 TTL) — 오브젝트 메타데이터/서명 PUT 헤더 방식 대신 CDN 레이어에서 처리해 **코드·클라이언트 변경 0**. 절차: [`r2-adoption.md`](./r2-adoption.md) > CDN 캐싱.
-- `Content-Type`은 업로드 presign 서명에 현행대로 포함.
+- 키가 불변이므로 "이미지 교체 = 새 키 = 새 URL"이고 퍼지가 필요 없다는 전제는 그대로다. 캐시 TTL은 CDN 규칙이 아니라 **서빙 경로**가 정한다:
+  - 고객용 상품 사진 — 원본 URL을 노출하지 않고 `/media/product-photos/...`·`/media/product-thumbnails/...`(HMAC 서명 라우트, `sharp` 워터마크)로 서빙하며, 응답에 `Cache-Control: public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000`을 붙인다(`modules/products/lib/customer-media-response.ts`). 상세: [product-image-protection.md](./product-image-protection.md).
+  - 공지·배너·관리 미리보기 — `R2_PUBLIC_BASE`(S3 공개 버킷 URL, 버킷 정책 public read) 직접. 별도 캐시 헤더·CDN 규칙은 두지 않았다.
+  - UGC(게시판 사진) — 비공개 버킷 서명 GET(15분) 또는 `/media/post-photos/...` 프록시, `Cache-Control: private`. 공유 캐시 대상이 아니다.
+- `Content-Type`은 업로드 서명에 현행대로 포함. 관리자 업로드(상품·공지·배너·카드)는 서버 액션이 대신 PUT한다(`lib/r2/relay.ts`, 버킷 CORS 불필요). 회원 업로드(아바타 `avatars/`, 게시판 대기 사진 `posts/tmp/`)는 브라우저가 presigned URL로 직접 PUT하므로 해당 버킷에 앱 origin을 허용하는 CORS가 있어야 한다 — `infra/aws/setup.sh`는 아직 CORS를 넣지 않는다(미완).
+- 이력: R2 시절에는 Cloudflare Cache Rule(1년·불변키)로 엣지 캐시를 걸었다. S3 이전으로 해당 규칙은 사라졌고, 위 `/media` 라우트 헤더가 그 역할을 대신한다.
 
 ### 코드 변경 범위 / 영향
 
@@ -192,9 +197,9 @@ export function buildR2Key(filename: string): string {
 
 ### 범위 밖 (YAGNI)
 
-- 변형 이미지 *생성* 로직 (Cloudflare Image Resizing 등 — [`image-strategy.md`](./image-strategy.md) 참조)
+- 변형 이미지 *생성* 로직 — 이후 `/media/*` 라우트가 요청 시점에 `sharp`로 생성하는 방식(`MEDIA_VARIANTS` g/d/cg/cd)으로 구현됐다. 변형을 객체로 저장하지 않으므로 `products/variants/{size}/` 자리는 예약만 남아 있다.
 - 기존 데이터 마이그레이션
-- 공개→서명/비공개 접근제어 전환
+- 공개→서명/비공개 접근제어 전환 — 상품 사진은 이후 `/media` 서명 라우트로 전환됐다([product-image-protection.md](./product-image-protection.md))
 - 업무 차원(상품·기획전) 경로 분리
 
 ## 7. 결정 요약
@@ -205,7 +210,7 @@ export function buildR2Key(filename: string): string {
 | 샤딩 | **미도입** | 현 규모(≈5만장)엔 불필요. 필요 시 신규부터 추가 |
 | 식별자 | **UUIDv7** (`uuid` v14) | 공식 라이브러리 허용 → 시간정렬·표준 채택 |
 | 변형 | `variants/{size}/` 자리 예약 | 나중 도입, 경로 변경 없이 확장 |
-| 캐싱 | Cloudflare Cache Rule(1년·불변키) | 코드 변경 0, 업무 차원 퍼지 불필요 확인 |
+| 캐싱 | 서빙 경로가 결정(`/media` 라우트 헤더 · S3 공개 URL) | 불변키라 퍼지 불필요, 업무 차원 퍼지 불필요 확인 |
 | 마이그레이션 | 신규 업로드만 | 기존 키는 전체 경로 저장이라 그대로 동작 |
 | 난수 | `Math.random()` 제거 | UUIDv7로 암호학적 품질 확보 |
 
@@ -222,6 +227,7 @@ export function buildR2Key(filename: string): string {
 - [Solidus — Storing images on S3 and CDN's](https://github.com/solidusio/solidus/wiki/Storing-images-on-S3-and-CDN%27s)
 
 **내부**
-- [`docs/image-strategy.md`](./image-strategy.md) — 이미지 스택 선택(왜 R2)
+- [`docs/deployment.md`](./deployment.md) — S3 버킷(`iroiro-kr-products-<env>` / `iroiro-kr-ugc-<env>`)·인프라 운영
+- [`docs/product-image-protection.md`](./product-image-protection.md) — 고객용 `/media` 서빙 경로·캐시 헤더
 - [`docs/lessons/08-r2-storage-pattern.md`](./lessons/08-r2-storage-pattern.md) — DB는 메타·스토리지는 바이트, r2_key 설계 (이 문서가 확정)
 - [`docs/lessons/03-primary-key-strategy.md`](./lessons/03-primary-key-strategy.md) — PK 식별자 전략 (UUID vs BIGINT)

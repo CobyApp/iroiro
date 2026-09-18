@@ -4,7 +4,7 @@
 
 **구현 상태**: ✅ deferred 가입(닉네임 필수 입력 후 account 생성, `display_name` NOT NULL) 완료 — `pending_account` 테이블(쿠키엔 무작위 토큰, 세션과 동일 패턴)·`/signup`·`completeSignupAction`. ⏳ 전화 인증 온보딩 + dedup/병합(아래 슬라이스 3~6)은 미구현.
 
-> 관련 코드: `modules/auth/`. 스키마: `supabase/migrations/`의 `init_account`. 무FK 정책: [lessons/05](./lessons/05-foreign-keys.md). 세션: [lessons/13](./lessons/13-session-vs-jwt.md).
+> 관련 코드: `modules/auth/`. 스키마: [`db/schema.sql`](../db/schema.sql)의 `init_account` 섹션. 무FK 정책: [lessons/05](./lessons/05-foreign-keys.md). 세션: [lessons/13](./lessons/13-session-vs-jwt.md).
 
 ## 결정
 

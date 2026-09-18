@@ -73,7 +73,7 @@
 
 ## 데이터 모델
 
-신규 마이그레이션 `supabase/migrations/<YYYYMMDDHHMMSS>_init_collection.sql` (파일명 타임스탬프는 구현 시 채번).
+신규 마이그레이션 `init_collection`(현재는 `db/schema.sql`의 `[20260714213328_init_collection]` 섹션으로 통합).
 컨벤션 준수: 단수 테이블명 · `BIGINT IDENTITY` PK · **FK 미사용**(`*_id` + 수동 인덱스) · 스냅샷 ·
 `CREATE TABLE → ALTER ADD CONSTRAINT → CREATE INDEX → COMMENT` 블록 · 파일 끝 GRANT/RLS · 모든 테이블/컬럼 한국어 COMMENT.
 
@@ -215,7 +215,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON collection_item TO app;
     전환 — `order_item_id` 등 원시 필드는 SELECT하지 않아 공개 DTO 미포함). 주문·PII 테이블은 미접근.
   - 소유자 관리(생성·삭제·등록·해제·고정·공개토글·title): `collection.account_id = current_account_id`로 스코프.
 - `account_id`는 서버측에서만 사용하고 **공개 클라이언트로 절대 반환하지 않는다**(코드→회원 역매핑 차단).
-- *defense-in-depth로 공개-read/owner RLS 정책 추가 여부는 `docs/architecture/rls-best-practices.md`에서 확정(후속).*
+- *defense-in-depth RLS 정책은 도입하지 않기로 확정 — 방어선은 app 롤 GRANT 매트릭스([db-authorization-review.md](../architecture/db-authorization-review.md)).*
 
 ## 라이프사이클 (멱등·원자적)
 
@@ -325,7 +325,7 @@ GET /collections/{public_code}      ← URL 단위는 컬렉션(회원 단위 �
 
 ### 완료 (2026-07-17 기준)
 
-- [x] **마이그레이션** — `supabase/migrations/20260714213328_init_collection.sql` (3테이블 + GRANT)
+- [x] **마이그레이션** — `init_collection`(3테이블 + GRANT; 현재 `db/schema.sql`에 통합)
 - [x] **Prisma 모델** — `InventoryItem`/`Collection`/`CollectionItem` (`prisma/schema.prisma`)
 - [x] **public-code** — `modules/collection/lib/public-code.ts` (+테스트)
 - [x] **DTO** — `modules/collection/types.ts` (`CollectionCard`/`PublicCollection`/`OwnerCollection`/`InventoryEntry`)
@@ -334,7 +334,7 @@ GET /collections/{public_code}      ← URL 단위는 컬렉션(회원 단위 �
 - [x] **주문 통합(Task 7)** — `modules/orders/actions.ts` confirmPayment: tx#3 밖에서 스냅샷 재료
       (order_item + product team/member) 조회, tx#3 안 order→paid 직후 `materializeItems` 호출
       (승인 반영과 원자화, `acquiredAt = 승인 시각`). mock 경로는 미통합(collection = DB 전용 결정).
-      typecheck·orders 테스트 회귀 없음 확인. E2E는 로컬 Supabase 스택 가동 시 검증.
+      typecheck·orders 테스트 회귀 없음 확인. E2E는 로컬 DB 스택(`npm run services:up`) 가동 시 검증.
 
 - [x] **읽기 레이어(Task 8)** — `lib/transform.ts`(순수 도출: `aggregateInventory` SUM/MIN/최신
       스냅샷 + DTO 변환) + `lib/queries.ts`(`getPublicCollection`/`getOwnerCollections`/`getInventory`,

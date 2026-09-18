@@ -16,10 +16,10 @@
 ## 데이터 모델 (마이그레이션 1개)
 
 `Account`에 nullable 컬럼 2개 추가 — **additive·비파괴적·하위호환**:
-- `avatarKey String?` → `avatar_key` : 아바타 R2 오브젝트 키
+- `avatarKey String?` → `avatar_key` : 아바타 객체 스토리지 키(`avatars/` prefix)
 - `deletedAt DateTime?` → `deleted_at` (timestamptz) : 소프트 삭제 시각
 
-마이그레이션 파일: `supabase/migrations/<ts>_account_avatar_soft_delete.sql`
+마이그레이션 `account_avatar_soft_delete`(현재는 `db/schema.sql`에 통합)
 ```sql
 ALTER TABLE account ADD COLUMN avatar_key text;
 ALTER TABLE account ADD COLUMN deleted_at timestamptz;
@@ -92,7 +92,7 @@ RSC·Server Action·Route Handler 어디서도 인증되지 않음.
 - `app/(shop)/mypage/edit/_components/AvatarUploadField.tsx` — 아바타 업로드(클라).
 - `app/(shop)/mypage/_components/DeleteAccountItem.tsx` — 회원 탈퇴 Dialog(클라).
 - `app/(marketing)/terms/page.tsx`, `app/(marketing)/privacy/page.tsx` — 플레이스홀더.
-- `supabase/migrations/<ts>_account_avatar_soft_delete.sql`.
+- `db/schema.sql` — `account_avatar_soft_delete` 섹션.
 
 ### 수정
 - `prisma/schema.prisma` — Account에 `avatarKey`·`deletedAt`.

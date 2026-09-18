@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# iroiro — AWS provisioning (idempotent). Region: Tokyo. Compute: Amazon ECS Express Mode
+# iroiro — AWS provisioning (idempotent). Region: Seoul (ap-northeast-2). Compute: Amazon ECS Express Mode
 # (App Runner stopped accepting new customers on 2026-04-30).
 #
 #   ./infra/aws/setup.sh core      ECR · S3 · app IAM user · SSM placeholders · GitHub OIDC role
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 export AWS_PROFILE="${AWS_PROFILE:-personal}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-ap-northeast-1}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-ap-northeast-2}"
 REGION="$AWS_DEFAULT_REGION"
 APP="iroiro"
 GH_REPO="CobyApp/iroiro"
@@ -62,10 +62,19 @@ phase_core() {
 
   for e in $ENVS; do
     say "S3 buckets ($e)"
-    local pub="${APP}-products-${e}" ugc="${APP}-ugc-${e}"
+    local pub="${APP}-kr-products-${e}" ugc="${APP}-kr-ugc-${e}"
     for b in "$pub" "$ugc"; do
-      aws s3api head-bucket --bucket "$b" 2>/dev/null || aws s3api create-bucket --bucket "$b" \
-        --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
+      # Bucket names are global; recreating a just-deleted name (e.g. after a region move) can be
+      # refused with OperationAborted for a while — retry.
+      if ! aws s3api head-bucket --bucket "$b" 2>/dev/null; then
+        for i in $(seq 1 30); do
+          aws s3api create-bucket --bucket "$b" --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null 2>/tmp/${APP}-s3.err && break
+          grep -q OperationAborted /tmp/${APP}-s3.err || { cat /tmp/${APP}-s3.err; die "create-bucket $b failed"; }
+          [ "$i" = 1 ] && warn "$b: name still releasing from previous deletion — retrying every 30s"
+          sleep 30
+        done
+        aws s3api head-bucket --bucket "$b" >/dev/null 2>&1 || die "create-bucket $b failed"
+      fi
       aws s3api put-bucket-tagging --bucket "$b" --tagging "TagSet=[{Key=app,Value=$APP},{Key=env,Value=$e}]"
       aws s3api put-bucket-encryption --bucket "$b" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
     done
@@ -78,7 +87,11 @@ phase_core() {
       "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
     aws s3api put-bucket-lifecycle-configuration --bucket "$ugc" --lifecycle-configuration \
       '{"Rules":[{"ID":"expire-tmp","Status":"Enabled","Filter":{"Prefix":"posts/tmp/"},"Expiration":{"Days":1}}]}'
-    ok "$pub (public read), $ugc (private)"
+    # Browser-side presigned PUT (avatars, post photos) needs CORS on both buckets.
+    local cors='{"CORSRules":[{"AllowedOrigins":["https://iroiro.club","https://www.iroiro.club","https://dev.iroiro.club","http://localhost:3000"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3000}]}'
+    aws s3api put-bucket-cors --bucket "$pub" --cors-configuration "$cors"
+    aws s3api put-bucket-cors --bucket "$ugc" --cors-configuration "$cors"
+    ok "$pub (public read), $ugc (private), CORS on both"
 
     say "App IAM user for S3 ($e)"
     local user="${APP}-app-${e}"
@@ -186,7 +199,7 @@ phase_ecs() {
     local dom; dom=$(domain_for "$e")
     local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET CUTIE_CARD_API_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
       secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
-    local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-ugc-${e}\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
+    local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
     local container="{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"
     local cpu=512 mem=1024 max=2; [ "$e" = prd ] && { cpu=1024; mem=2048; max=3; }
     local arn; arn=$(express_arn "$e")

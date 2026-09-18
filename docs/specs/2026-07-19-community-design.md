@@ -3,8 +3,8 @@
 > 작성일: 2026-07-19 · 상태: **Plan 1·2·3 구현 완료 — 배포 대기(§구현 현황)** · 브랜치: `feat/community`
 > 본 문서가 커뮤니티 기능 구현의 **단일 진실**이다. 기존 중고 거래 게시판 방향은 MVP 범위 과다로
 > **폐기**했으며, 당시 검토된 UGC 보안 결정 중 필요한 사항은 본 스펙에 반영했다.
-> 조사 근거: [community-board-research](../../research/2026-07-19-community-board-research.html) ·
-> [secondhand-contact-policy](../../research/2026-07-19-secondhand-contact-policy.html)
+> 조사 근거: [community-board-research](../research/2026-07-19-community-board-research.html) ·
+> [secondhand-contact-policy](../research/2026-07-19-secondhand-contact-policy.html)
 > 외부 설계 리뷰 6회 판정 반영 — 수용/유보 내역은 §후속 참조.
 
 ## 구현 현황 (2026-08-01)
@@ -14,9 +14,9 @@
 
 | 구현 단위 | 범위 | 상태 |
 |---|---|---|
-| Plan 1 — 공통 기반 + 공지사항 | `account.public_code` · `lib/public-code` · notice 도메인(공개·admin·홈 노출) | **완료** (`feat/community`, 실행 기록: `docs/superpowers/plans/2026-07-19-community-p1-foundation-notices.md` — 실행 후 변경분은 문서 상단 고지 참조) |
-| Plan 2 — 자유게시판 텍스트 코어 | post·댓글·신고·admin 숨김·rate limit (사진 제외) | **구현 완료** (`feat/community-posts`, 실행 기록: `docs/superpowers/plans/2026-07-21-community-p2-posts.md`) |
-| Plan 3 — 사진 파이프라인 | 비공개 버킷·서명 GET·대기 사진·ETag 검증 (§결정 8 크기 게이트 선행) | **구현 완료**(2026-08-01, `feat/community-photos`, 실행 기록: `docs/superpowers/plans/2026-07-26-community-p3-photos.md`) — 실 R2 착수 게이트 통과(`spikes/2026-07-26-real-r2-gate/`), 실 DB 동시성·대기 사진 소비 검증(`verification/2026-07-26-posts-edit-lock/`) |
+| Plan 1 — 공통 기반 + 공지사항 | `account.public_code` · `lib/public-code` · notice 도메인(공개·admin·홈 노출) | **완료** (`feat/community`, 실행 기록: `docs/superpowers/plans/2026-07-19-community-p1-foundation-notices.md`(삭제됨) — 실행 후 변경분은 문서 상단 고지 참조) |
+| Plan 2 — 자유게시판 텍스트 코어 | post·댓글·신고·admin 숨김·rate limit (사진 제외) | **구현 완료** (`feat/community-posts`, 실행 기록: `docs/superpowers/plans/2026-07-21-community-p2-posts.md`(삭제됨)) |
+| Plan 3 — 사진 파이프라인 | 비공개 버킷·서명 GET·대기 사진·ETag 검증 (§결정 8 크기 게이트 선행) | **구현 완료**(2026-08-01, `feat/community-photos`, 실행 기록: `docs/superpowers/plans/2026-07-26-community-p3-photos.md`(삭제됨)) — 실 R2 착수 게이트 통과(`spikes/2026-07-26-real-r2-gate/`, 삭제됨), 실 DB 동시성·대기 사진 소비 검증(`verification/2026-07-26-posts-edit-lock/`, 삭제됨) |
 
 > **구현 중 확정된 변경(2026-08-01)**
 > - UGC 런타임 자격증명은 처음에 상품용과 분리했으나(구현 리뷰 P1-1) **2026-08-02 공유로 전환** —
@@ -91,7 +91,7 @@ UGC 사진은 **비공개 버킷 + 서명 GET URL**(TTL 15분)로 서빙한다 �
   스냅샷 컬럼을 글·댓글에서 **제거**했다. 조회 계층이 `account_id`로 배치 조회(페이지당 1쿼리)해
   현재 `display_name`·`public_code`를 채운다.
   - **원안(작성 시점 스냅샷)의 근거였던 RLS 제약이 소멸** — RLS 미사용 결정
-    ([db-authorization-review.md](../../architecture/db-authorization-review.md))으로 타인 행 조회가 가능해졌다.
+    ([db-authorization-review.md](../architecture/db-authorization-review.md))으로 타인 행 조회가 가능해졌다.
   - **외부 리뷰가 기각한 "수정 시 재시드"와 다르다** — 재시드의 문제(같은 작성자의 글마다 이름이
     달라짐)가 라이브 조회에는 없다. 모든 글이 항상 같은(현재) 이름을 보인다.
   - **사칭·이름 세탁**: `public_code`가 불변이라 `#코드`로 동일인 추적은 항상 가능. 닉네임 변경 시
@@ -166,7 +166,7 @@ UGC 사진은 **비공개 버킷 + 서명 GET URL**(TTL 15분)로 서빙한다 �
 
 admin 상품 업로드 패턴(공개 버킷·신뢰 경계 내부)을 회원 UGC에 그대로 쓰지 않는다:
 
-- **저장 = UGC 전용 비공개 버킷** (`R2_UGC_BUCKET`, 로컬 예: `oshikore-ugc-dev`). products 공개
+- **저장 = UGC 전용 비공개 버킷** (`R2_UGC_BUCKET`, 로컬 예: `iroiro-ugc-dev`). products 공개
   버킷과 분리해 기존 서빙은 무변경. compose에 버킷 추가(anonymous 미설정) + env 추가.
 - **서빙 = 서명 GET URL(TTL 15분, 상수)** — 조회 레이어가 **노출 가능한 콘텐츠에만** URL을
   발급한다. 숨김·삭제 시 **신규 URL 발급이 중단되고 기발급 URL은 최대 15분(TTL) 내 만료**된다 —
@@ -235,14 +235,14 @@ admin 상품 업로드 패턴(공개 버킷·신뢰 경계 내부)을 회원 UGC
   (fail-closed). 헤더 파싱은 픽셀 상한 검증 수단이며 **전체 이미지 디코딩과 동등하지 않다**(4차
   리뷰 문구 반영). **검증 실패 시 임시 객체 즉시 삭제**(미등록 상태라 증거 이슈 없음).
   presign은 Content-Type 서명 고정. **파일 크기의 업로드 시점 강제는 선행 스파이크로 확정했다**
-  (2026-07-24 — `docs/superpowers/spikes/2026-07-24-photo-content-length/`): presigned PUT의
+  (2026-07-24 — `docs/superpowers/spikes/2026-07-24-photo-content-length/`, 삭제됨): presigned PUT의
   `Content-Length`를 서명(`aws4fetch` `allHeaders: true` → `SignedHeaders=content-length;host`)하면
   스토리지(로컬 MinIO)와 실제 브라우저 `fetch` 양층에서 선언과 다른 크기가 `403 SignatureDoesNotMatch`로
   거부됨을 실증했다 — 브라우저 `fetch`는 `Content-Length`를 body 크기로 자동설정(개발자 조작 불가)하므로
   초과 body는 서명과 불일치해 강제가 성립한다. **게이트 통과 → 선언된 `size_bytes`를 Content-Length로
   서명해 업로드 시점에 크기를 강제하고 사진 기능을 출시한다**(§MVP de-scope 레버 미발동). 이는 선언값 HEAD
   대조가 제출 시에만 실행돼 "업로드 후 미제출" 남용을 막지 못하는 한계를 보완한다.
-  **실 R2 확인 완료(2026-08-01 — `docs/superpowers/spikes/2026-07-26-real-r2-gate/`)**: 스크립트
+  **실 R2 확인 완료(2026-08-01 — `docs/superpowers/spikes/2026-07-26-real-r2-gate/`, 삭제됨)**: 스크립트
   게이트 17건 전건 통과 + 브라우저 게이트 통과. 크기·MIME 강제, 조건부 복사(불일치 412), 비공개 접근
   차단, 서명 URL 만료, CORS 정확 일치·비허용 origin 차단, `posts/tmp/` 1일 만료가 실 R2에서 모두
   성립한다 — **de-scope 레버 미발동 확정**. 단 서명 없는 GET의 거부 코드는 R2가 `400 InvalidArgument`를

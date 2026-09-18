@@ -2,13 +2,13 @@
 
 **구현 상태**: ✅ 구현 완료 (`feat/cart-order-payment` 브랜치) — 장바구니 담기부터 주문·결제·어드민 배송비 설정까지 전 단계 구현 + 테스트 통과(`npm run validate`).
 
-> 관련 코드: `modules/cart/`(장바구니), `modules/orders/`(주문·결제·배송비 정책), `lib/payments/`(게이트웨이 포트 + mock 어댑터), `delivery_policy` 테이블(`init_order` 마이그레이션). 결제 상태에 `in_progress` 추가(승인 직전 재고 선점 락). 실 PG 전환·환불·`pending` 만료 배치는 아래 "미해결·후속" 참조.
-> DB 경로 적용: 마이그레이션 in-place 수정이라 로컬은 `npm run db:reset`로 재적용 필요(pre-launch 워크플로우). 인증이 DB 세션 기반이라 dev 수동 테스트는 `npm run dev:all`(실 DB)에서 로그인 후 가능.
+> 관련 코드: `modules/cart/`(장바구니), `modules/orders/`(주문·결제·배송비 정책), `lib/payments/`(게이트웨이 포트 + mock 어댑터, `PAYMENT_PROVIDER=mock`), `delivery_policy` 테이블(`db/schema.sql`의 `init_order` 섹션). 결제 상태에 `in_progress` 추가(승인 직전 재고 선점 락). 실 PG 전환·환불·`pending` 만료 배치는 아래 "미해결·후속" 참조.
+> DB 경로 적용: 스키마는 `db/schema.sql` 단일 파일이라 로컬은 `npm run db:reset`로 재적용. 인증이 DB 세션 기반이라 로컬 수동 테스트는 `npm run dev:all`(compose의 postgres)에서 로그인 후 가능.
 
-> 관련: [supabase/migrations/20260623143000_init_order.sql](../supabase/migrations/20260623143000_init_order.sql) ·
+> 관련: [db/schema.sql](../db/schema.sql)(`init_order` 섹션) ·
 > [architecture/data-modeling.md](./architecture/data-modeling.md)(재고 원자 차감 룰) ·
-> [architecture/rls-best-practices.md](./architecture/rls-best-practices.md)(경계 데이터 기준) ·
-> [lessons/16](./lessons/16-transaction-guc-context.md)(GUC 주입 — app 롤 전환 시) ·
+> [architecture/db-authorization-review.md](./architecture/db-authorization-review.md)(app 롤·GRANT 경계) ·
+> [lessons/16](./lessons/16-transaction-guc-context.md)(트랜잭션 GUC — 참고) ·
 > [account-linking.md](./account-linking.md)(설계 문서 선례)
 
 ## 결정
@@ -148,7 +148,7 @@ GRANT SELECT, UPDATE ON delivery_policy TO app;   -- INSERT 불필요: 시드 1�
 - `free_threshold_amount`: 상품 합계가 이 값 이상이면 배송비 0원 + UI 넛지("○원 더 담으면 무료 배송"). NULL이면 무료 배송 제도 없음. 시드는 NULL로 시작.
 - 계산: `deliveryAmount = (freeThreshold != null && productAmount >= freeThreshold) ? 0 : deliveryFee`.
 - 어드민이 배송비를 바꾸는 순간 체크아웃 중이던 사용자는 `expectedTotalAmount` 불일치 가드가 잡는다("가격이 변경되었습니다").
-- 경계 데이터 아님 → RLS 없음(도메인 관점 판단, rls-best-practices 기준). Data API 비노출.
+- 경계 데이터 아님 → RLS 없음(도메인 관점 판단 — 방어선은 app 롤 GRANT, db-authorization-review 기준). Data API 비노출.
 
 ## 결제 게이트웨이 포트/어댑터 — `lib/payments/`
 

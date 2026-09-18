@@ -8,14 +8,14 @@
 | 환경 | 브랜치 | 도메인 | AWS 리소스 | GitHub Environment |
 |---|---|---|---|---|
 | dev | `dev` | https://dev.iroiro.club | ECS Express `iroiro-dev`(0.5 vCPU / 1 GB) · RDS `iroiro-dev` · S3 `iroiro-products-dev` / `iroiro-ugc-dev` | `dev` |
-| prd | `main` | https://iroiro.club (+ www) | ECS Express `iroiro-prd`(1 vCPU / 2 GB) · RDS `iroiro-prd` · S3 `iroiro-products-prd` / `iroiro-ugc-prd` | `production` |
+| prd | `main` | https://iroiro.club (+ www) | ECS Express `iroiro-prd`(1 vCPU / 2 GB) · RDS `iroiro-prd` · S3 `iroiro-kr-products-prd` / `iroiro-kr-ugc-prd` | `production` |
 
 - 컴퓨트는 **Amazon ECS Express Mode**(Fargate + 자동 생성 ALB). App Runner는 2026-04-30부터 신규 고객을 받지 않아 AWS가 권장하는 대체다. 두 서비스는 같은 클러스터 `iroiro`·같은 네트워크 설정을 써서 **ALB 1대를 공유**한다.
-- 리전은 **도쿄(ap-northeast-1)**. 계정 `852382801109`, CLI 프로파일 `personal`. 기본 VPC(172.31.0.0/16)의 퍼블릭 서브넷에 Fargate 태스크가 뜬다(NAT 불필요).
+- 리전은 **서울(ap-northeast-2)**. 계정 `852382801109`, CLI 프로파일 `personal`. 기본 VPC(172.31.0.0/16)의 퍼블릭 서브넷에 Fargate 태스크가 뜬다(NAT 불필요).
 - DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업. 보안 그룹은 VPC CIDR(ECS 태스크)과 명시적으로 허용한 운영자 IP만 5432를 열어 둔다(`db-apply.sh`가 현재 IP를 자동 추가).
 - 앱→RDS 연결은 `sslmode=verify-full&sslrootcert=/app/rds-ca.pem`. RDS CA 번들은 Dockerfile이 이미지에 넣는다(`pg`는 `require`도 체인을 검증하므로 CA 없이는 self-signed 오류).
 - 시크릿은 SSM Parameter Store `/iroiro/<env>/<NAME>`(SecureString)에 두고 ECS 태스크 실행 롤이 기동 시 주입한다. 코드·CI에는 시크릿이 없다.
-- 이미지 스토리지는 AWS S3. 앱 코드의 `R2_*` 환경변수 이름은 그대로 두고 값만 S3를 가리킨다(`R2_REGION=ap-northeast-1`).
+- 이미지 스토리지는 AWS S3. 앱 코드의 `R2_*` 환경변수 이름은 그대로 두고 값만 S3를 가리킨다(`R2_REGION=ap-northeast-2`).
 
 ## 브랜치 전략
 
@@ -54,7 +54,7 @@ Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY
 # 첫 이미지: 로컬에서 `npm run build && docker build --platform linux/amd64` 후 ECR에 dev-latest/prd-latest로 push
 ./infra/aws/setup.sh ecs         # 클러스터·롤·Express 서비스 2개 (공유 ALB)
 ./infra/aws/setup.sh github      # GitHub Environment 변수 + DEPLOY_ENABLED → 이후 dev/main push가 자동 배포
-./infra/aws/setup.sh domains     # 도쿄 ACM 인증서 + ALB 호스트 규칙, Squarespace에 넣을 DNS 레코드 출력
+./infra/aws/setup.sh domains     # 서울 ACM 인증서 + ALB 호스트 규칙, Squarespace에 넣을 DNS 레코드 출력
 ./infra/aws/setup.sh cron        # CRON_SECRET 채운 뒤 — 경매 마감 스케줄러
 ./infra/aws/setup.sh status
 ```
@@ -62,7 +62,7 @@ Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY
 ### 사람이 채워야 하는 시크릿 (`CHANGE_ME` placeholder)
 
 ```bash
-aws ssm put-parameter --profile personal --region ap-northeast-1 --overwrite --type SecureString \
+aws ssm put-parameter --profile personal --region ap-northeast-2 --overwrite --type SecureString \
   --name /iroiro/dev/KAKAO_REST_API_KEY --value '...'
 ```
 
@@ -76,13 +76,17 @@ aws ssm put-parameter --profile personal --region ap-northeast-1 --overwrite --t
 
 시크릿을 바꾼 뒤에는 `aws ecs update-service --cluster iroiro --service iroiro-<env> --force-new-deployment`(또는 해당 브랜치에 빈 커밋 push)로 재기동해야 반영된다.
 
+### OAuth 콜백 URL
+
+카카오·네이버 콘솔에는 환경마다 콜백을 등록한다 — `{APP_URL}/api/auth/kakao/callback`, `{APP_URL}/api/auth/naver/callback` (`APP_URL` = `https://iroiro.club` / `https://dev.iroiro.club` / `http://localhost:3000`). `APP_URL`은 `setup.sh ecs`가 태스크 정의에 환경별 도메인으로 고정한다. 콘솔 단계별 절차·검수·문제 해결은 [oauth-setup.md](./oauth-setup.md).
+
 ### DNS (Squarespace)
 
 `setup.sh domains` 출력 기준. 인증서 검증 CNAME(`_xxx.iroiro.club`)은 us-east-1 인증서 때 넣은 것과 동일하므로 이미 있으면 그대로 두면 된다. 두 환경이 ALB를 공유하므로 세 레코드의 값이 같다.
 
 | 유형 | 이름 | 값 |
 |---|---|---|
-| ALIAS | `@` | 공유 ALB DNS 이름 (`iroiro-….ap-northeast-1.elb.amazonaws.com`) |
+| ALIAS | `@` | 공유 ALB DNS 이름 (`iroiro-….ap-northeast-2.elb.amazonaws.com`) |
 | CNAME | `www` | 같은 ALB DNS 이름 |
 | CNAME | `dev` | 같은 ALB DNS 이름 |
 
@@ -94,7 +98,7 @@ aws ssm put-parameter --profile personal --region ap-northeast-1 --overwrite --t
 - dev/prd에는 **변경분 SQL을 별도로 작성해 `psql "$(aws ssm get-parameter --with-decryption --name /iroiro/<env>/DATABASE_URL_OWNER --query Parameter.Value --output text)"`로 적용**한다. 데이터가 있는 DB에 `db-apply.sh --reset`을 쓰지 않는다.
 - 새 테이블에는 반드시 `GRANT ... TO app`을 함께 넣는다 — 앱은 비특권 `app` 롤로 접속하므로 GRANT가 없으면 permission denied.
 
-## 비용 개요 (도쿄, 월 추정)
+## 비용 개요 (서울, 월 추정)
 
 | 항목 | dev | prd |
 |---|---|---|
