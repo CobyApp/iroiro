@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { env } from "@/lib/env";
+import { publicOrigin, publicUrl } from "@/lib/public-origin";
 import { findAccountByIdentity } from "@/modules/auth/lib/account";
 import {
   createPendingAccount,
@@ -26,7 +26,7 @@ export const runtime = "nodejs";
 
 function loginError(request: NextRequest, code: string): NextResponse {
   const response = NextResponse.redirect(
-    new URL(`/login?error=${code}`, request.url),
+    publicUrl(request, `/login?error=${code}`),
   );
   clearOAuthCookies(response);
   return response;
@@ -60,8 +60,8 @@ export async function GET(
   const client = tryGetOAuthClient(provider);
   if (!client) return loginError(request, "provider_unavailable");
 
-  const origin = env.APP_URL ?? url.origin;
-  const redirectUri = buildCallbackUrl(origin, provider);
+  // Public origin (APP_URL → X-Forwarded-Host → request) — never the container-internal host.
+  const redirectUri = buildCallbackUrl(publicOrigin(request), provider);
 
   try {
     const accessToken = await client.exchangeCode({
@@ -80,7 +80,7 @@ export async function GET(
       // 기존 사용자 → 로그인.
       // TODO(온보딩): 전화 인증 미완료(phone_number_verified_at NULL)면 /onboarding/phone로.
       const { token, expiresAt } = await createSession(existing.id);
-      const response = NextResponse.redirect(new URL("/", request.url));
+      const response = NextResponse.redirect(publicUrl(request, "/"));
       response.cookies.set(
         SESSION_COOKIE_NAME,
         token,
@@ -97,7 +97,7 @@ export async function GET(
       email: profile.email,
       displayName: profile.displayName,
     });
-    const response = NextResponse.redirect(new URL("/signup", request.url));
+    const response = NextResponse.redirect(publicUrl(request, "/signup"));
     setPendingAccountCookie(response, pendingToken);
     clearOAuthCookies(response);
     return response;

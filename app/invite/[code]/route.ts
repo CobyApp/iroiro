@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { publicUrl } from "@/lib/public-origin";
 import {
   REFERRAL_COOKIE,
   REFERRAL_COOKIE_MAX_AGE,
@@ -14,7 +15,7 @@ export async function GET(
   const { code } = await params;
   const trimmed = code.trim().slice(0, 32);
 
-  const welcome = new URL("/welcome", request.url);
+  const welcome = publicUrl(request, "/welcome");
   const response = NextResponse.redirect(welcome);
 
   // 무효 코드는 쿠키 없이 소개 페이지로만 — 열거 힌트를 주지 않는다.

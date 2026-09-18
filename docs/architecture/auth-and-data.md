@@ -3,6 +3,8 @@
 > 자체 세션 인증(카카오·네이버 OAuth) · Prisma(`app` 롤) · S3 호환 객체 스토리지(`lib/r2/`)의 **운영 규칙**.
 > 스키마의 모양은 [data-modeling.md](./data-modeling.md), GRANT-대신-RLS 결정의 근거는 [db-authorization-review.md](./db-authorization-review.md), 배포·인프라는 [../deployment.md](../deployment.md).
 
+> **절대 URL 리다이렉트 규칙.** Route Handler에서 `NextResponse.redirect`에 넘길 절대 URL은 `lib/public-origin.ts`의 `publicUrl(request, path)`로 만든다. ALB 뒤의 컨테이너는 `request.url`에 내부 호스트(`ip-172-31-x.compute.internal:3000`)가 들어오므로 `new URL(path, request.url)`을 쓰면 사용자가 내부 주소로 튕긴다. 우선순위: `APP_URL` → `X-Forwarded-Host/Proto` → 요청 origin.
+
 ## 인증 — 자체 세션 + 카카오·네이버 OAuth
 
 외부 인증 SaaS·라이브러리(NextAuth, Better-auth 등)를 쓰지 않는다. OAuth 왕복과 세션 관리를 `modules/auth/`가 직접 구현한다(룰 4).

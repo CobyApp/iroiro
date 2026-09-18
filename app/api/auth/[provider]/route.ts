@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { env } from "@/lib/env";
+import { publicOrigin, publicUrl } from "@/lib/public-origin";
 import {
   buildCallbackUrl,
   isOAuthProvider,
@@ -29,12 +29,11 @@ export async function GET(
   const client = tryGetOAuthClient(provider);
   if (!client) {
     return NextResponse.redirect(
-      new URL("/login?error=provider_unavailable", request.url),
+      publicUrl(request, "/login?error=provider_unavailable"),
     );
   }
 
-  const origin = env.APP_URL ?? request.nextUrl.origin;
-  const redirectUri = buildCallbackUrl(origin, provider);
+  const redirectUri = buildCallbackUrl(publicOrigin(request), provider);
   const state = generateState();
   const codeVerifier = client.usesPkce ? generateCodeVerifier() : null;
 
