@@ -34,7 +34,6 @@ import { SALE_STATUSES, type Product, type SaleStatus } from "./types";
 import { Prisma } from "@prisma/client";
 
 // 상품 write(create/update/delete)의 알려진 Prisma 오류를 사용자 메시지로 변환.
-// - P2002 source_id unique 위반 = 이미 가져온 외부 카드
 // - P2002 item_code unique 위반 = (item_code, item_type, condition) 조합 중복
 // - P2025(update/delete 대상 없음) = not-found → 예상 도메인 오류로 결과화
 // adapter-pg에서 meta.target이 비므로 판별은 반드시 헬퍼를 거친다(lib/prisma-errors).
@@ -42,9 +41,6 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();
   } catch (error) {
-    if (isUniqueViolationOn(error, "source_id")) {
-      throw new DomainError("이미 등록된 카드입니다");
-    }
     if (isUniqueViolationOn(error, "item_code")) {
       throw new DomainError(
         "같은 아이템 코드·구분·컨디션 조합의 상품이 이미 있습니다",
@@ -158,7 +154,6 @@ export async function createProduct(
     const result = await mapProductWriteError(() => db.$transaction(async (tx) => {
       const baseCreateData = {
           itemCode: data.itemCode ?? null,
-          sourceId: data.sourceId ?? null,
           itemType: data.itemType,
           teamId: data.teamId !== undefined && data.teamId !== null
             ? BigInt(data.teamId)
@@ -242,7 +237,6 @@ export async function updateProduct(
       updatedAt: new Date(),
     };
     if (data.itemCode !== undefined) patch.itemCode = data.itemCode;
-    if (data.sourceId !== undefined) patch.sourceId = data.sourceId;
     if (data.itemType !== undefined) patch.itemType = data.itemType;
     if (data.teamId !== undefined)
       patch.teamId = data.teamId !== null ? BigInt(data.teamId) : null;

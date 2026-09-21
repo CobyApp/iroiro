@@ -34,7 +34,6 @@ import {
   updateCard,
 } from "../actions";
 import {
-  CARD_SOURCE_LABEL,
   CARD_STATUS_LABEL,
   cardFrontUrl,
   type Card,
@@ -131,8 +130,7 @@ export function CardTable({
             <TableHead className="w-16">앞면</TableHead>
             <TableHead>카드 이름</TableHead>
             <TableHead>멤버 / 시리즈</TableHead>
-            <TableHead>출처</TableHead>
-            <TableHead className="text-right">시세(¥)</TableHead>
+            <TableHead>상태</TableHead>
             <TableHead className="w-48 text-right">
               <span className="sr-only">작업</span>
             </TableHead>
@@ -207,30 +205,22 @@ export function CardTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-col items-start gap-1">
+                  {card.status !== "active" ? (
                     <Badge
-                      variant="outline"
-                      className="whitespace-nowrap font-normal"
+                      className={
+                        isPending
+                          ? "whitespace-nowrap"
+                          : "whitespace-nowrap bg-destructive hover:bg-destructive"
+                      }
                     >
-                      {CARD_SOURCE_LABEL[card.source]}
+                      {CARD_STATUS_LABEL[card.status]}
                     </Badge>
-                    {card.status !== "active" && (
-                      <Badge
-                        className={
-                          isPending
-                            ? "whitespace-nowrap"
-                            : "whitespace-nowrap bg-destructive hover:bg-destructive"
-                        }
-                      >
-                        {CARD_STATUS_LABEL[card.status]}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right text-sm tabular-nums">
-                  {card.marketAvgJpy > 0
-                    ? `¥${card.marketAvgJpy.toLocaleString()}`
-                    : "-"}
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {CARD_STATUS_LABEL.active}
+                      {card.submittedByAccountId && " · 제보"}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {isPending ? (
@@ -434,7 +424,6 @@ function CardEditDialog({
         memberId,
         seriesId,
         frontR2Key: null, // 이미지 유지
-        backR2Key: null,
         itemCode: card.itemCode ?? undefined,
         retailPriceJpy: card.retailPriceJpy,
       });

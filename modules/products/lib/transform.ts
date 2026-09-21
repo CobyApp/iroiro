@@ -19,7 +19,6 @@ export function toProduct(row: PrismaProduct): Product {
   return {
     id: Number(row.id),
     itemCode: row.itemCode,
-    sourceId: row.sourceId,
     itemType: row.itemType as ItemType,
     teamId: row.teamId !== null ? Number(row.teamId) : null,
     memberId: row.memberId !== null ? Number(row.memberId) : null,

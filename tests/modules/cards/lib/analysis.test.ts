@@ -64,7 +64,6 @@ describe("rankSimilarCards", () => {
       name: "A",
       pose: 1,
       frontR2Key: "a.jpg",
-      frontImageUrl: null,
       embedding: [1, 0, 0],
     },
     {
@@ -72,7 +71,6 @@ describe("rankSimilarCards", () => {
       name: "B",
       pose: 2,
       frontR2Key: null,
-      frontImageUrl: "https://ext/b.jpg",
       embedding: [0, 1, 0],
     },
   ];
@@ -85,7 +83,6 @@ describe("rankSimilarCards", () => {
       name: "A",
       pose: 1,
       frontR2Key: "a.jpg",
-      frontImageUrl: null,
     });
     expect(out[0].score).toBeCloseTo(1);
   });

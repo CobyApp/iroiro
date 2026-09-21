@@ -8,11 +8,8 @@ import { env } from "@/lib/env";
 import { todayKstYmd } from "@/lib/datetime";
 import { listCardsForExport } from "@/modules/cards/lib/queries";
 import {
-  CARD_SOURCES,
   CARD_STATUSES,
-  cardBackUrl,
   cardFrontUrl,
-  type CardSource,
   type CardStatus,
 } from "@/modules/cards/types";
 
@@ -38,15 +35,12 @@ export async function GET(request: NextRequest) {
     Number(sp.get("member")) > 0 ? Number(sp.get("member")) : undefined;
   const seriesId =
     Number(sp.get("series")) > 0 ? Number(sp.get("series")) : undefined;
-  const source = CARD_SOURCES.includes(sp.get("source") as CardSource)
-    ? (sp.get("source") as CardSource)
-    : undefined;
   const status = CARD_STATUSES.includes(sp.get("status") as CardStatus)
     ? (sp.get("status") as CardStatus)
     : undefined;
 
   const [cards, teams, members, seriesRows] = await Promise.all([
-    listCardsForExport({ teamId, memberId, seriesId, source, status }),
+    listCardsForExport({ teamId, memberId, seriesId, status }),
     listTeams(),
     listMembers(),
     db.series.findMany({ select: { id: true, sku: true, label: true, kind: true } }),
@@ -58,11 +52,10 @@ export async function GET(request: NextRequest) {
   );
 
   const header = [
-    "id", "source", "status", "item_code", "item_type",
+    "id", "status", "submitted", "item_code", "item_type",
     "team", "member", "series_sku", "series_kind", "series_label",
     "name", "pose", "description",
-    "market_avg_jpy", "market_min_jpy", "market_max_jpy", "market_sold_count",
-    "retail_price_jpy", "front_image", "back_image", "created_at",
+    "retail_price_jpy", "front_image", "created_at",
   ];
   const lines = [header.join(",")];
   for (const card of cards) {
@@ -71,8 +64,8 @@ export async function GET(request: NextRequest) {
     lines.push(
       [
         card.id,
-        card.source,
         card.status,
+        card.submittedByAccountId ? "user" : "admin",
         csvField(card.itemCode),
         card.itemType,
         csvField(card.teamId !== null ? (teamById.get(card.teamId) ?? "") : ""),
@@ -85,13 +78,8 @@ export async function GET(request: NextRequest) {
         csvField(card.name),
         card.pose,
         csvField(card.description),
-        card.marketAvgJpy,
-        card.marketMinJpy,
-        card.marketMaxJpy,
-        card.marketSoldCount,
         card.retailPriceJpy,
         csvField(cardFrontUrl(card, env.R2_PUBLIC_BASE)),
-        csvField(cardBackUrl(card, env.R2_PUBLIC_BASE)),
         card.createdAt,
       ].join(","),
     );

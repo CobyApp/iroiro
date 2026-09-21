@@ -9,11 +9,8 @@ import { db } from "@/lib/db";
 import { listCards, countPendingCards } from "@/modules/cards/lib/queries";
 import { CardTable } from "@/modules/cards/components/CardTable";
 import {
-  CARD_SOURCES,
-  CARD_SOURCE_LABEL,
   CARD_STATUSES,
   CARD_STATUS_LABEL,
-  type CardSource,
   type CardStatus,
 } from "@/modules/cards/types";
 
@@ -25,7 +22,6 @@ type SearchParams = Promise<{
   team?: string;
   member?: string;
   series?: string;
-  source?: string;
   status?: string;
   q?: string;
   page?: string;
@@ -41,9 +37,6 @@ export default async function AdminCardsPage({
   const teamId = Number(sp.team) > 0 ? Number(sp.team) : undefined;
   const memberId = Number(sp.member) > 0 ? Number(sp.member) : undefined;
   const seriesId = Number(sp.series) > 0 ? Number(sp.series) : undefined;
-  const source = CARD_SOURCES.includes(sp.source as CardSource)
-    ? (sp.source as CardSource)
-    : undefined;
   const status = CARD_STATUSES.includes(sp.status as CardStatus)
     ? (sp.status as CardStatus)
     : undefined;
@@ -52,7 +45,7 @@ export default async function AdminCardsPage({
 
   const [{ items, total }, pendingCount, teams, members, seriesRows] =
     await Promise.all([
-      listCards({ teamId, memberId, seriesId, source, status, q, page, pageSize: PAGE_SIZE }),
+      listCards({ teamId, memberId, seriesId, status, q, page, pageSize: PAGE_SIZE }),
       countPendingCards(),
       listTeams(),
       listMembers(),
@@ -82,7 +75,6 @@ export default async function AdminCardsPage({
       team: teamId,
       member: memberId,
       series: seriesId,
-      source,
       status,
       q,
       page: undefined,
@@ -135,7 +127,7 @@ export default async function AdminCardsPage({
         </div>
       </div>
 
-      {/* 필터 — 출처·상태·그룹 칩 + 검색 */}
+      {/* 필터 — 상태·그룹 칩 + 검색 */}
       <div className="space-y-2">
         <form action="/catalog/cards" className="max-w-xs">
           <input
@@ -147,15 +139,6 @@ export default async function AdminCardsPage({
           />
         </form>
         <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-1">
-          <Link href={`/catalog/cards${qs({ source: undefined })}`} className={chip(!source)}>
-            모든 출처
-          </Link>
-          {CARD_SOURCES.map((s) => (
-            <Link key={s} href={`/catalog/cards${qs({ source: s })}`} className={chip(source === s)}>
-              {CARD_SOURCE_LABEL[s]}
-            </Link>
-          ))}
-          <span className="mx-1 my-auto h-4 w-px bg-border" aria-hidden />
           <Link href={`/catalog/cards${qs({ status: undefined })}`} className={chip(!status)}>
             모든 상태
           </Link>

@@ -3,13 +3,12 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import { toCard } from "./transform";
-import type { Card, CardSource, CardStatus } from "../types";
+import type { Card, CardStatus } from "../types";
 
 export type CardListFilter = {
   teamId?: number;
   memberId?: number;
   seriesId?: number;
-  source?: CardSource;
   status?: CardStatus;
   q?: string;
   page?: number;
@@ -26,7 +25,6 @@ export async function listCards(
   if (filter.teamId !== undefined) where.teamId = BigInt(filter.teamId);
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
-  if (filter.source) where.source = filter.source;
   if (filter.status) where.status = filter.status;
   if (filter.q) {
     where.OR = [
@@ -54,7 +52,6 @@ export async function listCardsForExport(
   if (filter.teamId !== undefined) where.teamId = BigInt(filter.teamId);
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
-  if (filter.source) where.source = filter.source;
   if (filter.status) where.status = filter.status;
   const rows = await db.card.findMany({
     where,
@@ -100,7 +97,6 @@ export type CardEmbeddingCandidate = {
   name: string;
   pose: number;
   frontR2Key: string | null;
-  frontImageUrl: string | null;
   embedding: number[] | null;
 };
 
@@ -122,7 +118,6 @@ export async function listAnalyzedCandidates(
       name: true,
       pose: true,
       frontR2Key: true,
-      frontImageUrl: true,
       analysisEmbedding: true,
     },
     orderBy: { createdAt: "desc" },
@@ -133,7 +128,6 @@ export async function listAnalyzedCandidates(
     name: r.name,
     pose: r.pose,
     frontR2Key: r.frontR2Key,
-    frontImageUrl: r.frontImageUrl,
     embedding: Array.isArray(r.analysisEmbedding)
       ? (r.analysisEmbedding as unknown[]).map(Number)
       : null,

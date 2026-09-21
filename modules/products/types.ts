@@ -113,7 +113,6 @@ export const PRODUCT_CONDITION_BADGE_CLASS: Record<ProductCondition, string> = {
 export type Product = {
   id: number;
   itemCode: string | null;
-  sourceId: string | null;
   itemType: ItemType;
   teamId: number | null;
   memberId: number | null;

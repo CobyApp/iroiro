@@ -62,7 +62,6 @@ describe("submitCardReport — 유저 제보는 AI 분석 없이 접수", () => 
     memberId: 2,
     seriesId: 3,
     frontR2Key: FRONT,
-    backR2Key: null,
   };
 
   it("접수 시 analyzeCardFrontByKey를 호출하지 않고 분석 필드 없이 pending으로 저장한다", async () => {
@@ -75,7 +74,6 @@ describe("submitCardReport — 유저 제보는 AI 분석 없이 접수", () => 
     expect(analyzeCardFrontByKey).not.toHaveBeenCalled();
     const data = mocks.card.create.mock.calls[0][0].data;
     expect(data).toMatchObject({
-      source: "user",
       status: "pending",
       submittedByAccountId: "acc",
       name: "미유 · 봄",
@@ -105,7 +103,6 @@ describe("reviewCard — 승인 시점에 분석·저장", () => {
   const pendingRow = {
     id: BigInt(5),
     status: "pending",
-    source: "user",
     submittedByAccountId: "u1",
     frontR2Key: FRONT,
   };
@@ -236,7 +233,6 @@ describe("findSimilarCards", () => {
         name: "A",
         pose: 1,
         frontR2Key: "a.jpg",
-        frontImageUrl: null,
       },
     ];
     vi.mocked(rankSimilarCards).mockReturnValue(matches);
