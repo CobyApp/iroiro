@@ -28,6 +28,7 @@ import {
   sortSeriesKinds,
 } from "@/modules/series/kinds";
 import { CardPhotoInput, type UploadedCardPhoto } from "./CardPhotoInput";
+import { CardSimilarPanel } from "./CardSimilarPanel";
 
 export type TeamOption = { id: number; name: string };
 export type MemberOption = { id: number; name: string; teamIds: number[] };
@@ -398,6 +399,16 @@ export function CardForm({
         — 빛 반사 없이 평평하게 스캔되어 정확도가 올라가요. 올린 사진은 카드
         규격(63:88)으로 자동 잘리고 해상도 정리 후 워터마크가 들어갑니다.
       </p>
+
+      {/* AI 유사 카드 — 앞면 업로드 후 노출. 중복 등록을 이미지로 확인. */}
+      {front && (
+        <CardSimilarPanel
+          frontR2Key={front.r2Key}
+          teamId={teamId}
+          memberId={memberId}
+          publicBaseUrl={publicBaseUrl}
+        />
+      )}
 
       {/* 자동 생성 카드 이름 미리보기 */}
       <div className="rounded-md bg-muted/50 px-3 py-2 text-sm">

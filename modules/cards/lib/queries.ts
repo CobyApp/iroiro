@@ -92,3 +92,50 @@ export async function listExistingCards(
 export async function countPendingCards(): Promise<number> {
   return db.card.count({ where: { status: "pending" } });
 }
+
+// 유사도 후보 — 분석 임베딩이 있는 공개 카드. 같은 그룹(+멤버)으로 좁혀 비교 대상을 줄인다.
+// 등록 화면의 "AI 유사 카드 찾기"가 쓰는 후보 집합(core/matcher.py의 catalog 대응).
+export type CardEmbeddingCandidate = {
+  id: number;
+  name: string;
+  pose: number;
+  frontR2Key: string | null;
+  frontImageUrl: string | null;
+  embedding: number[] | null;
+};
+
+export async function listAnalyzedCandidates(
+  teamId: number | null,
+  memberId: number | null,
+  limit = 200,
+): Promise<CardEmbeddingCandidate[]> {
+  const where: Prisma.CardWhereInput = {
+    status: "active",
+    analyzedAt: { not: null },
+  };
+  if (teamId !== null) where.teamId = BigInt(teamId);
+  if (memberId !== null) where.memberId = BigInt(memberId);
+  const rows = await db.card.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      pose: true,
+      frontR2Key: true,
+      frontImageUrl: true,
+      analysisEmbedding: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return rows.map((r) => ({
+    id: Number(r.id),
+    name: r.name,
+    pose: r.pose,
+    frontR2Key: r.frontR2Key,
+    frontImageUrl: r.frontImageUrl,
+    embedding: Array.isArray(r.analysisEmbedding)
+      ? (r.analysisEmbedding as unknown[]).map(Number)
+      : null,
+  }));
+}

@@ -26,6 +26,8 @@ export function toCard(row: PrismaCard): Card {
     status: row.status as CardStatus,
     submittedByAccountId: row.submittedByAccountId,
     reviewNote: row.reviewNote,
+    analysisModel: row.analysisModel,
+    analyzedAt: row.analyzedAt ? row.analyzedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

@@ -606,6 +606,9 @@ model Card {
   status               String   @default("active")
   submittedByAccountId String?  @map("submitted_by_account_id") @db.Uuid
   reviewNote           String?  @map("review_note")
+  analysisEmbedding    Json?    @map("analysis_embedding")
+  analysisModel        String?  @map("analysis_model")
+  analyzedAt           DateTime? @map("analyzed_at") @db.Timestamptz(6)
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -613,6 +616,7 @@ model Card {
   @@index([seriesId], map: "card_series_idx")
   @@index([status], map: "card_status_idx")
   @@index([createdAt], map: "card_created_at_idx")
+  @@index([teamId, memberId], map: "card_analyzed_idx", where: raw("(analyzed_at IS NOT NULL)"))
   @@map("card")
 }
 
