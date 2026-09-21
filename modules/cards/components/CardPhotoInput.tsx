@@ -9,7 +9,7 @@ import { uploadCardPhoto } from "../actions";
 
 export type UploadedCardPhoto = { r2Key: string; previewUrl: string };
 
-// 앞/뒷면 한 칸 — 선택 즉시 63:88 정규화(사전 축소) → 서버 업로드(서버가 최종 정규화) → 저장된 객체를 미리보기로 표시.
+// 카드 이미지 한 칸(앞면) — 선택 즉시 63:88 정규화(사전 축소) → 서버 업로드(서버가 최종 정규화) → 저장된 객체를 미리보기로 표시.
 // PhotoScan으로 평평하게 스캔한 사진일수록 정규화 결과가 좋다.
 export function CardPhotoInput({
   label,
@@ -35,7 +35,6 @@ export function CardPhotoInput({
       const normalized = await normalizeCardImage(file);
       const formData = new FormData();
       formData.set("file", normalized, "card.jpg");
-      formData.set("side", label === "앞면" ? "front" : "back");
       const result = await uploadCardPhoto(formData);
       if (!result.ok) {
         toast.error(result.message);

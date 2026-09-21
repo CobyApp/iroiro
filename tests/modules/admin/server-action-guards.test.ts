@@ -25,8 +25,6 @@ vi.mock("@/lib/r2/presign", () => ({
   getSignedUploadUrl: reject,
   buildR2Key: () => "k",
 }));
-vi.mock("@/modules/import/lib/cutie-card", () => ({ fetchExternalCard: reject }));
-vi.mock("@/modules/import/lib/copy-image", () => ({ copyImageToR2: reject }));
 vi.mock("@/modules/products/lib/fx", () => ({ fetchJpyKrwRate: reject }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -84,36 +82,6 @@ describe("배너 액션은 비관리자를 거부한다", () => {
   });
 });
 
-describe("일괄 작업 액션은 비관리자를 거부한다", () => {
-  it("purgeAllProducts — 확인 문구를 알아도 거부", async () => {
-    const { purgeAllProducts } = await import("@/modules/import/bulk-actions");
-    await expect(purgeAllProducts("전체삭제")).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-
-  it("exportProductsBackup — 원가 데이터 유출 차단", async () => {
-    const { exportProductsBackup } = await import(
-      "@/modules/import/bulk-actions"
-    );
-    await expect(exportProductsBackup()).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-
-  it("getPurgePreview", async () => {
-    const { getPurgePreview } = await import("@/modules/import/bulk-actions");
-    await expect(getPurgePreview()).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-
-  it("bulkImportAllCards — 외부 카드 API 호출 이전에 차단", async () => {
-    const { bulkImportAllCards } = await import(
-      "@/modules/import/bulk-actions"
-    );
-    await expect(bulkImportAllCards({ batchSize: 1 })).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-});
-
 describe("상품 액션은 비관리자를 거부한다", () => {
   it("presignProductPhotos — 서명 URL 발급 이전에 차단", async () => {
     const { presignProductPhotos } = await import("@/modules/products/actions");
@@ -133,16 +101,6 @@ describe("상품 액션은 비관리자를 거부한다", () => {
 });
 
 describe("외부 자원을 쓰는 액션은 호출 전에 거부한다", () => {
-  it("createProductFromImport — 외부 API·R2 복사 이전에 차단", async () => {
-    const { createProductFromImport } = await import(
-      "@/modules/import/actions"
-    );
-    await expect(
-      createProductFromImport({ externalId: 1 } as never),
-    ).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-
   it("getExchangeRateForDate — 외부 환율 API 호출 이전에 차단", async () => {
     const { getExchangeRateForDate } = await import(
       "@/modules/products/actions"

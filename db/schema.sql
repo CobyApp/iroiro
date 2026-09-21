@@ -2231,3 +2231,36 @@ ON CONFLICT (key) DO NOTHING;
 
 -- 관리자 CRUD — 앱 롤 전체 권한(카탈로그 공간의 시리즈 종류 편집).
 GRANT SELECT, INSERT, UPDATE, DELETE ON series_kind TO app;
+
+-- ============================================================================
+-- [20260922020000_remove_analyzer_and_card_back]
+-- ============================================================================
+
+-- remove_analyzer_and_card_back: 외부 토레카 분석기 의존성 제거 + 토레카 마스터 간소화(앞면만·출처·시세 제거).
+--  - 카드 이미지는 전부 자체 R2(front_r2_key)로 이관한 뒤 실행한다 — 외부 URL 참조 컬럼 제거.
+--  - 토레카 마스터는 앞면만 보관한다 — 뒷면 컬럼 제거(R2 의 뒷면 객체 정리는 운영자가 별도 수행).
+--  - 출처(source) 제거 — 유저 제보 여부는 submitted_by_account_id 유무로 판별한다(승인 보상 로직 동일).
+--  - 시세(market_*) 제거 — 외부 시세 연동이 사라져 갱신 경로가 없다. 정가(retail_price_jpy)는 유지.
+--  - 상품의 외부 카드 id(source_id) 제거. "같은 카드 매물 묶기"는 item_code 기준으로만 한다.
+-- ⚠️ 적용 순서: 이 컬럼들을 참조하지 않는 코드가 먼저 배포된 뒤에 적용한다(Prisma 가 전체 컬럼을 select 하므로
+--    컬럼을 먼저 지우면 구 코드가 500). 문장은 재실행 안전(IF EXISTS).
+
+ALTER TABLE card DROP CONSTRAINT IF EXISTS card_source_chk;
+DROP INDEX IF EXISTS card_external_id_unique;
+ALTER TABLE card
+    DROP COLUMN IF EXISTS source,
+    DROP COLUMN IF EXISTS external_id,
+    DROP COLUMN IF EXISTS front_image_url,
+    DROP COLUMN IF EXISTS back_image_url,
+    DROP COLUMN IF EXISTS back_r2_key,
+    DROP COLUMN IF EXISTS market_avg_jpy,
+    DROP COLUMN IF EXISTS market_min_jpy,
+    DROP COLUMN IF EXISTS market_max_jpy,
+    DROP COLUMN IF EXISTS market_sold_count;
+COMMENT ON COLUMN card.submitted_by_account_id IS '제보한 회원 ID — NULL 이면 관리자 직접 등록(출처 컬럼 대체)';
+COMMENT ON COLUMN card.item_code IS '아이템 코드(SKU 성격, 선택)';
+COMMENT ON COLUMN card.front_r2_key IS '앞면 이미지 R2 키(63:88 정규화·워터마크). 토레카는 앞면만 보관';
+
+DROP INDEX IF EXISTS product_source_id_idx;
+ALTER TABLE product
+    DROP COLUMN IF EXISTS source_id;

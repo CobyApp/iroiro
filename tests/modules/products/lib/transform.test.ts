@@ -9,7 +9,6 @@ import { toProduct, toProductPhoto } from "@/modules/products/lib/transform";
 const productRow: PrismaProduct = {
   id: 100n,
   itemCode: "TRCD-NJZ-001",
-  sourceId: null,
   itemType: "photocard",
   teamId: 5n,
   memberId: 7n,

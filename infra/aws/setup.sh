@@ -104,7 +104,7 @@ phase_core() {
     else ok "access key already stored in SSM"; fi
 
     say "SSM placeholders for app secrets ($e)"
-    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET CUTIE_CARD_API_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do
+    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT; do
       ssm_put_if_missing "/${APP}/${e}/${s}" "CHANGE_ME"
     done
     ssm_put_if_missing "/${APP}/${e}/CRON_SECRET" "$(rand)"
@@ -205,7 +205,7 @@ phase_ecs() {
     aws ecr describe-images --repository-name "$APP" --image-ids "imageTag=${e}-latest" >/dev/null 2>&1 \
       || die "image ${image} not found — push it first (CI on branch '$(branch_for "$e")', or docker push)"
     local dom; dom=$(domain_for "$e")
-    local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET CUTIE_CARD_API_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
+    local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
       secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
     local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
     local container="{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"

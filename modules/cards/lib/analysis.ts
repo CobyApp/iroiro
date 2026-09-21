@@ -38,7 +38,6 @@ export type SimilarCard = SimilarityMatch & {
   name: string;
   pose: number;
   frontR2Key: string | null;
-  frontImageUrl: string | null;
 };
 
 export function rankSimilarCards(
@@ -56,7 +55,6 @@ export function rankSimilarCards(
       name: c.name,
       pose: c.pose,
       frontR2Key: c.frontR2Key,
-      frontImageUrl: c.frontImageUrl,
     };
   });
 }

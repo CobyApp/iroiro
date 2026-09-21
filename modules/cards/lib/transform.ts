@@ -1,11 +1,9 @@
 import type { Card as PrismaCard } from "@prisma/client";
-import type { Card, CardSource, CardStatus } from "../types";
+import type { Card, CardStatus } from "../types";
 
 export function toCard(row: PrismaCard): Card {
   return {
     id: Number(row.id),
-    source: row.source as CardSource,
-    externalId: row.externalId === null ? null : Number(row.externalId),
     itemCode: row.itemCode,
     itemType: row.itemType,
     teamId: row.teamId === null ? null : Number(row.teamId),
@@ -14,13 +12,6 @@ export function toCard(row: PrismaCard): Card {
     name: row.name,
     description: row.description,
     frontR2Key: row.frontR2Key,
-    backR2Key: row.backR2Key,
-    frontImageUrl: row.frontImageUrl,
-    backImageUrl: row.backImageUrl,
-    marketAvgJpy: row.marketAvgJpy,
-    marketMinJpy: row.marketMinJpy,
-    marketMaxJpy: row.marketMaxJpy,
-    marketSoldCount: row.marketSoldCount,
     retailPriceJpy: row.retailPriceJpy,
     pose: row.pose,
     status: row.status as CardStatus,

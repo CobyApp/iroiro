@@ -155,6 +155,6 @@ lib/r2/
 | 스토리지 | `R2_ENDPOINT`, `R2_REGION`(로컬·MinIO `auto`, AWS `ap-northeast-2`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET` |
 | DB | `DATABASE_URL`(`app` 롤), 테스트 정리용 `DATABASE_URL_PRIVILEGED` |
 | OAuth | `APP_URL`, `KAKAO_REST_API_KEY`(필수), `KAKAO_CLIENT_SECRET`, `KAKAO_SCOPE`, `NAVER_CLIENT_ID`·`NAVER_CLIENT_SECRET`(필수) |
-| 기타 | `PAYMENT_PROVIDER=mock`, VAPID 3종, `CUTIE_CARD_API_*`, `FX_API_BASE`, `CRON_SECRET` |
+| 기타 | `PAYMENT_PROVIDER=mock`, VAPID 3종, `FX_API_BASE`, `CRON_SECRET` |
 
 전체 목록·필수 구분·값 출처는 [../environment-variables.md](../environment-variables.md). 운영 값은 SSM Parameter Store `/iroiro/<env>/*`에 두고 ECS 태스크가 기동 시 주입한다([../deployment.md](../deployment.md)).

@@ -43,12 +43,6 @@ const envSchema = z
     KAKAO_SCOPE: optionalString,
     NAVER_CLIENT_ID: z.string().min(1), // 필수 (네이버는 ID·시크릿 둘 다 필요)
     NAVER_CLIENT_SECRET: z.string().min(1), // 필수
-    // 외부 Cutie Card 분석기 API (card.taba.asia) — 관리자 카드 임포트용. 서버 전용(키 노출 X).
-    CUTIE_CARD_API_BASE: z.preprocess(
-      emptyToUndefined,
-      z.string().url().default("https://card.taba.asia"),
-    ),
-    CUTIE_CARD_API_KEY: optionalString,
     // 매입일 환율(JPY→KRW) 조회 API. 기본 Frankfurter(ECB, 키 불필요, 과거 영업일 지원).
     // 정식 호스트는 api.frankfurter.dev/v1 (.app은 301 리다이렉트).
     FX_API_BASE: z.preprocess(

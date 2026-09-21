@@ -44,8 +44,7 @@ export function CardSimilarPanel({
   }
 
   function matchUrl(m: Match): string | null {
-    if (m.frontR2Key) return `${publicBaseUrl}/${m.frontR2Key}`;
-    return m.frontImageUrl;
+    return m.frontR2Key ? `${publicBaseUrl}/${m.frontR2Key}` : null;
   }
 
   return (

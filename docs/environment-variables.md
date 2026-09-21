@@ -22,7 +22,6 @@
 | 일반 값 | ECS 태스크 정의의 `environment`(`APP_URL`, `R2_ENDPOINT`, `R2_REGION`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET`, `PAYMENT_PROVIDER`, `NEXT_TELEMETRY_DISABLED`) | `setup.sh ecs`가 환경별로 고정 |
 | 빌드 타임 공개 값 | GitHub Environment 변수(`NEXT_PUBLIC_VAPID_PUBLIC_KEY`) | `setup.sh github` / 사람 |
 
-SSM 시크릿 목록(`setup.sh`): `DATABASE_URL`, `DATABASE_URL_OWNER`(스키마 적용 전용, 앱 미주입), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `CUTIE_CARD_API_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`.
 값을 바꾼 뒤에는 `aws ecs update-service --cluster iroiro --service iroiro-<env> --force-new-deployment`로 재기동해야 반영된다. 전체 절차는 [deployment.md](./deployment.md).
 
 CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 검증을 통과시키고, 실제 값은 런타임에 ECS가 주입한다.
@@ -84,8 +83,6 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `CUTIE_CARD_API_BASE` | ◯ 선택 | Cutie Card 분석기 API 베이스 URL. 기본 `https://card.taba.asia`. 관리자 카드 임포트가 `{BASE}/api/v1/collection`을 호출한다([cutie-card.ts](../modules/import/lib/cutie-card.ts)) |
-| `CUTIE_CARD_API_KEY` 🔒 | ◯ 조건부 | Cutie Card API 키. **미설정 시 `env.ts` 검증은 통과하지만 카드 임포트 실행 시점에 에러로 실패한다.** 관리자 임포트 기능을 쓸 때만 필요. SSM |
 | `FX_API_BASE` | ◯ 선택 | 매입일 환율(JPY→KRW) 조회 API. 기본 [Frankfurter](https://frankfurter.dev)(ECB 기준, 키 불필요, 과거 영업일 지원). 정식 호스트는 `https://api.frankfurter.dev/v1` — `.app` 도메인은 301 리다이렉트 |
 
 ## 런타임 토글

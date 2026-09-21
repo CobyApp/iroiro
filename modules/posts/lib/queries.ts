@@ -41,7 +41,7 @@ async function enrichForRows(
     cardIds.length
       ? db.card.findMany({
           where: { id: { in: cardIds } },
-          select: { id: true, name: true, frontR2Key: true, frontImageUrl: true, marketAvgJpy: true },
+          select: { id: true, name: true, frontR2Key: true },
         })
       : [],
   ]);
@@ -60,8 +60,7 @@ async function enrichForRows(
       {
         id: Number(c.id),
         name: c.name,
-        imageUrl: c.frontR2Key ? `${env.R2_PUBLIC_BASE}/${c.frontR2Key}` : c.frontImageUrl,
-        marketAvgJpy: c.marketAvgJpy,
+        imageUrl: c.frontR2Key ? `${env.R2_PUBLIC_BASE}/${c.frontR2Key}` : null,
       },
     ]),
   );

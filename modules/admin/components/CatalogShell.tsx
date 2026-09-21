@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  Download,
   LayoutDashboard,
   Menu,
   User,
@@ -27,12 +26,6 @@ const CATALOG_NAV_SECTIONS: NavSection[] = [
         href: "/catalog/cards",
         icon: WalletCards,
         matchPrefix: "/catalog/cards",
-      },
-      {
-        label: "분석기 가져오기",
-        href: "/catalog/import",
-        icon: Download,
-        matchPrefix: "/catalog/import",
       },
     ],
   },

@@ -288,18 +288,6 @@ export async function listSettlementRows(): Promise<SettlementInput[]> {
   return rows;
 }
 
-// 일괄 가져오기 중복 판별/보유 체크 키 — 외부 카드 고유 id(source_id) 집합.
-// item_code는 시리즈 코드라 유니크하지 않으므로 source_id로 카드 단위 판별.
-export async function listImportedSourceIds(): Promise<string[]> {
-  const rows = await db.product.findMany({
-    where: { sourceId: { not: null } },
-    select: { sourceId: true },
-  });
-  return rows
-    .map((r) => r.sourceId)
-    .filter((s): s is string => s !== null && s !== "");
-}
-
 export async function getProductById(
   id: number,
 ): Promise<ProductWithPhotos | null> {
@@ -416,18 +404,15 @@ export type SiblingListing = {
   auctionEndsAt: string | null;
 };
 
-// 같은 카드(외부 source_id, 없으면 item_code)의 "다른" 판매중 매물.
+// 같은 카드(item_code 기준)의 "다른" 판매중 매물.
 // 컨디션이 다르거나 정가·경매를 병행하면 각각 별개 매물로 노출된다.
 export async function listSiblingListings(product: {
   id: number;
-  sourceId: string | null;
   itemCode: string | null;
 }): Promise<SiblingListing[]> {
-  const cardKey: Prisma.ProductWhereInput | null = product.sourceId
-    ? { sourceId: product.sourceId }
-    : product.itemCode
-      ? { itemCode: product.itemCode }
-      : null;
+  const cardKey: Prisma.ProductWhereInput | null = product.itemCode
+    ? { itemCode: product.itemCode }
+    : null;
   if (!cardKey) return [];
 
   const rows = await db.product.findMany({
@@ -472,7 +457,6 @@ export async function listSiblingListings(product: {
 export async function listRelatedProducts(
   product: {
     id: number;
-    sourceId: string | null;
     itemCode: string | null;
     memberId: number | null;
     seriesId: number | null;
@@ -480,11 +464,9 @@ export async function listRelatedProducts(
   },
   limit = 8,
 ): Promise<ProductWithPhotos[]> {
-  const excludeCard: Prisma.ProductWhereInput = product.sourceId
-    ? { NOT: { sourceId: product.sourceId } }
-    : product.itemCode
-      ? { NOT: { itemCode: product.itemCode } }
-      : { id: { not: BigInt(product.id) } };
+  const excludeCard: Prisma.ProductWhereInput = product.itemCode
+    ? { NOT: { itemCode: product.itemCode } }
+    : { id: { not: BigInt(product.id) } };
 
   const tiers: Prisma.ProductWhereInput[] = [];
   if (product.memberId !== null) {

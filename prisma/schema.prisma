@@ -76,7 +76,6 @@ model TeamMember {
 model Product {
   id                   BigInt   @id @default(autoincrement())
   itemCode             String?  @map("item_code")
-  sourceId             String?  @map("source_id")
   itemType             String   @map("item_type")
   teamId               BigInt?  @map("team_id")
   memberId             BigInt?  @map("member_id")
@@ -118,7 +117,6 @@ model Product {
   updatedBy            String?  @map("updated_by")
 
   @@index([itemCode, itemType, condition], map: "product_item_code_idx", where: raw("(item_code IS NOT NULL)"))
-  @@index([sourceId], map: "product_source_id_idx", where: raw("(source_id IS NOT NULL)"))
   @@index([saleStatus, createdAt], map: "product_sale_status_created_at_idx")
   @@index([saleStatus, itemType], map: "product_sale_status_item_type_idx")
   @@index([saleStatus, memberId], map: "product_sale_status_member_idx")
@@ -586,8 +584,6 @@ model AccountAddress {
 
 model Card {
   id                   BigInt   @id @default(autoincrement())
-  source               String   @default("admin")
-  externalId           BigInt?  @map("external_id")
   itemCode             String?  @map("item_code")
   itemType             String   @default("photocard") @map("item_type")
   teamId               BigInt?  @map("team_id")
@@ -596,13 +592,6 @@ model Card {
   name                 String
   description          String?
   frontR2Key           String?  @map("front_r2_key")
-  backR2Key            String?  @map("back_r2_key")
-  frontImageUrl        String?  @map("front_image_url")
-  backImageUrl         String?  @map("back_image_url")
-  marketAvgJpy         Int      @default(0) @map("market_avg_jpy")
-  marketMinJpy         Int      @default(0) @map("market_min_jpy")
-  marketMaxJpy         Int      @default(0) @map("market_max_jpy")
-  marketSoldCount      Int      @default(0) @map("market_sold_count")
   retailPriceJpy       Int      @default(0) @map("retail_price_jpy")
   pose                 Int      @default(1)
   status               String   @default("active")
