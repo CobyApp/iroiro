@@ -2,3 +2,8 @@
 !.next/standalone
 !.next/static
 !public
+# Migration runner + schema files (copied by the Dockerfile for the iroiro-migrate-<env> task)
+!db/schema.sql
+!db/catalog-schema.sql
+!scripts/db-migrate.mjs
+!scripts/lib/schema-sections.mjs
