@@ -9,12 +9,15 @@ import {
   type ActionResult,
 } from "@/lib/action-result";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { Prisma } from "@prisma/client";
 
-// 시리즈 관리 — 카탈로그 동기화가 채우는 데이터를 관리자가 보정·추가·정리한다.
+// 시리즈 관리 — 카탈로그 공간에서 관리자가 추가·보정·정리한다.
+// label 은 원본 표기(대개 일본어), labelKo 는 한국어 병기(label_i18n.ko).
 
 const seriesInputSchema = z.object({
   sku: z.string().trim().min(1, "SKU를 입력해주세요").max(120),
   label: z.string().trim().min(1, "시리즈 이름을 입력해주세요").max(200),
+  labelKo: z.string().trim().max(200).nullable().optional(),
   kind: z.string().trim().min(1, "종류를 입력해주세요").max(50),
   teamId: z.number().int().positive().nullable(),
 });
@@ -23,6 +26,13 @@ export type SeriesInput = z.infer<typeof seriesInputSchema>;
 
 function revalidateCatalog() {
   revalidatePath("/catalog");
+  revalidatePath("/catalog/series");
+  revalidatePath("/catalog/cards");
+}
+
+// 한국어 병기 → label_i18n. 비우면 null(컬럼 NULL).
+function labelI18nOf(labelKo: string | null | undefined) {
+  return labelKo ? { ko: labelKo } : null;
 }
 
 export async function createSeries(
@@ -45,6 +55,7 @@ export async function createSeries(
       data: {
         sku: parsed.data.sku,
         label: parsed.data.label,
+        labelI18n: labelI18nOf(parsed.data.labelKo) ?? undefined,
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),
@@ -80,6 +91,7 @@ export async function updateSeries(
       data: {
         sku: parsed.data.sku,
         label: parsed.data.label,
+        labelI18n: labelI18nOf(parsed.data.labelKo) ?? Prisma.DbNull,
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),

@@ -19,6 +19,7 @@ model Team {
   debutDate   DateTime?    @map("debut_date") @db.Date
   disbandDate DateTime?    @map("disband_date") @db.Date
   displayOrder Int?        @map("display_order")
+  themeColor  String?      @map("theme_color")
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy   String?      @map("created_by")
   updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)

@@ -1,0 +1,93 @@
+/* 카탈로그 전용 공간(/catalog) 테마 — 소비자·관리자의 파스텔·둥근 "카와이" 언어와 의도적으로 구분되는
+   "도감·아카이브" 톤: 쿨한 인디고 포인트, 낮은 채도 배경, 작은 라운드, 밀도 있는 시스템 산세리프.
+   Tailwind v4 유틸은 CSS 변수(--color-*, --radius-*)를 참조하므로 이 스코프 안에서 토큰만 덮어써도
+   shadcn 컴포넌트가 그대로 새 톤을 입는다. app/(catalog)/layout.tsx 가 import 하고 data-theme 로 스코프한다. */
+
+[data-theme="catalog"] {
+  --background: #f4f5fa;
+  --foreground: #1e2140;
+  --card: #ffffff;
+  --card-foreground: #1e2140;
+  --popover: #ffffff;
+  --popover-foreground: #1e2140;
+  --primary: #5b5bd6;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0fa;
+  --secondary-foreground: #1e2140;
+  --muted: #f0f2f8;
+  --muted-foreground: #6b7089;
+  --accent: #2fb7a5;
+  --accent-foreground: #ffffff;
+  --destructive: #d9455f;
+  --destructive-foreground: #ffffff;
+  --border: #dce0ee;
+  --input: #d5dae9;
+  --ring: #5b5bd6;
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+
+  --shadow-card: 0 1px 2px rgba(30, 33, 64, 0.06), 0 4px 14px rgba(30, 33, 64, 0.05);
+  --shadow-elevated: 0 10px 30px rgba(30, 33, 64, 0.12);
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", Pretendard,
+    "Noto Sans KR", sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100dvh;
+}
+
+[data-theme="catalog"] .font-display,
+[data-theme="catalog"] .display {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="catalog"] ::selection {
+  color: inherit;
+  background: rgba(91, 91, 214, 0.18);
+}
+
+/* 데이터 밀도용 유틸 — SKU·코드·수치 */
+[data-theme="catalog"] .catalog-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  letter-spacing: 0;
+}
+
+/* 통계 타일 숫자 */
+[data-theme="catalog"] .catalog-stat {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* 그룹 고유색 칩 — 배경은 색의 12%, 글자·점은 원색. 색은 인라인 style(--team-color)로 주입 */
+[data-theme="catalog"] .team-chip {
+  --team-color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--team-color);
+  background: color-mix(in srgb, var(--team-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--team-color) 30%, transparent);
+  white-space: nowrap;
+}
+[data-theme="catalog"] .team-chip::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--team-color);
+}
+
+/* 그룹 헤더 띠 — 섹션 왼쪽 컬러 바 */
+[data-theme="catalog"] .team-bar {
+  --team-color: var(--primary);
+  border-left: 4px solid var(--team-color);
+}

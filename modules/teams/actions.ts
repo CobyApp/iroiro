@@ -43,9 +43,11 @@ export async function createTeam(
         nameI18n: data.nameI18n ?? undefined,
         debutDate: data.debutDate ? new Date(data.debutDate) : null,
         disbandDate: data.disbandDate ? new Date(data.disbandDate) : null,
+        themeColor: data.themeColor ?? null,
       },
     });
     revalidatePath("/catalog/teams");
+    revalidatePath("/catalog");
     return toTeam(row);
   });
 }
@@ -67,6 +69,7 @@ export async function updateTeam(
       patch.debutDate = data.debutDate ? new Date(data.debutDate) : null;
     if (data.disbandDate !== undefined)
       patch.disbandDate = data.disbandDate ? new Date(data.disbandDate) : null;
+    if (data.themeColor !== undefined) patch.themeColor = data.themeColor;
 
     const row = await mapTeamWriteError(() =>
       db.team.update({
@@ -76,6 +79,7 @@ export async function updateTeam(
     );
     revalidatePath("/catalog/teams");
     revalidatePath(`/catalog/teams/${data.id}/edit`);
+    revalidatePath("/catalog");
     return toTeam(row);
   });
 }
