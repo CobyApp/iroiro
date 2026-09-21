@@ -1,32 +1,25 @@
-// 카탈로그 전용 PWA 매니페스트 — 운영 관리자(/admin)·소비자앱과 별개의 설치형 웹앱.
-// id·scope·start_url을 /catalog로 두어 브라우저가 독립 앱("이로이로 카탈로그")으로 인식한다.
+import { APP_NAMES, appDisplayName } from "@/lib/app-name";
+
+// 카탈로그 전용 PWA 매니페스트 — 운영 관리자(/admin)·소비자앱과 별개의 설치형 웹앱 "이로이로 토레카".
+// id·scope·start_url을 /catalog로 두어 브라우저가 독립 앱으로 인식한다. dev 배포는 이름에 " dev".
 export function GET(): Response {
+  const name = appDisplayName(APP_NAMES.catalog);
   const manifest = {
     id: "/catalog",
-    name: "이로이로 카탈로그",
-    short_name: "이로 카탈로그",
-    description: "이로이로 토레카 카탈로그 관리 콘솔",
+    name,
+    short_name: appDisplayName("토레카"),
+    description: "이로이로 토레카 마스터 데이터 관리 콘솔",
     start_url: "/catalog",
     scope: "/catalog",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#211B34",
-    theme_color: "#211B34",
+    background_color: "#f4f5fa",
+    theme_color: "#5b5bd6",
     icons: [
+      { src: "/brand/catalog-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/brand/catalog-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       {
-        src: "/brand/admin-icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/brand/admin-icon-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: "/brand/admin-icon-maskable-512.png",
+        src: "/brand/catalog-icon-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

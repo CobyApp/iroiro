@@ -6,27 +6,31 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
 import { isBoardManager } from "@/modules/admin/lib/roles";
 import { PageTransition } from "@/components/PageTransition";
+import { APP_NAMES, appDisplayName } from "@/lib/app-name";
 
 // 관리자 영역은 별도 설치형 PWA — 이름·아이콘·테마를 소비자앱과 분리한다.
-// 이 layout이 관장하는 /admin 하위 전체에 매니페스트·아이콘·테마가 적용된다.
-export const metadata: Metadata = {
-  title: { default: "이로이로 관리자", template: "%s · 이로이로 관리자" },
-  applicationName: "이로이로 관리자",
-  manifest: "/admin/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/brand/admin-icon-192.png", sizes: "192x192", type: "image/png" },
-    ],
-    apple: [
-      { url: "/brand/admin-icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-  },
-  appleWebApp: {
-    capable: true,
-    title: "이로이로 관리자",
-    statusBarStyle: "black-translucent",
-  },
-};
+// 이 layout이 관장하는 /admin 하위 전체에 매니페스트·아이콘·테마가 적용된다. dev 배포는 이름에 " dev".
+export async function generateMetadata(): Promise<Metadata> {
+  const name = appDisplayName(APP_NAMES.admin);
+  return {
+    title: { default: name, template: `%s · ${name}` },
+    applicationName: name,
+    manifest: "/admin/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/brand/admin-icon-192.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: [
+        { url: "/brand/admin-icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    },
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: "black-translucent",
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#211B34",

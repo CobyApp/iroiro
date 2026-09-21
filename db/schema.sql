@@ -2264,3 +2264,24 @@ COMMENT ON COLUMN card.front_r2_key IS '앞면 이미지 R2 키(63:88 정규화�
 DROP INDEX IF EXISTS product_source_id_idx;
 ALTER TABLE product
     DROP COLUMN IF EXISTS source_id;
+
+-- ============================================================================
+-- [20260922030000_team_theme_color]
+-- ============================================================================
+
+-- team_theme_color: 그룹 고유색(#rrggbb). 카탈로그 공간의 그룹 칩·헤더·멤버 섹션 색으로 쓴다.
+-- 관리자가 그룹 폼에서 바꿀 수 있고, 초기값은 카와라보 5그룹의 대표색.
+ALTER TABLE team
+    ADD COLUMN IF NOT EXISTS theme_color TEXT;
+COMMENT ON COLUMN team.theme_color IS '그룹 고유색 — #rrggbb. NULL 이면 기본 색';
+
+UPDATE team SET theme_color = v.color, updated_at = now()
+FROM (VALUES
+    ('CUTIE STREET',  '#FF6B9D'),
+    ('FRUITS ZIPPER', '#F94FA0'),
+    ('CANDY TUNE',    '#5FC6E8'),
+    ('SWEET STEADY',  '#B084E9'),
+    ('MORE STAR',     '#F4B740')
+) AS v(name, color)
+WHERE upper(regexp_replace(team.name, '\s+', '_', 'g')) = upper(regexp_replace(v.name, '\s+', '_', 'g'))
+  AND team.theme_color IS NULL;

@@ -44,6 +44,8 @@ export function TeamForm({ mode, team }: Props) {
   });
   const [debutDate, setDebutDate] = useState(team?.debutDate ?? "");
   const [disbandDate, setDisbandDate] = useState(team?.disbandDate ?? "");
+  // 그룹 고유색(#rrggbb) — 카탈로그 칩·헤더 색. 비우면 기본 색.
+  const [themeColor, setThemeColor] = useState(team?.themeColor ?? "");
 
   function buildNameI18n(): NameI18n | null {
     const entries = LOCALE_KEYS.flatMap((key) => {
@@ -71,12 +73,14 @@ export function TeamForm({ mode, team }: Props) {
               nameI18n: buildNameI18n(),
               debutDate: debutDate || null,
               disbandDate: disbandDate || null,
+              themeColor: themeColor || null,
             })
           : await createTeam({
               name: name.trim(),
               nameI18n: buildNameI18n(),
               debutDate: debutDate || null,
               disbandDate: disbandDate || null,
+              themeColor: themeColor || null,
             });
       if (!result.ok) {
         toast.error(result.message);
@@ -162,6 +166,33 @@ export function TeamForm({ mode, team }: Props) {
                 value={disbandDate || null}
                 onChange={(next) => setDisbandDate(next ?? "")}
               />
+            </div>
+          </div>
+
+          {/* 그룹 고유색 — 카탈로그의 그룹 칩·섹션 색. 색상 피커 + 코드 직접 입력. */}
+          <div className="space-y-2">
+            <Label htmlFor="themeColor">그룹 색</Label>
+            <div className="flex items-center gap-2">
+              <input
+                id="themeColor"
+                type="color"
+                value={themeColor || "#5b5bd6"}
+                onChange={(event) => setThemeColor(event.target.value)}
+                className="h-10 w-12 cursor-pointer rounded-md border border-border bg-card p-1"
+                aria-label="그룹 색 선택"
+              />
+              <Input
+                value={themeColor}
+                onChange={(event) => setThemeColor(event.target.value.trim())}
+                placeholder="#FF6B9D"
+                className="max-w-[10rem] font-mono"
+                pattern="^#[0-9a-fA-F]{6}$"
+              />
+              {themeColor && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setThemeColor("")}>
+                  비우기
+                </Button>
+              )}
             </div>
           </div>
 

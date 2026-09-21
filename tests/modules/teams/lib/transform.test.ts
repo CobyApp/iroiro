@@ -9,6 +9,7 @@ const baseRow: PrismaTeam = {
   debutDate: new Date("2022-07-22T00:00:00.000Z"),
   disbandDate: null,
   displayOrder: 2,
+  themeColor: "#FF6B9D",
   createdAt: new Date("2026-05-01T10:00:00.000Z"),
   createdBy: null,
   updatedAt: new Date("2026-05-01T10:00:00.000Z"),

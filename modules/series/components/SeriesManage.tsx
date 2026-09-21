@@ -27,31 +27,54 @@ import {
   type SeriesInput,
 } from "../actions";
 
-import { SERIES_KIND_OPTIONS } from "../kinds";
+// 시리즈 추가·수정·삭제 다이얼로그. 종류 선택지는 DB(series_kind)에서 내려온 목록을 쓴다 —
+// 코드 상수는 라벨 폴백일 뿐이라 여기서 직접 참조하지 않는다.
 
-type SeriesRow = {
+export type KindOption = { key: string; label: string };
+
+export type SeriesRowInput = {
   id: number;
   sku: string;
   label: string;
+  labelKo: string | null;
   kind: string;
   teamId: number | null;
 };
 
+type FormState = Omit<SeriesInput, "teamId">;
+
 function SeriesFormFields({
   value,
   onChange,
+  kinds,
 }: {
-  value: Omit<SeriesInput, "teamId">;
-  onChange: (next: Omit<SeriesInput, "teamId">) => void;
+  value: FormState;
+  onChange: (next: FormState) => void;
+  kinds: KindOption[];
 }) {
+  // 현재 값이 목록에 없는 키(데이터에만 있는 종류)면 그대로 선택지로 노출해 값을 잃지 않게 한다.
+  const options =
+    value.kind && !kinds.some((k) => k.key === value.kind)
+      ? [...kinds, { key: value.kind, label: value.kind }]
+      : kinds;
   return (
     <>
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">시리즈 이름</label>
+        <label className="text-xs text-muted-foreground">시리즈 이름 (원문)</label>
         <Input
           value={value.label}
           onChange={(e) => onChange({ ...value, label: e.target.value })}
           placeholder="예: クリスマス 2024"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground">한국어 병기</label>
+        <Input
+          value={value.labelKo ?? ""}
+          onChange={(e) =>
+            onChange({ ...value, labelKo: e.target.value || null })
+          }
+          placeholder="예: 크리스마스 2024 — 원문이 일본어일 때 고객 화면에 함께 표기"
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -65,8 +88,8 @@ function SeriesFormFields({
               <SelectValue placeholder="종류" />
             </SelectTrigger>
             <SelectContent>
-              {SERIES_KIND_OPTIONS.map((k) => (
-                <SelectItem key={k.value} value={k.value}>
+              {options.map((k) => (
+                <SelectItem key={k.key} value={k.key}>
                   {k.label}
                 </SelectItem>
               ))}
@@ -87,12 +110,24 @@ function SeriesFormFields({
   );
 }
 
-// 시리즈 추가 — 팀 섹션 헤더의 버튼. 동기화 전에 수동으로 미리 만들 때 사용.
-export function SeriesCreateButton({ teamId }: { teamId: number }) {
+function emptyForm(kinds: KindOption[]): FormState {
+  return { label: "", labelKo: null, kind: kinds[0]?.key ?? "random", sku: "" };
+}
+
+// 시리즈 추가 — 그룹 섹션 헤더의 버튼.
+export function SeriesCreateButton({
+  teamId,
+  kinds,
+  size = "sm",
+}: {
+  teamId: number;
+  kinds: KindOption[];
+  size?: "sm" | "default";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({ label: "", kind: "random", sku: "" });
+  const [form, setForm] = useState<FormState>(() => emptyForm(kinds));
 
   function submit() {
     startTransition(async () => {
@@ -102,7 +137,7 @@ export function SeriesCreateButton({ teamId }: { teamId: number }) {
         return;
       }
       toast.success("시리즈를 추가했어요");
-      setForm({ label: "", kind: "random", sku: "" });
+      setForm(emptyForm(kinds));
       setOpen(false);
       router.refresh();
     });
@@ -111,7 +146,7 @@ export function SeriesCreateButton({ teamId }: { teamId: number }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1">
+        <Button variant="outline" size={size} className="gap-1">
           <Plus className="h-3.5 w-3.5" />
           시리즈 추가
         </Button>
@@ -121,7 +156,7 @@ export function SeriesCreateButton({ teamId }: { teamId: number }) {
           <DialogTitle>시리즈 추가</DialogTitle>
         </DialogHeader>
         <div className="space-y-2.5">
-          <SeriesFormFields value={form} onChange={setForm} />
+          <SeriesFormFields value={form} onChange={setForm} kinds={kinds} />
           <Button
             className="w-full"
             disabled={pending || !form.label.trim() || !form.sku.trim()}
@@ -135,19 +170,23 @@ export function SeriesCreateButton({ teamId }: { teamId: number }) {
   );
 }
 
-// 시리즈 행 작업 — 수정 다이얼로그 + 삭제(연결 상품 없을 때만 서버가 허용).
+// 시리즈 행 작업 — 수정 다이얼로그 + 삭제(연결 카드·상품이 없을 때만 서버가 허용).
 export function SeriesRowActions({
   series,
-  productCount,
+  linkedCount,
+  kinds,
 }: {
-  series: SeriesRow;
-  productCount: number;
+  series: SeriesRowInput;
+  /** 연결된 카드+상품 수 — 0이 아니면 삭제 버튼을 잠근다. */
+  linkedCount: number;
+  kinds: KindOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     label: series.label,
+    labelKo: series.labelKo,
     kind: series.kind,
     sku: series.sku,
   });
@@ -199,7 +238,7 @@ export function SeriesRowActions({
             <DialogTitle>시리즈 수정</DialogTitle>
           </DialogHeader>
           <div className="space-y-2.5">
-            <SeriesFormFields value={form} onChange={setForm} />
+            <SeriesFormFields value={form} onChange={setForm} kinds={kinds} />
             <Button
               className="w-full"
               disabled={pending || !form.label.trim() || !form.sku.trim()}
@@ -215,10 +254,10 @@ export function SeriesRowActions({
         size="sm"
         className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
         aria-label={`${series.label} 삭제`}
-        disabled={pending || productCount > 0}
+        disabled={pending || linkedCount > 0}
         title={
-          productCount > 0
-            ? `연결된 상품 ${productCount}개 — 삭제하려면 먼저 상품의 시리즈를 바꿔주세요`
+          linkedCount > 0
+            ? `연결된 카드·상품 ${linkedCount}건 — 삭제하려면 먼저 연결을 바꿔주세요`
             : undefined
         }
         onClick={remove}

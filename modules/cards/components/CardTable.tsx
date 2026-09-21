@@ -386,7 +386,8 @@ export function CardTable({
   );
 }
 
-function CardEditDialog({
+// 개별 수정 다이얼로그 — 표(검수)와 그리드(공개 카드)가 공유.
+export function CardEditDialog({
   card,
   teams,
   members,

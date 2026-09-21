@@ -10,6 +10,8 @@ export type CardListFilter = {
   memberId?: number;
   seriesId?: number;
   status?: CardStatus;
+  /** true = 분석 완료만, false = 미분석만. 생략하면 전체. */
+  analyzed?: boolean;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -26,6 +28,9 @@ export async function listCards(
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
   if (filter.status) where.status = filter.status;
+  if (filter.analyzed !== undefined) {
+    where.analyzedAt = filter.analyzed ? { not: null } : null;
+  }
   if (filter.q) {
     where.OR = [
       { name: { contains: filter.q, mode: "insensitive" } },
@@ -88,6 +93,30 @@ export async function listExistingCards(
 // 검수 대기 수 — 관리자 목록 뱃지용.
 export async function countPendingCards(): Promise<number> {
   return db.card.count({ where: { status: "pending" } });
+}
+
+// 상태별 카드 수 — 카탈로그 탭(공개 / 검수 대기 / 반려) 카운트.
+export async function countCardsByStatus(): Promise<Record<CardStatus, number>> {
+  const rows = await db.card.groupBy({ by: ["status"], _count: { _all: true } });
+  const out: Record<CardStatus, number> = { active: 0, pending: 0, rejected: 0 };
+  for (const r of rows) {
+    if (r.status in out) out[r.status as CardStatus] = r._count._all;
+  }
+  return out;
+}
+
+// 그룹별 공개 카드 수 — 카탈로그 홈 그룹 타일.
+export async function countActiveCardsByTeam(): Promise<Map<number, number>> {
+  const rows = await db.card.groupBy({
+    by: ["teamId"],
+    where: { status: "active" },
+    _count: { _all: true },
+  });
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.teamId !== null) out.set(Number(r.teamId), r._count._all);
+  }
+  return out;
 }
 
 // 유사도 후보 — 분석 임베딩이 있는 공개 카드. 같은 그룹(+멤버)으로 좁혀 비교 대상을 줄인다.
