@@ -40,6 +40,19 @@ async function fetchActiveAggregates(
   return aggregateInventory(rows);
 }
 
+// 소유 확인 — 이 계정이 해당 상품을 활성 보유(반품 미처리)하고 있는가.
+// 소유자 컬렉션 이미지(워터마크 없는 원본) 서빙 라우트가 요청마다 확인한다.
+export async function ownsProduct(
+  accountId: string,
+  productId: number,
+  db: Db = defaultDb,
+): Promise<boolean> {
+  const n = await db.inventoryItem.count({
+    where: { accountId, productId: BigInt(productId), reversedAt: null },
+  });
+  return n > 0;
+}
+
 function bySortOrderThenId(
   a: { sortOrder: number; id: bigint },
   b: { sortOrder: number; id: bigint },

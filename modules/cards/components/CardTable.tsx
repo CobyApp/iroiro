@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Info, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,8 @@ import {
 } from "../actions";
 import {
   CARD_STATUS_LABEL,
-  cardFrontUrl,
+  cardImageSrc,
+  type CardImageView,
   type Card,
 } from "../types";
 import type {
@@ -44,6 +45,7 @@ import type {
   TeamOption,
 } from "./CardForm";
 import { CardSimilarPanel } from "./CardSimilarPanel";
+import { CardDetailDialog } from "./CardDetailDialog";
 
 // 관리자 토레카 표 — 검수 대기 카드를 한 장씩(수정·승인·반려) 또는
 // 여러 장 선택해 한 번에 승인할 수 있다.
@@ -52,13 +54,13 @@ export function CardTable({
   teams,
   members,
   series,
-  publicBaseUrl,
+  imageView,
 }: {
   items: Card[];
   teams: TeamOption[];
   members: MemberOption[];
   series: SeriesOption[];
-  publicBaseUrl: string;
+  imageView: CardImageView;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -67,6 +69,8 @@ export function CardTable({
   const [noteById, setNoteById] = useState<Record<number, string>>({});
   // 검수 보조 — 보류 카드의 기존·유사 카드를 AI로 확인하는 다이얼로그 대상.
   const [similarFor, setSimilarFor] = useState<Card | null>(null);
+  // 상세(clean 원본·저장된 AI 분석값) 다이얼로그 대상.
+  const [detailFor, setDetailFor] = useState<Card | null>(null);
 
   const teamById = new Map(teams.map((t) => [t.id, t.name]));
   const memberById = new Map(members.map((m) => [m.id, m.name]));
@@ -138,7 +142,7 @@ export function CardTable({
         </TableHeader>
         <TableBody>
           {items.map((card) => {
-            const frontUrl = cardFrontUrl(card, publicBaseUrl);
+            const frontUrl = cardImageSrc(card, imageView);
             const isPending = card.status === "pending";
             return (
               <TableRow key={card.id}>
@@ -164,7 +168,12 @@ export function CardTable({
                   {card.id}
                 </TableCell>
                 <TableCell>
-                  <div className="h-14 w-10 overflow-hidden rounded-xs border border-border bg-muted">
+                  <button
+                    type="button"
+                    onClick={() => setDetailFor(card)}
+                    aria-label={`${card.name} 상세 보기`}
+                    className="block h-14 w-10 overflow-hidden rounded-xs border border-border bg-lilac transition-transform hover:scale-105"
+                  >
                     {frontUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -174,7 +183,7 @@ export function CardTable({
                         className="h-full w-full object-cover"
                       />
                     )}
-                  </div>
+                  </button>
                 </TableCell>
                 <TableCell>
                   <p className="font-medium">{card.name}</p>
@@ -298,6 +307,16 @@ export function CardTable({
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-8 gap-1 px-2 text-xs text-primary"
+                        aria-label={`${card.name} 상세·AI 분석값`}
+                        onClick={() => setDetailFor(card)}
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                        상세
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-8 w-8 p-0"
                         aria-label={`${card.name} 수정`}
                         disabled={pending}
@@ -366,10 +385,21 @@ export function CardTable({
               frontR2Key={similarFor.frontR2Key}
               teamId={similarFor.teamId}
               memberId={similarFor.memberId}
-              publicBaseUrl={publicBaseUrl}
+              imageView={imageView}
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {detailFor && (
+        <CardDetailDialog
+          card={detailFor}
+          teamName={detailFor.teamId !== null ? teamById.get(detailFor.teamId) : undefined}
+          memberName={detailFor.memberId !== null ? memberById.get(detailFor.memberId) : undefined}
+          seriesLabel={detailFor.seriesId !== null ? seriesById.get(detailFor.seriesId) : undefined}
+          imageView={imageView}
+          onClose={() => setDetailFor(null)}
+        />
       )}
 
       {/* 개별 수정 — 멤버/시리즈 교정 시 이름도 자동 재생성 */}

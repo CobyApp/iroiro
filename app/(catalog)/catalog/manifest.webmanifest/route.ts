@@ -13,8 +13,8 @@ export function GET(): Response {
     scope: "/catalog",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f4f5fa",
-    theme_color: "#5b5bd6",
+    background_color: "#fffdf9",
+    theme_color: "#9a8cf4",
     icons: [
       { src: "/brand/catalog-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/brand/catalog-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

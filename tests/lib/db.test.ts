@@ -21,7 +21,7 @@ describe("lib/db", () => {
   it("PrismaClient를 default export로 제공하는 db 싱글톤을 노출한다", async () => {
     const mod = await import("@/lib/db");
     expect(mod.db).toBeDefined();
-    expect(typeof mod.db.team.findMany).toBe("function");
+    expect(typeof mod.db.product.findMany).toBe("function");
   });
 
   it("개발 모드에서는 globalThis 캐시로 singleton 재사용", async () => {

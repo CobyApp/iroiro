@@ -7,12 +7,13 @@
 
 | 환경 | 브랜치 | 도메인 | AWS 리소스 | GitHub Environment |
 |---|---|---|---|---|
-| dev | `dev` | https://dev.iroiro.club | ECS Express `iroiro-dev`(0.5 vCPU / 1 GB) · RDS `iroiro-dev` · S3 `iroiro-products-dev` / `iroiro-ugc-dev` | `dev` |
+| dev | `dev` | https://dev.iroiro.club | ECS Express `iroiro-dev`(0.5 vCPU / 1 GB) · RDS `iroiro-dev` · S3 `iroiro-kr-products-dev` / `iroiro-kr-ugc-dev` | `dev` |
 | prd | `main` | https://iroiro.club (+ www) | ECS Express `iroiro-prd`(1 vCPU / 2 GB) · RDS `iroiro-prd` · S3 `iroiro-kr-products-prd` / `iroiro-kr-ugc-prd` | `production` |
+| **공유** | — | — | **카탈로그 DB** `iroiro_catalog`(RDS `iroiro-prd` 안 별도 데이터베이스, 롤 `catalog_app`) · S3 `iroiro-kr-catalog` — 토레카 마스터와 카드 이미지는 두 환경이 하나를 쓴다 | — |
 
 - 컴퓨트는 **Amazon ECS Express Mode**(Fargate + 자동 생성 ALB). App Runner는 2026-04-30부터 신규 고객을 받지 않아 AWS가 권장하는 대체다. 두 서비스는 같은 클러스터 `iroiro`·같은 네트워크 설정을 써서 **ALB 1대를 공유**한다.
 - 리전은 **서울(ap-northeast-2)**. 계정 `852382801109`, CLI 프로파일 `personal`. 기본 VPC(172.31.0.0/16)의 퍼블릭 서브넷에 Fargate 태스크가 뜬다(NAT 불필요).
-- DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업. 보안 그룹은 VPC CIDR(ECS 태스크)과 명시적으로 허용한 운영자 IP만 5432를 열어 둔다(`db-apply.sh`가 현재 IP를 자동 추가).
+- 커머스 DB는 환경별로 **완전히 분리된 RDS 인스턴스**(PostgreSQL 17, db.t4g.micro, 20GB gp3, 단일 AZ). prd는 삭제 보호 + 7일 백업. 토레카 마스터(카탈로그 DB)는 prd 인스턴스 안 별도 데이터베이스를 두 환경이 공유한다(§카탈로그 DB). 보안 그룹은 VPC CIDR(ECS 태스크)만 5432를 열어 두고, 운영자 접속은 SSM 배스천(`i-0ac876386f19fa203`) 포트포워딩으로 한다 — 운영자 IP를 SG에 추가하지 않는다.
 - 앱→RDS 연결은 `sslmode=verify-full&sslrootcert=/app/rds-ca.pem`. RDS CA 번들은 Dockerfile이 이미지에 넣는다(`pg`는 `require`도 체인을 검증하므로 CA 없이는 self-signed 오류).
 - 시크릿은 SSM Parameter Store `/iroiro/<env>/<NAME>`(SecureString)에 두고 ECS 태스크 실행 롤이 기동 시 주입한다. 코드·CI에는 시크릿이 없다.
 - 이미지 스토리지는 AWS S3. 앱 코드의 `R2_*` 환경변수 이름은 그대로 두고 값만 S3를 가리킨다(`R2_REGION=ap-northeast-2`).
@@ -38,7 +39,8 @@ hotfix/*  ──PR──▶ main  (그리고 main → dev 로 back-merge)
 2. GitHub Actions 서비스 컨테이너(Postgres 17)에 `db/schema.sql` 적용 — Next 빌드가 프리렌더 중 DB를 읽기 때문
 3. `next build` (standalone) — 런타임 시크릿은 빌드 시 placeholder, `NEXT_PUBLIC_*`만 GitHub Environment 변수에서 주입
 4. OIDC로 `iroiro-github-deploy` 롤 assume → ECR `iroiro:<env>-<sha>` / `iroiro:<env>-latest` 푸시
-5. `aws ecs update-service --force-new-deployment` → `wait services-stable`. 헬스체크(`/api/health`) 실패 시 ECS 배포 서킷 브레이커가 이전 태스크를 유지한다.
+5. **DB 마이그레이션** — 방금 푸시한 이미지로 원오프 Fargate 태스크 `iroiro-migrate-<env>`(`scripts/db-migrate.mjs`)를 `run-task`해 커머스·카탈로그 DB의 미적용 섹션을 적용한다. 종료 코드가 0이 아니면 여기서 배포가 멈춘다(서비스는 이전 이미지 유지). 로그는 `/ecs/iroiro-<env>`의 `migrate/…` 스트림.
+6. `aws ecs update-service --force-new-deployment` → `wait services-stable`. 헬스체크(`/api/health`) 실패 시 ECS 배포 서킷 브레이커가 이전 태스크를 유지한다.
    (`update-express-gateway-service`를 쓰지 않는 이유: Express 업데이트는 ALB를 재조정해 `domains` 단계가 넣은 커스텀 도메인 호스트 규칙을 지울 수 있다.)
 
 Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, (선택) `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
@@ -56,8 +58,27 @@ Environment 변수(`setup.sh github`가 설정): `AWS_ROLE_ARN`, `ECR_REPOSITORY
 ./infra/aws/setup.sh github      # GitHub Environment 변수 + DEPLOY_ENABLED → 이후 dev/main push가 자동 배포
 ./infra/aws/setup.sh domains     # 서울 ACM 인증서 + ALB 호스트 규칙, Squarespace에 넣을 DNS 레코드 출력
 ./infra/aws/setup.sh cron        # CRON_SECRET 채운 뒤 — 경매 마감 스케줄러
+./infra/aws/setup.sh catalog     # 공유 카탈로그 버킷 + 앱 IAM 정책 + SSM placeholder → 아래 §카탈로그 DB 로 DB 생성 → ecs, domains 재실행
+./infra/aws/setup.sh migrate     # 마이그레이션 태스크 정의 + 배포 롤 권한 (이후 배포마다 자동 실행)
 ./infra/aws/setup.sh status
 ```
+
+### 카탈로그 DB (dev·prd 공유)
+
+토레카 마스터는 환경마다 복제하지 않고 **운영 RDS 인스턴스 안의 별도 데이터베이스 `iroiro_catalog`** 하나를 두 환경이 공유한다(2026-09-22 결정). 인스턴스 추가 비용 0, 커머스 테이블과 롤·GRANT 분리. RDS 접속은 SSM 배스천 터널(`aws ssm start-session … AWS-StartPortForwardingSessionToRemoteHost`, 배스천 `i-0ac876386f19fa203`)로 한다 — 보안 그룹은 VPC 밖에 열지 않는다.
+
+```bash
+# 1) prd 마스터(DATABASE_URL_OWNER)로 DB·롤 생성 — 비밀번호는 PG* 환경변수로만 다루고 어디에도 남기지 않는다
+CREATE DATABASE iroiro_catalog;
+CREATE ROLE catalog_app LOGIN PASSWORD '<생성>';
+# 2) iroiro_catalog 에 db/catalog-schema.sql 적용 (소유자) → GRANT 가 catalog_app 에 걸린다
+# 3) SSM — 두 환경이 같은 값을 갖는다(ECS 실행 롤은 /iroiro/<env>/* 만 읽을 수 있어 env 마다 둔다)
+/iroiro/{dev,prd}/CATALOG_DATABASE_URL        postgresql://catalog_app:…@<prd-rds>:5432/iroiro_catalog?sslmode=verify-full&sslrootcert=/app/rds-ca.pem
+/iroiro/{dev,prd}/CATALOG_DATABASE_URL_OWNER  postgresql://iroiro_admin:…@<prd-rds>:5432/iroiro_catalog?sslmode=require
+# 4) ./infra/aws/setup.sh ecs  (컨테이너 env/secrets 갱신)  →  ./infra/aws/setup.sh domains  (ALB 호스트 규칙 복구)
+```
+
+dev 태스크(같은 VPC)는 prd RDS 보안 그룹의 VPC CIDR 허용으로 바로 닿는다. 카탈로그 행의 `card.submitted_by_account_id`는 환경별 계정이므로 `submitted_env`를 같이 저장하고, 보상 적립 등은 같은 환경에서만 처리한다.
 
 ### 사람이 채워야 하는 시크릿 (`CHANGE_ME` placeholder)
 
@@ -93,9 +114,12 @@ aws ssm put-parameter --profile personal --region ap-northeast-2 --overwrite --t
 
 ## DB 스키마 변경 운영
 
-- 정본은 [`db/schema.sql`](../db/schema.sql) 하나. 로컬은 `npm run db:reset`으로 재적용.
-- dev/prd에는 **변경분 SQL을 별도로 작성해 `psql "$(aws ssm get-parameter --with-decryption --name /iroiro/<env>/DATABASE_URL_OWNER --query Parameter.Value --output text)"`로 적용**한다. 데이터가 있는 DB에 `db-apply.sh --reset`을 쓰지 않는다.
-- 새 테이블에는 반드시 `GRANT ... TO app`을 함께 넣는다 — 앱은 비특권 `app` 롤로 접속하므로 GRANT가 없으면 permission denied.
+- 정본은 [`db/schema.sql`](../db/schema.sql)(커머스)·[`db/catalog-schema.sql`](../db/catalog-schema.sql)(카탈로그) 둘. 변경은 파일 **끝에 `-- [YYYYMMDDHHMMSS_name]` 섹션**으로 덧붙이고 문장은 재실행 안전(IF NOT EXISTS / IF EXISTS)하게 쓴다. 로컬은 `npm run db:reset`으로 두 DB를 재적용.
+- dev/prd 적용은 **배포가 자동으로** 한다: `deploy.yml`이 서비스 롤아웃 전에 `iroiro-migrate-<env>` 태스크로 [`scripts/db-migrate.mjs`](../scripts/db-migrate.mjs)를 실행한다. 러너는 각 DB의 `schema_migration(name, applied_at, checksum)` 표에 없는 섹션을 파일 순서대로, 섹션마다 한 트랜잭션으로 적용한다. 실패 시 롤백·배포 중단. 손으로 `psql`을 돌리지 않는다.
+- **베이스라인**(이미 손으로 적용돼 있던 DB를 러너에 편입할 때 1회): 터널로 소유자 URL을 잡고 `DATABASE_URL_OWNER=… node scripts/db-migrate.mjs --baseline --target commerce [--except <아직 미적용 섹션,…>]`. `--dry-run`으로 먼저 확인. 2026-09-23 dev/prd 커머스 DB와 카탈로그 DB에 실행했다.
+- 코드가 새 컬럼을 select 하기 전에 컬럼이 있어야 한다(Prisma는 전체 컬럼 select) — 그래서 마이그레이션이 롤아웃 **앞**에 있다. 컬럼 삭제는 반대로 그 컬럼을 참조하지 않는 코드가 먹은 뒤 다음 배포의 섹션으로 넣는다.
+- 새 테이블에는 반드시 `GRANT ... TO app`(카탈로그는 `catalog_app`)을 함께 넣는다 — 앱은 비특권 롤로 접속하므로 GRANT가 없으면 permission denied.
+- 데이터가 있는 DB에 `db-apply.sh --reset`을 쓰지 않는다.
 
 ## 비용 개요 (서울, 월 추정)
 

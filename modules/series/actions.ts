@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import {
   DomainError,
   runAction,
   type ActionResult,
 } from "@/lib/action-result";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
-import { Prisma } from "@prisma/client";
+import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
 
 // 시리즈 관리 — 카탈로그 공간에서 관리자가 추가·보정·정리한다.
 // label 은 원본 표기(대개 일본어), labelKo 는 한국어 병기(label_i18n.ko).
@@ -47,11 +48,11 @@ export async function createSeries(
         "invalid_input",
       );
     }
-    const dup = await db.series.findUnique({
+    const dup = await catalogDb.series.findUnique({
       where: { sku: parsed.data.sku },
     });
     if (dup) throw new DomainError("이미 있는 SKU예요", "duplicate_sku");
-    const row = await db.series.create({
+    const row = await catalogDb.series.create({
       data: {
         sku: parsed.data.sku,
         label: parsed.data.label,
@@ -79,14 +80,14 @@ export async function updateSeries(
         "invalid_input",
       );
     }
-    const dup = await db.series.findUnique({
+    const dup = await catalogDb.series.findUnique({
       where: { sku: parsed.data.sku },
       select: { id: true },
     });
     if (dup && Number(dup.id) !== id) {
       throw new DomainError("이미 있는 SKU예요", "duplicate_sku");
     }
-    await db.series.update({
+    await catalogDb.series.update({
       where: { id: BigInt(id) },
       data: {
         sku: parsed.data.sku,
@@ -124,7 +125,7 @@ export async function deleteSeries(id: number): Promise<ActionResult> {
         "series_in_use",
       );
     }
-    await db.series.delete({ where: { id: BigInt(id) } });
+    await catalogDb.series.delete({ where: { id: BigInt(id) } });
     revalidateCatalog();
   });
 }

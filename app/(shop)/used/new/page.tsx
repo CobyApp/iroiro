@@ -51,7 +51,7 @@ export default async function UsedNewPage() {
         seriesOptions={seriesOptions}
         fxRate100={fxRate100}
         usedSoldBySeries={usedSoldBySeries}
-        publicBaseUrl={env.R2_PUBLIC_BASE}
+        publicBaseUrl={env.CATALOG_PUBLIC_BASE}
       />
     </div>
   );

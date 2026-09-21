@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { toProduct, toProductPhoto } from "./transform";
 import type { SettlementInput } from "./settlement";
 import type { ProductFilter } from "./filters";
@@ -22,11 +23,11 @@ export async function listProducts(
   let memberIdCandidates: bigint[] | null = null;
   if (filter?.q) {
     const [matchedTeams, matchedMembers] = await Promise.all([
-      db.team.findMany({
+      catalogDb.team.findMany({
         where: { name: { contains: filter.q, mode: "insensitive" } },
         select: { id: true },
       }),
-      db.member.findMany({
+      catalogDb.member.findMany({
         where: { name: { contains: filter.q, mode: "insensitive" } },
         select: { id: true },
       }),
@@ -326,7 +327,7 @@ async function lookupMemberName(
   memberId: bigint | null,
 ): Promise<string | null> {
   if (memberId === null) return null;
-  const member = await db.member.findUnique({
+  const member = await catalogDb.member.findUnique({
     where: { id: memberId },
     select: { name: true },
   });
@@ -534,7 +535,7 @@ export type SeriesOption = {
 // 시리즈 목록 + 시리즈별 시세 평균(연결된 카탈로그 상품 기준).
 export async function listSeriesOptions(): Promise<SeriesOption[]> {
   const [seriesRows, avgRows] = await Promise.all([
-    db.series.findMany({ orderBy: [{ kind: "asc" }, { label: "asc" }] }),
+    catalogDb.series.findMany({ orderBy: [{ kind: "asc" }, { label: "asc" }] }),
     db.product.groupBy({
       by: ["seriesId"],
       where: { seriesId: { not: null }, marketAvgJpy: { gt: 0 } },

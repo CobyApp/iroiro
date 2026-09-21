@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { MembersTable } from "@/modules/members/components/MembersTable";
@@ -17,13 +18,14 @@ export default async function CatalogMembersPage() {
   return (
     <div className="space-y-5">
       <CatalogPageHeader
+        eyebrow="MEMBERS"
         title="멤버"
         count={members.length}
         description={
           <>
             그룹별 공식 순번·역할·표기를 관리해요.
             {missingHira > 0 && (
-              <span className="ml-1 text-amber-700">히라가나 표기 미입력 {missingHira}명</span>
+              <span className="ml-1 font-medium text-primary">히라가나 표기 미입력 {missingHira}명</span>
             )}
           </>
         }
@@ -36,9 +38,9 @@ export default async function CatalogMembersPage() {
         </Button>
       </CatalogPageHeader>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card shadow-card">
+      <Card className="overflow-hidden">
         <MembersTable members={members} teamNameById={teamNameById} />
-      </div>
+      </Card>
     </div>
   );
 }

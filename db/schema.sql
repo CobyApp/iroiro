@@ -2285,3 +2285,20 @@ FROM (VALUES
 ) AS v(name, color)
 WHERE upper(regexp_replace(team.name, '\s+', '_', 'g')) = upper(regexp_replace(v.name, '\s+', '_', 'g'))
   AND team.theme_color IS NULL;
+
+-- [20260923000000_drop_catalog_tables]
+-- ============================================================================
+
+-- drop_catalog_tables: 토레카 마스터(team·member·team_member·series·series_kind·card)를 커머스 DB 에서 제거.
+-- 마스터는 dev·prd 가 공유하는 별도 카탈로그 DB(db/catalog-schema.sql, CATALOG_DATABASE_URL)로 옮겼다(2026-09-22 결정).
+-- 커머스 테이블의 team_id·member_id·series_id·card_id 컬럼은 그대로 두고 카탈로그 DB 의 id 를 값으로 참조한다.
+-- ⚠️ 적용 순서: (1) 카탈로그 DB 에 데이터 이관 완료 → (2) catalogDb 를 쓰는 코드 배포 → (3) 이 섹션 적용.
+--    문장은 재실행 안전(IF EXISTS). 로컬 db:reset 은 처음부터 끝까지 적용하므로 만들고 바로 지운다(의도).
+DROP TABLE IF EXISTS card;
+DROP TABLE IF EXISTS series_kind;
+DROP TABLE IF EXISTS series;
+DROP TABLE IF EXISTS team_member;
+DROP TABLE IF EXISTS member;
+DROP TABLE IF EXISTS team;
+
+-- ============================================================================

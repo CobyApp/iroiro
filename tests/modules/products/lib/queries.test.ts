@@ -10,8 +10,14 @@ vi.mock("@/lib/db", () => ({
   db: {
     product: { findMany: productFindMany, count: productCount },
     productPhoto: { findMany: photoFindMany },
+  },
+}));
+// 그룹·멤버 이름 검색 확장은 카탈로그 DB에서.
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: {
     team: { findMany: teamFindMany },
     member: { findMany: memberFindMany },
+    series: { findMany: vi.fn(async () => []) },
   },
 }));
 

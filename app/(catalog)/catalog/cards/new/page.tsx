@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { env } from "@/lib/env";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { listSeriesOptions } from "@/modules/series/lib/queries";
@@ -38,7 +37,7 @@ export default async function CatalogCardNewPage() {
           teams={teams.map((t) => ({ id: t.id, name: t.name }))}
           members={members.map((m) => ({ id: m.id, name: m.name, teamIds: m.teamIds }))}
           series={series}
-          publicBaseUrl={env.R2_PUBLIC_BASE}
+          imageView={{ kind: "admin" }}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { todayKstYmd } from "@/lib/datetime";
 import {
   PRODUCT_CONDITIONS,
@@ -177,7 +178,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const teamRows =
     referencedTeamIds.length === 0
       ? []
-      : await db.team.findMany({
+      : await catalogDb.team.findMany({
           where: { id: { in: referencedTeamIds } },
           select: { id: true, name: true },
         });

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Camera } from "lucide-react";
 import { env } from "@/lib/env";
-import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
@@ -23,11 +23,11 @@ export default async function CardSubmitPage() {
   const [teams, members, seriesRows, mySubmissions] = await Promise.all([
     listTeams(),
     listMembers(),
-    db.series.findMany({
+    catalogDb.series.findMany({
       select: { id: true, teamId: true, label: true, kind: true },
       orderBy: { label: "asc" },
     }),
-    db.card.findMany({
+    catalogDb.card.findMany({
       where: { submittedByAccountId: account.id },
       orderBy: { createdAt: "desc" },
       take: 12,
@@ -92,7 +92,7 @@ export default async function CardSubmitPage() {
             label: s.label,
             kind: s.kind,
           }))}
-          publicBaseUrl={env.R2_PUBLIC_BASE}
+          imageView={{ kind: "public", publicBase: env.CATALOG_PUBLIC_BASE }}
         />
       </section>
 
@@ -111,7 +111,7 @@ export default async function CardSubmitPage() {
           <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
             {mySubmissions.map(toCard).map((card) => {
               const status = card.status;
-              const url = cardFrontUrl(card, env.R2_PUBLIC_BASE);
+              const url = cardFrontUrl(card, env.CATALOG_PUBLIC_BASE);
               return (
                 <li key={card.id} className="space-y-1">
                   <div className="aspect-[63/88] overflow-hidden rounded-sm border border-border bg-muted">

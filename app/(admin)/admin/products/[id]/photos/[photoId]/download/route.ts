@@ -1,8 +1,8 @@
 import "server-only";
 
 import { type NextRequest, NextResponse } from "next/server";
-import { fetchR2Object } from "@/lib/r2/get";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { fetchProductPhotoOriginal } from "@/modules/products/lib/photo-source";
 import {
   buildContentDisposition,
   buildPhotoFilename,
@@ -41,7 +41,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     r2Key: context.photo.r2Key,
   });
 
-  const r2Object = await fetchR2Object(context.photo.r2Key);
+  // 관리자 다운로드는 워터마크 없는 clean 원본(없으면 wm 폴백).
+  const r2Object = await fetchProductPhotoOriginal(context.photo.r2Key);
 
   const headers = new Headers({
     "Content-Type": r2Object.contentType,

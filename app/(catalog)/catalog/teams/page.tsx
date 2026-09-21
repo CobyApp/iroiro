@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { TeamsTable } from "@/modules/teams/components/TeamsTable";
 import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
@@ -14,6 +15,7 @@ export default async function CatalogTeamsPage() {
   return (
     <div className="space-y-5">
       <CatalogPageHeader
+        eyebrow="GROUPS"
         title="그룹"
         count={teams.length}
         description="표시 순서(데뷔 순, CUTIE STREET 예외)와 고유색은 카탈로그·고객 화면의 정렬과 칩 색에 쓰여요."
@@ -26,9 +28,9 @@ export default async function CatalogTeamsPage() {
         </Button>
       </CatalogPageHeader>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card shadow-card">
+      <Card className="overflow-hidden">
         <TeamsTable teams={teams} />
-      </div>
+      </Card>
     </div>
   );
 }

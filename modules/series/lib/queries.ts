@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 
 // 시리즈 목록 — 카탈로그 시리즈 화면·홈이 쓴다. label 은 원본 표기(대개 일본어),
 // labelKo 는 한국어 병기(label_i18n.ko). 카드·상품 연결 수를 함께 실어 삭제 가능 여부를 UI가 안다.
@@ -24,8 +25,8 @@ function koLabelOf(labelI18n: unknown): string | null {
 
 export async function listSeriesWithCounts(): Promise<SeriesRow[]> {
   const [rows, cardRows, productRows] = await Promise.all([
-    db.series.findMany({ orderBy: [{ kind: "asc" }, { label: "asc" }] }),
-    db.card.groupBy({
+    catalogDb.series.findMany({ orderBy: [{ kind: "asc" }, { label: "asc" }] }),
+    catalogDb.card.groupBy({
       by: ["seriesId"],
       where: { status: "active" },
       _count: { _all: true },
@@ -71,7 +72,7 @@ export type SeriesOption = {
 
 // 카드 화면 선택지 — 카운트 없이 가볍게. 라벨은 한국어 병기 포함.
 export async function listSeriesOptions(): Promise<SeriesOption[]> {
-  const rows = await db.series.findMany({
+  const rows = await catalogDb.series.findMany({
     select: { id: true, teamId: true, label: true, labelI18n: true, kind: true },
     orderBy: { label: "asc" },
   });

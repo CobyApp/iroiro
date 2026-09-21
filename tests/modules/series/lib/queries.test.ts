@@ -5,7 +5,9 @@ const m = vi.hoisted(() => ({
   card: { groupBy: vi.fn() },
   product: { groupBy: vi.fn() },
 }));
+// series·card 는 카탈로그 DB, product 는 커머스 DB — 테스트는 한 객체로 둘 다 받는다.
 vi.mock("@/lib/db", () => ({ db: m }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: m }));
 
 import {
   listSeriesOptions,

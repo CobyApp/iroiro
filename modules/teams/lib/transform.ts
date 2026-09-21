@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Team as PrismaTeam } from "@prisma/client";
+import type { CatalogTeamRow as PrismaTeam } from "@/lib/catalog-db";
 import type { NameI18n } from "@/lib/i18n";
 import { formatKstDate } from "@/lib/datetime";
 import type { Team } from "../types";

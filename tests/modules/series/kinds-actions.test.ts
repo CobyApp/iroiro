@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({
   seriesKind: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
   series: { count: vi.fn() },
 }));
-vi.mock("@/lib/db", () => ({ db: m }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: m }));
 vi.mock("@/modules/admin/lib/requireAdmin", () => ({ requireAdmin: vi.fn() }));
 
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";

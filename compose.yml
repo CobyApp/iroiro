@@ -9,6 +9,8 @@ services:
       POSTGRES_DB: iroiro
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # 카탈로그 DB(iroiro_catalog) 생성 — 빈 볼륨에서 최초 1회만 실행된다(db-reset.sh 도 보장).
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d iroiro" ]
       interval: 5s
@@ -41,6 +43,8 @@ services:
       /usr/bin/mc anonymous set public local/iroiro-products-dev;
       /usr/bin/mc mb -p local/iroiro-ugc-dev || true;
       /usr/bin/mc ilm rule add local/iroiro-ugc-dev --expire-days 1 --prefix posts/tmp/ || true;
+      /usr/bin/mc mb -p local/iroiro-catalog-dev || true;
+      /usr/bin/mc anonymous set download local/iroiro-catalog-dev/cards/wm || true;
       exit 0;
       "
 

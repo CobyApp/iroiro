@@ -8,6 +8,10 @@ const teamFindMany = vi.fn();
 const photoFindMany = vi.fn();
 const queryRaw = vi.fn();
 
+// 팀명 매핑은 카탈로그 DB에서 — 커머스 DB 목과 분리.
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: { team: { findMany: teamFindMany } },
+}));
 vi.mock("@/lib/db", () => ({
   db: {
     product: {
@@ -16,7 +20,6 @@ vi.mock("@/lib/db", () => ({
       // 비즈니스 스냅샷(경매 카운트) — 이 테스트의 관심사가 아니라 0 고정.
       count: vi.fn(async () => 0),
     },
-    team: { findMany: teamFindMany },
     productPhoto: { findMany: photoFindMany },
     order: {
       aggregate: vi.fn(async () => ({ _sum: { totalAmount: 0 } })),

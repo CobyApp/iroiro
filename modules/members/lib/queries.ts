@@ -1,9 +1,9 @@
 import "server-only";
 
-import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { toMember, withTeams } from "./transform";
 import type { MemberWithTeams } from "../types";
-import type { TeamMember as PrismaTeamMember } from "@prisma/client";
+import type { CatalogTeamMemberRow as PrismaTeamMember } from "@/lib/catalog-db";
 
 /**
  * 멤버 목록을 그룹명·순번·멤버명 순으로 정렬해 반환.
@@ -20,7 +20,7 @@ export async function listMembers(
   teamId?: number,
 ): Promise<MemberWithTeams[]> {
   if (teamId !== undefined) {
-    const tmRows = await db.teamMember.findMany({
+    const tmRows = await catalogDb.teamMember.findMany({
       where: { teamId: BigInt(teamId) },
       include: { member: true },
       orderBy: [
@@ -30,7 +30,7 @@ export async function listMembers(
     });
 
     const memberIds = Array.from(new Set(tmRows.map((tm) => tm.memberId)));
-    const allTms = await db.teamMember.findMany({
+    const allTms = await catalogDb.teamMember.findMany({
       where: { memberId: { in: memberIds } },
     });
 
@@ -40,7 +40,7 @@ export async function listMembers(
   }
 
   const [tmRows, memberRows] = await Promise.all([
-    db.teamMember.findMany({
+    catalogDb.teamMember.findMany({
       include: { team: true, member: true },
       orderBy: [
         { team: { name: "asc" } },
@@ -48,7 +48,7 @@ export async function listMembers(
         { member: { name: "asc" } },
       ],
     }),
-    db.member.findMany({ orderBy: { name: "asc" } }),
+    catalogDb.member.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   const memberships = tmRows as unknown as PrismaTeamMember[];
@@ -79,8 +79,8 @@ export async function getMemberById(
   id: number,
 ): Promise<MemberWithTeams | null> {
   const [memberRow, tmRows] = await Promise.all([
-    db.member.findUnique({ where: { id: BigInt(id) } }),
-    db.teamMember.findMany({ where: { memberId: BigInt(id) } }),
+    catalogDb.member.findUnique({ where: { id: BigInt(id) } }),
+    catalogDb.teamMember.findMany({ where: { memberId: BigInt(id) } }),
   ]);
 
   if (!memberRow) return null;

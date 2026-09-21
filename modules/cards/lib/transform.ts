@@ -1,4 +1,4 @@
-import type { Card as PrismaCard } from "@prisma/client";
+import type { CatalogCardRow as PrismaCard } from "@/lib/catalog-db";
 import type { Card, CardStatus } from "../types";
 
 export function toCard(row: PrismaCard): Card {

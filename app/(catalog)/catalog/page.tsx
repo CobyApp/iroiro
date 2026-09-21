@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowRight,
+  ArrowUpRight,
   ClipboardCheck,
   Layers,
   Sparkles,
@@ -10,7 +10,8 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { env } from "@/lib/env";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { formatKstDateTime, formatKstRelative } from "@/lib/datetime";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
@@ -22,11 +23,15 @@ import {
   getCardAnalysisSummary,
   listCards,
 } from "@/modules/cards/lib/queries";
-import { cardFrontUrl } from "@/modules/cards/types";
+import { cardImageSrc } from "@/modules/cards/types";
+import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
 
 export const metadata: Metadata = { title: "홈" };
 
+const ADMIN_VIEW = { kind: "admin" } as const;
+
 // 카탈로그 홈 — 오늘 할 일(검수 대기)과 데이터 건강(AI 커버리지·병기 누락)을 위에, 그룹 도감을 아래에.
+// 카드·타일은 디자인 시스템 공용 Card 를 쓰고(Storybook › Design System), 그룹 고유색만 카탈로그 유틸(team-*).
 export default async function CatalogHomePage() {
   const [teams, members, series, kinds, counts, byTeam, ai, pendingPreview, recent] =
     await Promise.all([
@@ -41,7 +46,6 @@ export default async function CatalogHomePage() {
       listCards({ status: "active", pageSize: 12 }),
     ]);
 
-  const memberName = new Map(members.map((m) => [m.id, m.name]));
   const seriesLabel = new Map(series.map((s) => [s.id, s.labelKo ?? s.label]));
   const teamName = new Map(teams.map((t) => [t.id, t.name]));
   const seriesMissingKo = series.filter(
@@ -68,29 +72,33 @@ export default async function CatalogHomePage() {
 
   return (
     <div className="space-y-8">
+      <CatalogPageHeader
+        eyebrow="TRADING CARD ARCHIVE"
+        title="카탈로그 홈"
+        description="토레카 마스터 데이터 — 검수할 제보, AI 분석 현황, 그룹별 도감을 한 화면에서 살펴요."
+      />
+
       {/* 요약 타일 */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <Link
-              key={s.label}
-              href={s.href}
-              className={`group rounded-md border bg-card p-4 shadow-card transition-colors hover:border-primary/50 ${
-                s.warn ? "border-amber-300 bg-amber-50/60" : "border-border"
-              }`}
-            >
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-xs">{s.label}</span>
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-              </div>
-              <p
-                className={`catalog-stat mt-2 text-2xl font-bold ${
-                  s.warn ? "text-amber-800" : "text-foreground"
-                }`}
-              >
-                {s.value.toLocaleString()}
-              </p>
+            <Link key={s.label} href={s.href} className="group">
+              <Card className={cn("h-full transition-colors group-hover:border-primary/50", s.warn && "border-primary/40 bg-primary/5")}>
+                <CardHeader className="p-4 pb-1">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-sans text-xs font-medium text-muted-foreground">{s.label}</CardTitle>
+                    <span className={cn("text-muted-foreground", s.warn && "text-primary")}>
+                      <Icon className="h-4 w-4" aria-hidden />
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <p className={cn("catalog-stat font-display text-2xl", s.warn && "text-primary")}>
+                    {s.value.toLocaleString()}
+                  </p>
+                </CardContent>
+              </Card>
             </Link>
           );
         })}
@@ -98,122 +106,137 @@ export default async function CatalogHomePage() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* 검수 대기 큐 */}
-        <section className="rounded-md border border-border bg-card p-4 shadow-card lg:col-span-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
-              <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
-              검수 대기
-              <span className="catalog-stat text-sm font-semibold text-muted-foreground">
-                {counts.pending.toLocaleString()}
-              </span>
-            </h2>
+        <Card className="lg:col-span-3">
+          <CardHeader className="flex-row items-end justify-between p-5 pb-3">
+            <div>
+              <p className="shop-section-eyebrow">REVIEW QUEUE</p>
+              <CardTitle className="mt-1 text-lg">
+                검수 대기{" "}
+                <span className="catalog-stat font-sans text-base text-muted-foreground">
+                  {counts.pending.toLocaleString()}
+                </span>
+              </CardTitle>
+            </div>
             <Link
               href="/catalog/cards?view=pending"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary"
             >
-              검수하기 <ArrowRight className="h-3 w-3" />
+              검수하기 <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
-          </div>
-          {pendingPreview.items.length === 0 ? (
-            <p className="mt-4 rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-              대기 중인 유저 제보가 없어요. 깨끗합니다 ✨
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-border">
-              {pendingPreview.items.map((card) => {
-                const url = cardFrontUrl(card, env.R2_PUBLIC_BASE);
-                return (
-                  <li key={card.id} className="flex items-center gap-3 py-2">
-                    <div className="h-12 w-[34px] shrink-0 overflow-hidden rounded-xs border border-border bg-muted">
-                      {url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        <span className="catalog-mono mr-1 text-muted-foreground">#{card.id}</span>
-                        {card.name}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {card.teamId !== null ? teamName.get(card.teamId) : "-"}
-                        {card.seriesId !== null && ` · ${seriesLabel.get(card.seriesId) ?? ""}`}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatKstRelative(card.createdAt)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            {pendingPreview.items.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border px-4 py-8 text-center">
+                <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+                  <ClipboardCheck className="h-5 w-5" aria-hidden />
+                </span>
+                <p className="mt-3 text-sm text-muted-foreground">대기 중인 유저 제보가 없어요.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border/70">
+                {pendingPreview.items.map((card) => {
+                  const url = cardImageSrc(card, ADMIN_VIEW);
+                  return (
+                    <li key={card.id} className="flex items-center gap-3 py-2.5">
+                      <div className="h-12 w-[34px] shrink-0 overflow-hidden rounded-xs border border-border bg-lilac">
+                        {url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">
+                          <span className="catalog-mono mr-1 text-muted-foreground">#{card.id}</span>
+                          {card.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {card.teamId !== null ? teamName.get(card.teamId) : "-"}
+                          {card.seriesId !== null && ` · ${seriesLabel.get(card.seriesId) ?? ""}`}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatKstRelative(card.createdAt)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* AI 커버리지 + 데이터 건강 */}
-        <section className="space-y-4 rounded-md border border-border bg-card p-4 shadow-card lg:col-span-2">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
+        {/* AI 커버리지 + 데이터 점검 */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="p-5 pb-3">
+            <p className="shop-section-eyebrow">AI</p>
+            <CardTitle className="mt-1 flex items-center gap-1.5 text-lg">
               <Sparkles className="h-4 w-4 text-accent" aria-hidden />
-              AI 분석 커버리지
-            </h2>
-            <div className="mt-3 flex items-end justify-between">
-              <p className="catalog-stat text-3xl font-bold text-foreground">{coverage}%</p>
-              <p className="text-xs text-muted-foreground">
-                {ai.analyzed.toLocaleString()} / {ai.total.toLocaleString()}장
+              분석 커버리지
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-5 pt-0">
+            <div>
+              <div className="flex items-end justify-between">
+                <p className="catalog-stat font-display text-3xl">{coverage}%</p>
+                <p className="text-xs text-muted-foreground">
+                  {ai.analyzed.toLocaleString()} / {ai.total.toLocaleString()}장
+                </p>
+              </div>
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                <div className="h-full rounded-full bg-accent" style={{ width: `${coverage}%` }} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
+                <span className="catalog-mono">
+                  {ai.byModel.map((m) => `${m.model} ${m.count.toLocaleString()}`).join(" · ") || "모델 없음"}
+                </span>
+                {unanalyzed > 0 && (
+                  <Link href="/catalog/cards?ai=missing" className="font-medium text-primary">
+                    미분석 {unanalyzed.toLocaleString()}장 →
+                  </Link>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                최근 분석 {ai.latestAnalyzedAt ? formatKstDateTime(ai.latestAnalyzedAt) : "-"} · 카드
+                「상세·AI」에서 임베딩 값을 볼 수 있어요.
               </p>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-              <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${coverage}%` }} />
-            </div>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
-              <span>
-                {ai.byModel.map((m) => `${m.model} ${m.count.toLocaleString()}`).join(" · ") || "모델 없음"}
-              </span>
-              {unanalyzed > 0 && (
-                <Link href="/catalog/cards?ai=missing" className="font-medium text-primary hover:underline">
-                  미분석 {unanalyzed.toLocaleString()}장 →
-                </Link>
-              )}
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              최근 분석 {ai.latestAnalyzedAt ? formatKstDateTime(ai.latestAnalyzedAt) : "-"}
-            </p>
-          </div>
 
-          <div className="border-t border-border pt-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">데이터 점검</h3>
-            <ul className="mt-2 space-y-1.5 text-sm">
-              <HealthRow
-                ok={seriesMissingKo === 0}
-                label="일본어 시리즈의 한국어 병기"
-                detail={seriesMissingKo === 0 ? "모두 입력" : `${seriesMissingKo}개 누락`}
-                href="/catalog/series"
-              />
-              <HealthRow
-                ok={membersMissingHira === 0}
-                label="멤버 히라가나 표기"
-                detail={membersMissingHira === 0 ? "모두 입력" : `${membersMissingHira}명 누락`}
-                href="/catalog/members"
-              />
-              <HealthRow
-                ok={counts.rejected === 0}
-                label="반려 보관"
-                detail={`${counts.rejected.toLocaleString()}건`}
-                href="/catalog/cards?view=rejected"
-                neutral
-              />
-            </ul>
-          </div>
-        </section>
+            <div className="border-t border-border/70 pt-3">
+              <p className="shop-section-eyebrow">DATA HEALTH</p>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                <HealthRow
+                  ok={seriesMissingKo === 0}
+                  label="일본어 시리즈의 한국어 병기"
+                  detail={seriesMissingKo === 0 ? "모두 입력" : `${seriesMissingKo}개 누락`}
+                  href="/catalog/series"
+                />
+                <HealthRow
+                  ok={membersMissingHira === 0}
+                  label="멤버 히라가나 표기"
+                  detail={membersMissingHira === 0 ? "모두 입력" : `${membersMissingHira}명 누락`}
+                  href="/catalog/members"
+                />
+                <HealthRow
+                  ok
+                  label="반려 보관"
+                  detail={`${counts.rejected.toLocaleString()}건`}
+                  href="/catalog/cards?view=rejected"
+                />
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* 그룹 도감 */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">그룹</h2>
-          <Link href="/catalog/teams" className="text-xs font-medium text-primary hover:underline">
-            그룹 관리 →
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="shop-section-eyebrow">GROUPS</p>
+            <h2 className="shop-section-title">그룹 도감</h2>
+          </div>
+          <Link href="/catalog/teams" className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+            그룹 관리 <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -226,15 +249,12 @@ export default async function CatalogHomePage() {
               );
             const teamSeries = series.filter((s) => s.teamId === team.id).length;
             const cards = byTeam.get(team.id) ?? 0;
+            const color = { ["--team-color" as string]: team.themeColor ?? undefined };
             return (
-              <article
-                key={team.id}
-                className="team-bar flex flex-col rounded-md border border-border bg-card p-4 shadow-card"
-                style={{ ["--team-color" as string]: team.themeColor ?? undefined }}
-              >
+              <Card key={team.id} className="team-bar flex flex-col p-5" style={color}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h3 className="truncate text-base font-bold text-foreground">{team.name}</h3>
+                    <h3 className="truncate font-display text-lg">{team.name}</h3>
                     <p className="truncate text-xs text-muted-foreground">
                       {team.nameI18n?.["ja-jpan"] ?? team.nameI18n?.en ?? ""}
                       {team.debutDate && ` · 데뷔 ${team.debutDate}`}
@@ -242,17 +262,17 @@ export default async function CatalogHomePage() {
                   </div>
                   <Link
                     href={`/catalog/teams/${team.id}/edit`}
-                    className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                    className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     수정
                   </Link>
                 </div>
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <Stat href={`/catalog/cards?team=${team.id}`} label="카드" value={cards} />
-                  <Stat href={`/catalog/members`} label="멤버" value={teamMembers.length} />
+                  <Stat href="/catalog/members" label="멤버" value={teamMembers.length} />
                   <Stat href={`/catalog/series?team=${team.id}`} label="시리즈" value={teamSeries} />
                 </dl>
-                <div className="mt-3 flex flex-wrap gap-1">
+                <div className="mt-4 flex flex-wrap gap-1.5">
                   {teamMembers.length === 0 ? (
                     <span className="text-xs text-muted-foreground">멤버 없음</span>
                   ) : (
@@ -261,15 +281,15 @@ export default async function CatalogHomePage() {
                         key={m.id}
                         href={`/catalog/cards?team=${team.id}&member=${m.id}`}
                         className="team-chip"
-                        style={{ ["--team-color" as string]: team.themeColor ?? undefined }}
-                        title={`${memberName.get(m.id)} 카드 보기`}
+                        style={color}
+                        title={`${m.name} 카드 보기`}
                       >
                         {m.name}
                       </Link>
                     ))
                   )}
                 </div>
-              </article>
+              </Card>
             );
           })}
         </div>
@@ -277,20 +297,26 @@ export default async function CatalogHomePage() {
 
       {/* 최근 등록 */}
       {recent.items.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground">최근 등록된 카드</h2>
-            <Link href="/catalog/cards" className="text-xs font-medium text-primary hover:underline">
-              전체 보기 →
+        <Card className="p-5 sm:p-6">
+          <div className="flex items-end justify-between gap-3 border-b border-border/70 pb-4">
+            <div>
+              <p className="shop-section-eyebrow">JUST ADDED</p>
+              <h2 className="shop-section-title">최근 등록된 카드</h2>
+            </div>
+            <Link href="/catalog/cards" className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+              전체 보기 <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-          <ul className="scroll-x flex gap-3 overflow-x-auto pb-1">
+          <ul className="scroll-x mt-5 flex gap-3 overflow-x-auto pb-1">
             {recent.items.map((card) => {
-              const url = cardFrontUrl(card, env.R2_PUBLIC_BASE);
+              const url = cardImageSrc(card, ADMIN_VIEW);
               return (
                 <li key={card.id} className="w-28 shrink-0">
-                  <Link href={`/catalog/cards?q=${encodeURIComponent(card.itemCode ?? card.name)}`} className="group block">
-                    <div className="aspect-[63/88] overflow-hidden rounded-sm border border-border bg-muted shadow-card">
+                  <Link
+                    href={`/catalog/cards?q=${encodeURIComponent(card.itemCode ?? card.name)}`}
+                    className="group block space-y-1.5"
+                  >
+                    <div className="aspect-[63/88] overflow-hidden rounded-sm border border-border bg-lilac">
                       {url && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -301,7 +327,7 @@ export default async function CatalogHomePage() {
                         />
                       )}
                     </div>
-                    <p className="mt-1 truncate text-[11px] text-foreground" title={card.name}>
+                    <p className="truncate text-[11px] text-muted-foreground" title={card.name}>
                       {card.name}
                     </p>
                   </Link>
@@ -309,7 +335,7 @@ export default async function CatalogHomePage() {
               );
             })}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );
@@ -317,9 +343,9 @@ export default async function CatalogHomePage() {
 
 function Stat({ href, label, value }: { href: string; label: string; value: number }) {
   return (
-    <Link href={href} className="rounded-sm bg-muted/60 px-2 py-1.5 transition-colors hover:bg-muted">
-      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="catalog-stat text-base font-bold text-foreground">{value.toLocaleString()}</dd>
+    <Link href={href} className="rounded-sm bg-muted px-2 py-2 transition-colors hover:bg-lilac-100">
+      <dt className="text-[10px] tracking-[0.09em] text-muted-foreground">{label}</dt>
+      <dd className="catalog-stat font-display text-lg">{value.toLocaleString()}</dd>
     </Link>
   );
 }
@@ -329,30 +355,19 @@ function HealthRow({
   label,
   detail,
   href,
-  neutral,
 }: {
   ok: boolean;
   label: string;
   detail: string;
   href: string;
-  /** 경고가 아니라 정보성(반려 보관 등) */
-  neutral?: boolean;
 }) {
   return (
     <li className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-2 text-foreground">
-        <span
-          aria-hidden
-          className={`inline-block h-2 w-2 rounded-full ${
-            ok || neutral ? "bg-accent" : "bg-amber-500"
-          }`}
-        />
+      <span className="flex items-center gap-2">
+        <span aria-hidden className={cn("inline-block h-2 w-2 rounded-full", ok ? "bg-mint" : "bg-primary")} />
         {label}
       </span>
-      <Link
-        href={href}
-        className={`text-xs ${ok || neutral ? "text-muted-foreground" : "font-medium text-amber-700"} hover:underline`}
-      >
+      <Link href={href} className={cn("text-xs", ok ? "text-muted-foreground" : "font-medium text-primary")}>
         {detail}
       </Link>
     </li>

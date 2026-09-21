@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { DomainError } from "@/lib/action-result";
 import { db as defaultDb } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { env } from "@/lib/env";
 import { getSignedUgcGetUrl } from "@/lib/r2/ugc";
 import { POST_PAGE_SIZE, postReportSnapshot } from "./schema";
@@ -36,10 +37,10 @@ async function enrichForRows(
       orderBy: [{ isThumbnail: "desc" }, { displayOrder: "asc" }, { id: "asc" }],
       select: { id: true, postId: true },
     }),
-    teamIds.length ? db.team.findMany({ where: { id: { in: teamIds } }, select: { id: true, name: true } }) : [],
-    memberIds.length ? db.member.findMany({ where: { id: { in: memberIds } }, select: { id: true, name: true } }) : [],
+    teamIds.length ? catalogDb.team.findMany({ where: { id: { in: teamIds } }, select: { id: true, name: true } }) : [],
+    memberIds.length ? catalogDb.member.findMany({ where: { id: { in: memberIds } }, select: { id: true, name: true } }) : [],
     cardIds.length
-      ? db.card.findMany({
+      ? catalogDb.card.findMany({
           where: { id: { in: cardIds } },
           select: { id: true, name: true, frontR2Key: true },
         })
@@ -60,7 +61,7 @@ async function enrichForRows(
       {
         id: Number(c.id),
         name: c.name,
-        imageUrl: c.frontR2Key ? `${env.R2_PUBLIC_BASE}/${c.frontR2Key}` : null,
+        imageUrl: c.frontR2Key ? `${env.CATALOG_PUBLIC_BASE}/${c.frontR2Key}` : null,
       },
     ]),
   );

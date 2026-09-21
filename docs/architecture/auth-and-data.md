@@ -65,11 +65,18 @@
 
 ## 데이터 — Prisma + 비특권 `app` 롤
 
-### 접속
+### 접속 — DB 두 개
 
-- `lib/db.ts`가 Prisma 7 클라이언트를 `@prisma/adapter-pg`로 만들어 `db` 싱글턴으로 export한다. 모든 DB 접근은 `import { db } from "@/lib/db"`.
-- `DATABASE_URL`은 **반드시 비특권 `app` 롤**로 접속한다. 소유자(로컬 `postgres`, RDS `iroiro_admin`)로 붙으면 GRANT가 무효라 DB 방어선이 사라진다.
+| DB | 내용 | 클라이언트 | 정본 SQL / Prisma | 롤 |
+|---|---|---|---|---|
+| **커머스**(환경별) | account·product·order·post·collection… | `import { db } from "@/lib/db"` | `db/schema.sql` / `prisma/schema.prisma` | `app` |
+| **카탈로그**(dev·prd 공유) | team·member·team_member·series·series_kind·card — 토레카 마스터 | `import { catalogDb } from "@/lib/catalog-db"` | `db/catalog-schema.sql` / `prisma/catalog.prisma`(생성물 `lib/generated/catalog-client`) | `catalog_app` |
+
+- 둘 다 Prisma 7 + `@prisma/adapter-pg` 싱글턴. 카탈로그 모델 타입·`Prisma` 네임스페이스는 `@prisma/client`가 아니라 `@/lib/catalog-db`(`CatalogCardRow`, `CatalogPrisma` 등)에서 가져온다.
+- **두 DB 사이에 조인·FK·`@relation`은 없다.** 커머스 행은 카탈로그 id를 값으로만 들고(`product.team_id`, `post.card_id`…), 이름이 필요하면 id 목록으로 `catalogDb`에서 따로 조회해 앱에서 합친다(`modules/posts/lib/queries.ts`의 enrich 선례). 카탈로그 행에 계정 id를 적을 땐 `card.submitted_env`처럼 환경을 함께 적는다 — 계정은 환경별 커머스 DB에만 있다.
+- `DATABASE_URL`/`CATALOG_DATABASE_URL`은 **반드시 비특권 롤**로 접속한다. 소유자(로컬 `postgres`, RDS `iroiro_admin`)로 붙으면 GRANT가 무효라 DB 방어선이 사라진다. 소유자 URL(`*_OWNER`)은 배포 시 마이그레이션 태스크만 받는다.
 - 운영은 `sslmode=verify-full&sslrootcert=/app/rds-ca.pem`(CA 번들은 Dockerfile이 이미지에 포함).
+- Prisma 오류 판별(`lib/prisma-errors.ts`)은 `instanceof`가 아니라 `name`·`code` 구조로 한다 — 두 클라이언트가 런타임 사본을 따로 들고 있어 클래스 동일성이 보장되지 않는다.
 
 ### DB 인가 = GRANT 매트릭스 (RLS 미사용)
 
@@ -104,18 +111,18 @@ DATABASE_URL=postgresql://postgres:...                 // app 롤이어야 한�
 ### 스키마 변경 절차
 
 ```
-db/schema.sql 편집 (테이블 블록 + GRANT)
-  → npm run db:reset                 # 로컬 DB 초기화 후 재적용 (+ app 롤 LOGIN)
-  → npm run db:pull && npm run db:generate   # prisma/schema.prisma 재생성 (파생물)
+db/schema.sql 또는 db/catalog-schema.sql 끝에 `-- [YYYYMMDDHHMMSS_name]` 섹션 추가 (테이블 블록 + GRANT, IF NOT EXISTS)
+  → npm run db:reset                 # 로컬 두 DB 초기화 후 재적용 (+ app / catalog_app 롤 LOGIN)
+  → npm run db:pull (또는 db:pull:catalog) && npm run db:generate   # prisma/*.prisma 재생성 (파생물)
   → camelCase @map / @@index map 이름 확인, npm run validate
 ```
 
-- 단일 진실은 **`db/schema.sql` 한 파일**이다. `prisma/schema.prisma`는 `db:pull` 파생물이라 직접 편집한 뒤 SQL을 안 고치면 다음 pull에서 사라진다.
-- dev/prd RDS에는 **변경분 SQL을 따로 작성해 소유자(`DATABASE_URL_OWNER`)로 수동 적용**한다. 데이터가 있는 DB에 `infra/aws/db-apply.sh --reset`을 쓰지 않는다. 절차는 [../deployment.md §DB 스키마 변경 운영](../deployment.md#db-스키마-변경-운영).
+- 단일 진실은 **SQL 파일**이다. `prisma/*.prisma`는 `db:pull` 파생물이라 직접 편집한 뒤 SQL을 안 고치면 다음 pull에서 사라진다.
+- dev/prd 적용은 **배포가 자동으로** 한다 — `deploy.yml`이 서비스 롤아웃 전에 원오프 ECS 태스크 `iroiro-migrate-<env>`로 `scripts/db-migrate.mjs`를 실행해, 각 DB의 `schema_migration` 표에 없는 섹션만 파일 순서대로(섹션당 트랜잭션 1개) 적용한다. 실패하면 배포가 멈춘다. 손으로 적용하지 않는다. 절차·베이스라인은 [../deployment.md §DB 스키마 변경 운영](../deployment.md#db-스키마-변경-운영).
 
 ## 스토리지 — S3 호환 객체 스토리지 (`lib/r2/`)
 
-> 모듈·환경변수 이름의 `r2`/`R2_*`는 초기 Cloudflare R2 시절의 이름을 **그대로 유지**한 것이다(이름 변경 제안 금지). 현재 운영·dev는 **AWS S3**(`iroiro-kr-products-<env>` 공개 읽기 / `iroiro-kr-ugc-<env>` 비공개), 로컬은 `compose.yml`의 **MinIO**다.
+> 모듈·환경변수 이름의 `r2`/`R2_*`는 초기 Cloudflare R2 시절의 이름을 **그대로 유지**한 것이다(이름 변경 제안 금지). 현재 운영·dev는 **AWS S3**(`iroiro-kr-products-<env>` 프리픽스별 공개 읽기 / `iroiro-kr-ugc-<env>` 비공개 / 공유 `iroiro-kr-catalog`), 로컬은 `compose.yml`의 **MinIO**다.
 
 ### 디렉터리
 ```
@@ -124,9 +131,21 @@ lib/r2/
 ├── presign.ts    상품 버킷 PUT presign, getPublicUrl, buildR2Key / buildNoticeR2Key (uuidv7 키)
 ├── relay.ts      relayUploadToR2 — 서버가 presigned PUT을 대신 수행 (브라우저 CORS 회피)
 ├── get.ts        fetchR2Object / fetchUgcR2Object — 서명 GET으로 원본 스트림 읽기 (/media 라우트용)
+├── catalog.ts    카탈로그 버킷(dev·prd 공유) put/fetch/delete + catalogPublicUrl — 카드 앞면 두 벌
 └── ugc.ts        UGC 비공개 버킷: presignUgcPut(크기·If-None-Match 고정 서명), getSignedUgcGetUrl,
                   HEAD / range GET(If-Match) / 조건부 복사 / 멱등 삭제 + timeout·재시도
 ```
+
+### 두 벌 저장 — clean(원본) · wm(워터마크)
+
+| 대상 | 버킷 | wm(공개) | clean(비공개) | 규약 모듈 |
+|---|---|---|---|---|
+| 카드 앞면 | `CATALOG_BUCKET`(공유) | `cards/wm/<uuid>.jpg` ← `card.front_r2_key` | `cards/clean/<uuid>.jpg` | `modules/cards/lib/image-keys.ts` |
+| 상품 사진 | `R2_BUCKET`(환경별) | `products/original/<uuid>.jpg` ← `product_photo.r2_key` | `products/clean/<uuid>.jpg` | `modules/products/lib/photo-keys.ts` |
+
+- 업로드 액션이 한 번 리사이즈해 두 벌을 인코딩·저장한다(`normalizeCardImageVariants`, `compressImageVariants`). DB에는 wm 키 하나만 두고 clean은 규약으로 파생한다.
+- **누가 어느 벌을 보나**: 고객 화면 = wm(`cardFrontUrl` / `/media/product-*` g·d 변형). 카탈로그 관리 화면 = clean(`cardImageSrc(card, { kind: "admin" })` → `/media/catalog-clean/<key>`, site admin 가드). 소유자 컬렉션(cg·cd 변형) = 세션 + 보유 확인 뒤 clean. 관리자 상품 사진 다운로드 = clean. AI 임베딩 입력 = clean(없으면 wm 폴백).
+- 버킷 정책: 카탈로그 버킷은 `cards/wm/*`만 public read, 상품 버킷은 `products/original/*`·`notices/*`·`banners/*`·`avatars/*`·`used/*`만(`products/clean/*` 비공개). `infra/aws/setup.sh catalog`가 건다.
 
 ### 업로드 경로 두 가지
 
@@ -152,8 +171,8 @@ lib/r2/
 
 | 그룹 | 변수 |
 |---|---|
-| 스토리지 | `R2_ENDPOINT`, `R2_REGION`(로컬·MinIO `auto`, AWS `ap-northeast-2`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET` |
-| DB | `DATABASE_URL`(`app` 롤), 테스트 정리용 `DATABASE_URL_PRIVILEGED` |
+| 스토리지 | `R2_ENDPOINT`, `R2_REGION`(로컬·MinIO `auto`, AWS `ap-northeast-2`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET`, `CATALOG_BUCKET`, `CATALOG_PUBLIC_BASE` |
+| DB | `DATABASE_URL`(`app` 롤), `CATALOG_DATABASE_URL`(`catalog_app` 롤), 마이그레이션 태스크 전용 `*_OWNER`, 테스트 정리용 `DATABASE_URL_PRIVILEGED` |
 | OAuth | `APP_URL`, `KAKAO_REST_API_KEY`(필수), `KAKAO_CLIENT_SECRET`, `KAKAO_SCOPE`, `NAVER_CLIENT_ID`·`NAVER_CLIENT_SECRET`(필수) |
 | 기타 | `PAYMENT_PROVIDER=mock`, VAPID 3종, `FX_API_BASE`, `CRON_SECRET` |
 

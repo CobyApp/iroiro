@@ -8,7 +8,8 @@ import {
   runAction,
 } from "@/lib/action-result";
 import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
-import { compressImageBuffer } from "@/lib/image/compress-image";
+import { compressImageVariants } from "@/lib/image/compress-image";
+import { productCleanKey } from "./lib/photo-keys";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
@@ -100,12 +101,12 @@ export async function presignProductPhotos(
 }
 
 // 저장 규격 — Card(oshikore-card) compress_image 방식(크롭 없음·비율 유지·progressive JPEG).
-// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px. 저장 시 워터마크를 구워 넣고
-// (서빙은 정적 리사이즈만), 압축은 예전(82)보다 낮춰 파일을 줄인다.
+// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px. 저장 시 clean(원본)·wm(워터마크)
+// 두 벌을 만든다 — 고객 화면은 wm, 소유자 컬렉션·관리자 다운로드는 clean(products/lib/photo-keys).
 const PRODUCT_PHOTO_MAX_DIM = 2000;
 const PRODUCT_PHOTO_QUALITY = 78;
 
-// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
+// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 wm 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadProductPhotoFile(
   formData: FormData,
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
@@ -120,18 +121,21 @@ export async function uploadProductPhotoFile(
     if (file.size > MAX_FILE_BYTES) {
       throw new DomainError(`파일 크기 초과 (5MB 이하): ${filename}`);
     }
-    let compressed: Buffer;
+    let variants: { clean: Buffer; wm: Buffer };
     try {
-      compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
+      variants = await compressImageVariants(Buffer.from(await file.arrayBuffer()), {
         maxDim: PRODUCT_PHOTO_MAX_DIM,
         quality: PRODUCT_PHOTO_QUALITY,
-        watermark: true,
       });
     } catch {
       throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
     }
     const r2Key = buildR2Key(`${filename.replace(/\.[^.]+$/, "")}.jpg`);
-    await relayUploadToR2(new Blob([new Uint8Array(compressed)], { type: "image/jpeg" }), r2Key);
+    const cleanKey = productCleanKey(r2Key)!;
+    await Promise.all([
+      relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
+      relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanKey),
+    ]);
     return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
 }

@@ -12,11 +12,11 @@ import {
   WalletCards,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandMark } from "@/modules/ui/components/BrandMark";
+import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-// 카탈로그 셸 — 관리자 사이드바와 달리 **상단 내비 + 넓은 본문**. 토레카 마스터 데이터를
-// "도감"처럼 훑는 화면이라 좌우 폭을 다 쓰고, 섹션 이동은 헤더 아래 탭 줄로 한다.
+// 카탈로그 셸 — 이로이로 디자인 시스템(Storybook › Patterns › Navigation)의 알약(pill) 내비를 상단에 두고
+// 본문은 넓게 쓴다. 관리자(사이드바)와 구분되는 건 레이아웃이지 색·폰트가 아니다 — 토큰은 공통.
 // 홈은 정확히 /catalog 일 때만 활성, 나머지는 하위 경로까지 활성.
 
 type NavItem = {
@@ -61,18 +61,15 @@ export function CatalogShell({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+      <header className="sticky top-0 z-40 border-b-[3px] border-border bg-card/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href="/catalog" className="flex items-center gap-2.5">
-            <BrandMark className="h-8 w-8" />
-            <span className="flex items-baseline gap-1.5">
-              <span className="text-[15px] font-bold tracking-tight text-foreground">{appName}</span>
-              <span className="hidden text-[11px] font-medium text-muted-foreground sm:inline">
-                TRADING CARD ARCHIVE
-              </span>
+            <BrandLockup wordmarkAlt={appName} />
+            <span className="hidden rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-[0.09em] text-accent sm:inline">
+              TRADING CARD ARCHIVE
             </span>
             {isDev && (
-              <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+              <span className="rounded-full bg-lemon px-2 py-0.5 text-[10px] font-medium text-ink">
                 dev
               </span>
             )}
@@ -81,7 +78,7 @@ export function CatalogShell({
         </div>
         <nav
           aria-label="카탈로그 메뉴"
-          className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 sm:px-4 scroll-x"
+          className="scroll-x mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2.5 sm:px-5"
         >
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -92,21 +89,19 @@ export function CatalogShell({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "border-primary font-semibold text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted",
+                  active ? "bg-primary/10 text-primary" : "text-foreground",
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" aria-hidden />
                 {item.label}
               </Link>
             );
           })}
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
-      <footer className="border-t border-border py-4 text-center text-[11px] text-muted-foreground">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <footer className="py-5 text-center text-[11px] text-muted-foreground">
         {appName} · 토레카 마스터 데이터 관리 · site admin 전용
       </footer>
     </div>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HScroll } from "@/components/HScroll";
 import { findSimilarCards, type SimilarCardsResult } from "../actions";
+import { cardImageSrc, type CardImageView } from "../types";
 
 type Match = SimilarCardsResult["matches"][number];
 
@@ -15,12 +16,12 @@ export function CardSimilarPanel({
   frontR2Key,
   teamId,
   memberId,
-  publicBaseUrl,
+  imageView,
 }: {
   frontR2Key: string | null;
   teamId: number | null;
   memberId: number | null;
-  publicBaseUrl: string;
+  imageView: CardImageView;
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<SimilarCardsResult | null>(null);
@@ -44,7 +45,7 @@ export function CardSimilarPanel({
   }
 
   function matchUrl(m: Match): string | null {
-    return m.frontR2Key ? `${publicBaseUrl}/${m.frontR2Key}` : null;
+    return cardImageSrc({ frontR2Key: m.frontR2Key }, imageView);
   }
 
   return (
