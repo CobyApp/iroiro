@@ -10,7 +10,7 @@ import { PageTransition } from "@/components/PageTransition";
 
 // 카탈로그 전용 공간 — 토레카 마스터 데이터(토레카·검수·시리즈·종류·그룹·멤버)를 관리한다.
 // 운영 관리자(/admin)·소비자앱과 분리된 세 번째 설치형 PWA "이로이로 토레카". dev 배포는 이름에 " dev".
-// 시각 언어도 분리: app/catalog-theme.css 가 data-theme="catalog" 스코프에 토큰을 덮어쓴다.
+// 시각 언어는 이로이로 디자인 시스템 공통 — app/catalog-theme.css 는 그룹 고유색·수치 유틸만 더한다.
 
 export async function generateMetadata(): Promise<Metadata> {
   const name = appDisplayName(APP_NAMES.catalog);
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#5b5bd6",
+  themeColor: "#9a8cf4",
 };
 
 export default async function CatalogLayout({
@@ -44,10 +44,8 @@ export default async function CatalogLayout({
   if (!isAdmin(account)) redirect("/");
 
   return (
-    <div data-theme="catalog">
-      <CatalogShell appName={appDisplayName(APP_NAMES.catalog)} isDev={isDevDeploy()}>
-        <PageTransition>{children}</PageTransition>
-      </CatalogShell>
-    </div>
+    <CatalogShell appName={appDisplayName(APP_NAMES.catalog)} isDev={isDevDeploy()}>
+      <PageTransition>{children}</PageTransition>
+    </CatalogShell>
   );
 }

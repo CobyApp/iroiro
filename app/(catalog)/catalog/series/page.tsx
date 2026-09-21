@@ -50,15 +50,16 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
   }
 
   const chip = (active: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1 text-xs transition-colors ${
+    `inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors ${
       active
-        ? "border-primary bg-primary/10 font-medium text-primary"
+        ? "border-primary bg-primary text-primary-foreground"
         : "border-border bg-card text-foreground hover:bg-muted"
     }`;
 
   return (
     <div className="space-y-5">
       <CatalogPageHeader
+        eyebrow="SERIES"
         title="시리즈"
         count={rows.length}
         description={
@@ -89,12 +90,12 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
       {sections.map(({ team, series }) => (
         <section
           key={team.id}
-          className="team-bar overflow-hidden rounded-md border border-border bg-card shadow-card"
+          className="team-bar overflow-hidden rounded-md border border-border bg-card"
           style={{ ["--team-color" as string]: team.themeColor ?? undefined }}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
             <div className="flex items-baseline gap-2">
-              <h2 className="text-base font-bold text-foreground">{team.name}</h2>
+              <h2 className="font-display text-lg">{team.name}</h2>
               {team.nameI18n?.["ja-jpan"] && (
                 <span className="text-xs text-muted-foreground">{team.nameI18n["ja-jpan"]}</span>
               )}
@@ -114,8 +115,8 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
 
       {orphan.length > 0 && (
         <section className="overflow-hidden rounded-md border border-dashed border-border bg-card">
-          <div className="px-4 py-3">
-            <h2 className="text-base font-bold text-foreground">그룹 미지정</h2>
+          <div className="px-5 py-3.5">
+            <h2 className="font-display text-lg">그룹 미지정</h2>
             <p className="text-xs text-muted-foreground">
               그룹이 비어 있는 시리즈 — 수정에서 그룹을 지정할 수 없으니 확인 후 정리해주세요.
             </p>
@@ -164,7 +165,7 @@ function SeriesTable({
                 <p className="text-xs text-muted-foreground">{s.labelKo}</p>
               ) : (
                 /[぀-ヿ一-鿿]/.test(s.label) && (
-                  <p className="text-[11px] text-amber-700">한국어 병기 없음</p>
+                  <p className="text-[11px] font-medium text-primary">한국어 병기 없음</p>
                 )
               )}
             </TableCell>
