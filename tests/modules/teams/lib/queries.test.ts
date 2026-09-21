@@ -25,11 +25,14 @@ beforeEach(() => {
 
 describe("teams queries", () => {
   describe("listTeams", () => {
-    it("name 오름차순으로 조회하고 DTO로 변환한다", async () => {
+    it("관리자 지정 순서(display_order) → 이름순으로 조회하고 DTO로 변환한다", async () => {
       const { listTeams } = await import("@/modules/teams/lib/queries");
       const result = await listTeams();
 
-      expect(findMany).toHaveBeenCalledWith({ orderBy: { name: "asc" } });
+      // 관리자 지정 순서(display_order, NULL 은 맨 뒤) → 이름순. CUTIE STREET 1, 나머지 데뷔순 운영 규칙.
+      expect(findMany).toHaveBeenCalledWith({
+        orderBy: [{ displayOrder: { sort: "asc", nulls: "last" } }, { name: "asc" }],
+      });
       expect(result[0]).toMatchObject({ id: 1, name: "뉴진스" });
       expect(result[0].nameI18n).toEqual({
         "ja-jpan": "ニュージーンズ",

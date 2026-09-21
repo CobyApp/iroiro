@@ -12,6 +12,7 @@ export function toTeam(row: PrismaTeam): Team {
     nameI18n: (row.nameI18n as NameI18n | null) ?? null,
     debutDate: row.debutDate ? formatKstDate(row.debutDate) : null,
     disbandDate: row.disbandDate ? formatKstDate(row.disbandDate) : null,
+    displayOrder: row.displayOrder,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
