@@ -3,7 +3,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
-import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { env } from "@/lib/env";
 import { todayKstYmd } from "@/lib/datetime";
 import { listCardsForExport } from "@/modules/cards/lib/queries";
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     listCardsForExport({ teamId, memberId, seriesId, status }),
     listTeams(),
     listMembers(),
-    db.series.findMany({ select: { id: true, sku: true, label: true, kind: true } }),
+    catalogDb.series.findMany({ select: { id: true, sku: true, label: true, kind: true } }),
   ]);
   const teamById = new Map(teams.map((t) => [t.id, t.name]));
   const memberById = new Map(members.map((m) => [m.id, m.name]));
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         card.pose,
         csvField(card.description),
         card.retailPriceJpy,
-        csvField(cardFrontUrl(card, env.R2_PUBLIC_BASE)),
+        csvField(cardFrontUrl(card, env.CATALOG_PUBLIC_BASE)),
         card.createdAt,
       ].join(","),
     );

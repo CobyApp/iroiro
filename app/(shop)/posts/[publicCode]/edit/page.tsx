@@ -33,7 +33,7 @@ export default async function PostEditPage({ params }: Props) {
         lockedReason={result.lockedReason}
         teams={teams.map((t) => ({ id: t.id, name: t.name }))}
         members={members.map((m) => ({ id: m.id, name: m.name, teamIds: m.teamIds }))}
-        publicBaseUrl={env.R2_PUBLIC_BASE}
+        publicBaseUrl={env.CATALOG_PUBLIC_BASE}
       />
     </div>
   );

@@ -9,12 +9,12 @@ import { env } from "@/lib/env";
 
 const SIGNATURE_BYTES = 18;
 
-// 고객 노출 이미지 변형(해상도만). 서명이 변형 코드까지 포함하므로 URL만으로 해상도를
-// 임의로 바꿀 수 없다. 워터마크는 업로드 시점에 원본에 구워지므로 변형은 크기·품질만 다르다.
-//  g  = 그리드/목록 (작게)   — 상품 카드·마키·장바구니 등
-//  d  = 상세 (크게)          — 상품 상세 갤러리·3D·OG
-//  cg = 컬렉션 그리드 (작게) — 소유자 컬렉션 타일
-//  cd = 컬렉션 상세 (크게)   — 소유자 컬렉션 3D 뷰어
+// 고객 노출 이미지 변형. 서명이 변형 코드까지 포함하므로 URL만으로 변형을 임의로 바꿀 수 없다.
+// 상품 사진은 업로드 시 wm(워터마크)·clean(원본) 두 벌로 저장되고, 변형이 어느 벌을 읽을지 정한다.
+//  g  = 그리드/목록 (작게)   — 상품 카드·마키·장바구니 등            → wm
+//  d  = 상세 (크게)          — 상품 상세 갤러리·3D·OG                → wm
+//  cg = 컬렉션 그리드 (작게) — 소유자 컬렉션 타일(로그인+보유 확인)   → clean
+//  cd = 컬렉션 상세 (크게)   — 소유자 컬렉션 3D 뷰어(로그인+보유 확인) → clean
 export const MEDIA_VARIANTS = {
   g: { width: 600, quality: 74 },
   d: { width: 1100, quality: 78 },
@@ -23,6 +23,12 @@ export const MEDIA_VARIANTS = {
 } as const;
 
 export type MediaVariant = keyof typeof MEDIA_VARIANTS;
+
+// 소유자 전용 변형 — 응답 모듈이 세션·보유를 확인하고 clean 원본을 읽는다.
+const OWNER_VARIANTS: ReadonlySet<MediaVariant> = new Set(["cg", "cd"]);
+export function isOwnerVariant(variant: MediaVariant): boolean {
+  return OWNER_VARIANTS.has(variant);
+}
 
 export type MediaKind = "photo" | "thumbnail";
 
