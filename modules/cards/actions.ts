@@ -11,9 +11,34 @@ import {
 import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
-import { listExistingCards } from "./lib/queries";
+import { listAnalyzedCandidates, listExistingCards } from "./lib/queries";
 import { normalizeCardImageBuffer } from "./lib/normalize-card-server";
+import {
+  analyzeCardFrontByKey,
+  rankSimilarCards,
+  type SimilarCard,
+} from "./lib/analysis";
 import type { Card } from "./types";
+
+// 유사 카드 매칭 파라미터 — 노이즈를 줄이는 최소 유사도와 표시 개수.
+const SIMILAR_MIN_SCORE = 0.5;
+const SIMILAR_TOP_K = 6;
+
+// 앞면 R2 키를 분석해 Prisma create/update에 넣을 분석 필드로 변환한다.
+// AWS 미설정·분석 실패면 빈 객체 — 등록은 분석 없이 진행(fail-soft).
+async function analysisFields(frontR2Key: string): Promise<{
+  analysisEmbedding?: number[];
+  analysisModel?: string;
+  analyzedAt?: Date;
+}> {
+  const analysis = await analyzeCardFrontByKey(frontR2Key);
+  if (!analysis) return {};
+  return {
+    analysisEmbedding: analysis.embedding,
+    analysisModel: analysis.model,
+    analyzedAt: new Date(),
+  };
+}
 
 // 토레카 마스터 액션 — 관리자 CRUD + 유저 제보(검수 대기) + 검수 승인/반려.
 
@@ -133,9 +158,10 @@ export async function createCardAdmin(
   return runAction(async () => {
     await requireAdmin();
     const data = parse(input);
-    const [name, pose] = await Promise.all([
+    const [name, pose, analysis] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
       nextPose(data.memberId, data.seriesId),
+      analysisFields(data.frontR2Key),
     ]);
     const row = await db.card.create({
       data: {
@@ -151,6 +177,7 @@ export async function createCardAdmin(
         backR2Key: data.backR2Key,
         itemCode: data.itemCode || null,
         retailPriceJpy: data.retailPriceJpy ?? 0,
+        ...analysis,
       },
     });
     revalidateCards();
@@ -237,9 +264,10 @@ export async function submitCardReport(
         "too_many_pending",
       );
     }
-    const [name, pose] = await Promise.all([
+    const [name, pose, analysis] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
       nextPose(data.memberId, data.seriesId),
+      analysisFields(data.frontR2Key),
     ]);
     const row = await db.card.create({
       data: {
@@ -254,6 +282,7 @@ export async function submitCardReport(
         seriesId: BigInt(data.seriesId),
         frontR2Key: data.frontR2Key,
         backR2Key: data.backR2Key,
+        ...analysis,
       },
     });
     revalidateCards();
@@ -315,6 +344,44 @@ export async function fetchExistingCards(
   memberId: number | null,
 ): Promise<ActionResult<Card[]>> {
   return runAction(async () => listExistingCards(seriesId, memberId));
+}
+
+// AI 유사 카드 찾기 — 업로드한 앞면을 임베딩해 같은 그룹(+멤버)의 공개 카드와 코사인 비교.
+// 토레카분석기의 "저장 전 비교" 단계 포팅. AWS 미설정이면 configured=false로 알려 UI가
+// 안내 문구를 띄운다(에러 아님). 로그인만 요구 — 관리자 등록·유저 제보 화면 공용.
+export type SimilarCardsResult = {
+  configured: boolean;
+  matches: SimilarCard[];
+};
+
+const similarInputSchema = z.object({
+  frontR2Key: z.string().trim().min(1),
+  teamId: z.number().int().positive().nullable(),
+  memberId: z.number().int().positive().nullable(),
+});
+
+export async function findSimilarCards(input: {
+  frontR2Key: string;
+  teamId: number | null;
+  memberId: number | null;
+}): Promise<ActionResult<SimilarCardsResult>> {
+  return runAction(async () => {
+    const account = await getCurrentAccount();
+    if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
+    const parsed = similarInputSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new DomainError("입력값을 확인해주세요", "invalid_input");
+    }
+    const data = parsed.data;
+    const analysis = await analyzeCardFrontByKey(data.frontR2Key);
+    if (!analysis) return { configured: false, matches: [] };
+    const candidates = await listAnalyzedCandidates(data.teamId, data.memberId);
+    const matches = rankSimilarCards(analysis.embedding, candidates, {
+      k: SIMILAR_TOP_K,
+      minScore: SIMILAR_MIN_SCORE,
+    });
+    return { configured: true, matches };
+  });
 }
 
 // 목록에 없는 시리즈를 등록 화면에서 바로 추가 — 분석기와 같은 흐름.

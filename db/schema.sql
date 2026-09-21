@@ -2135,3 +2135,31 @@ ALTER TABLE notification
       'system'
     )
   );
+
+-- ============================================================================
+-- [20260921010000_card_image_analysis]
+-- ============================================================================
+
+-- card_image_analysis: 카드 등록 시 앞면 이미지를 분석해 임베딩 벡터를 함께 저장.
+-- 토레카분석기(oshikore-card) core/embedder.py의 임베딩 개념을 AWS Bedrock Titan
+-- Multimodal Embeddings로 대체한 포팅이다. 저장된 벡터는 등록 화면의 "유사 카드 찾기"
+-- (core/matcher.py의 cosine top-k)와 향후 중복 감지에 쓰인다.
+--   - analysis_embedding: L2 정규화된 float 벡터(모델 출력, 기본 1024차원)를 JSONB 배열로.
+--                         값 구조가 모델·차원에 따라 달라지므로 JSONB(가변 구조 규칙).
+--   - analysis_model:     생성 모델·버전 문자열(예: amazon.titan-embed-image-v1). 재분석/이관 판단용.
+--   - analyzed_at:        분석 시각. AWS 미설정·분석 실패 시 NULL(등록 자체는 진행).
+-- 모두 nullable — 분석은 best-effort 부가 데이터이지 등록의 전제조건이 아니다.
+
+ALTER TABLE card
+    ADD COLUMN analysis_embedding JSONB,
+    ADD COLUMN analysis_model     TEXT,
+    ADD COLUMN analyzed_at        TIMESTAMPTZ;
+
+COMMENT ON COLUMN card.analysis_embedding IS '앞면 이미지 분석 임베딩 벡터(JSONB float 배열, L2 정규화). 유사 카드 매칭용';
+COMMENT ON COLUMN card.analysis_model IS '임베딩 생성 모델·버전 (예: amazon.titan-embed-image-v1)';
+COMMENT ON COLUMN card.analyzed_at IS '이미지 분석 완료 시각. 미분석이면 NULL';
+
+-- 분석된 카드만 유사도 후보로 훑기 위한 부분 인덱스(대부분 카드가 분석됨 전제라도 저렴).
+CREATE INDEX card_analyzed_idx ON card (team_id, member_id) WHERE analyzed_at IS NOT NULL;
+
+-- card 테이블 GRANT는 이미 SELECT/INSERT/UPDATE/DELETE가 app 롤에 부여됨(신규 컬럼 자동 포함).

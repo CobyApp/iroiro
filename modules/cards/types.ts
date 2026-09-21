@@ -43,6 +43,10 @@ export type Card = {
   status: CardStatus;
   submittedByAccountId: string | null;
   reviewNote: string | null;
+  /** 이미지 분석에 쓴 모델·버전. 미분석이면 null. (임베딩 벡터 자체는 클라이언트로 보내지 않는다.) */
+  analysisModel: string | null;
+  /** 이미지 분석 완료 시각(ISO). 미분석이면 null. */
+  analyzedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

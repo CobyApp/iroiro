@@ -55,6 +55,28 @@ const envSchema = z
       emptyToUndefined,
       z.string().url().default("https://api.frankfurter.dev/v1"),
     ),
+    // 카드 이미지 분석(AWS Bedrock Titan Multimodal Embeddings) — 등록 시 앞면을
+    // 임베딩해 유사 카드 매칭에 쓴다(토레카분석기 embedder의 AWS 포팅). 전부 선택 —
+    // 미설정이면 분석만 조용히 비활성(카드 등록 자체는 정상 동작, lib/vision §isVisionConfigured).
+    // 리전만 있으면 활성화된다. 자격증명은 (1) 아래 정적 키가 있으면 그것, 없으면
+    // (2) AWS 표준 자격증명 체인(로컬은 BEDROCK_PROFILE 프로필, 운영은 ECS 태스크 역할)에서
+    // 런타임에 해석한다 — 시크릿을 .env에 적지 않아도 된다(lib/vision/client.ts).
+    BEDROCK_REGION: optionalString,
+    // 정적 키(선택) — 자격증명 체인을 쓰지 않고 직접 지정할 때만.
+    BEDROCK_ACCESS_KEY_ID: optionalString,
+    BEDROCK_SECRET_ACCESS_KEY: optionalString,
+    // 자격증명 체인이 읽을 ~/.aws 프로필 이름(로컬 개발용, 예: coby). 미설정이면 기본 해석 순서.
+    BEDROCK_PROFILE: optionalString,
+    // 임베딩 모델 ID·차원. 기본은 Titan Image Embeddings v1(256/384/1024 지원).
+    BEDROCK_EMBED_MODEL_ID: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).default("amazon.titan-embed-image-v1"),
+    ),
+    BEDROCK_EMBED_DIMENSION: z.coerce.number().int().positive().default(1024),
   });
 
 export const env = envSchema.parse(process.env);
+
+// 이미지 분석 활성화 조건 = 리전 설정. 자격증명은 런타임에 정적 키 또는 자격증명 체인에서
+// 해석하며(lib/vision/client.ts), 해석 실패 시 분석만 조용히 건너뛴다(fail-soft).
+export const isVisionConfigured = Boolean(env.BEDROCK_REGION);
