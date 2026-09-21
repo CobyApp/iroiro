@@ -1,11 +1,13 @@
 // 관리자 전용 PWA 매니페스트 — 소비자앱(app/manifest.ts)과 별개의 설치형 웹앱.
 // 이름·아이콘·테마를 달리해 홈 화면에 "이로이로 관리자"로 따로 설치된다.
 // id·scope·start_url을 /admin으로 두어 브라우저가 독립 앱으로 인식한다.
+import { APP_NAMES, appDisplayName } from "@/lib/app-name";
+
 export function GET(): Response {
   const manifest = {
     id: "/admin",
-    name: "이로이로 관리자",
-    short_name: "이로 관리자",
+    name: appDisplayName(APP_NAMES.admin),
+    short_name: appDisplayName("이로 관리자"),
     description: "이로이로 운영 관리자 콘솔",
     start_url: "/admin",
     scope: "/admin",
