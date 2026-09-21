@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Layers, User, Users } from "lucide-react";
+import { Layers, Sparkles, User, Users } from "lucide-react";
 import { db } from "@/lib/db";
+import { formatKstDateTime } from "@/lib/datetime";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
+import { getCardAnalysisSummary } from "@/modules/cards/lib/queries";
 import {
   SeriesCreateButton,
   SeriesRowActions,
@@ -22,10 +24,18 @@ import { seriesKindLabel } from "@/modules/series/kinds";
 export const metadata: Metadata = { title: "카탈로그" };
 
 
-// 카탈로그 통합 뷰 — 그룹 → 멤버 → 시리즈와 상품 수·시세를 한 화면에서.
-export default async function AdminCatalogPage() {
-  const [teams, members, seriesRows, bySeries, byMember, byTeam, totalProducts] =
-    await Promise.all([
+// 카탈로그 홈 — 토레카 마스터 데이터(그룹 → 멤버 → 시리즈)와 AI 분석 현황을 한 화면에서.
+export default async function CatalogHomePage() {
+  const [
+    teams,
+    members,
+    seriesRows,
+    bySeries,
+    byMember,
+    byTeam,
+    totalProducts,
+    ai,
+  ] = await Promise.all([
       listTeams(),
       listMembers(),
       db.series.findMany({ orderBy: [{ kind: "asc" }, { label: "asc" }] }),
@@ -37,6 +47,7 @@ export default async function AdminCatalogPage() {
       db.product.groupBy({ by: ["memberId"], _count: { _all: true } }),
       db.product.groupBy({ by: ["teamId"], _count: { _all: true } }),
       db.product.count(),
+      getCardAnalysisSummary(),
     ]);
 
   const countBySeries = new Map(
@@ -60,24 +71,86 @@ export default async function AdminCatalogPage() {
   const noSeriesCount = countBySeries.get(null)?.count ?? 0;
 
   const stats = [
-    { label: "그룹", value: teams.length, href: "/admin/teams" },
-    { label: "멤버", value: members.length, href: "/admin/members" },
+    { label: "토레카", value: ai.total, href: "/catalog/cards" },
+    { label: "그룹", value: teams.length, href: "/catalog/teams" },
+    { label: "멤버", value: members.length, href: "/catalog/members" },
     { label: "시리즈", value: seriesRows.length, href: null },
+    // 상품은 운영 관리자 소관 — 카탈로그에서는 분포만 보고 링크로 넘긴다.
     { label: "상품", value: totalProducts, href: "/admin/products" },
   ];
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">카탈로그</h1>
+        <h1 className="text-xl font-bold text-foreground">카탈로그 홈</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          그룹 → 멤버 → 시리즈 계층과 상품 분포를 한눈에 — 데이터는 카드
-          가져오기의 「카탈로그 동기화」로 채워져요.
+          토레카 마스터 데이터 — 그룹 → 멤버 → 시리즈 계층, 상품 분포, AI 분석 현황을
+          한눈에. 데이터는 「분석기 가져오기」의 카탈로그 동기화로 채워져요.
         </p>
       </div>
 
+      {/* AI 분석 현황 — 승인·저장된 카드의 임베딩 커버리지와 검수 대기 */}
+      <section className="rounded-md border border-border bg-card p-4 shadow-card sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+            AI 데이터
+          </h2>
+          <Link
+            href="/catalog/cards?status=pending"
+            className="text-xs text-primary underline-offset-2 hover:underline"
+          >
+            검수 대기 {ai.pending.toLocaleString()}건 →
+          </Link>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">분석 완료</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+              {ai.analyzed.toLocaleString()}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                / {ai.total.toLocaleString()}
+              </span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">커버리지</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+              {ai.total > 0 ? Math.round((ai.analyzed / ai.total) * 100) : 0}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">모델</p>
+            {ai.byModel.length === 0 ? (
+              <p className="mt-1 text-sm text-muted-foreground">아직 없음</p>
+            ) : (
+              <ul className="mt-1 space-y-0.5">
+                {ai.byModel.map((m) => (
+                  <li key={m.model} className="text-xs">
+                    <span className="font-mono">{m.model}</span>
+                    <span className="ml-1 tabular-nums text-muted-foreground">
+                      {m.count.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">최근 분석</p>
+            <p className="mt-1 text-sm text-foreground">
+              {ai.latestAnalyzedAt ? formatKstDateTime(ai.latestAnalyzedAt) : "-"}
+            </p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          유저 제보는 분석 없이 접수되고, 관리자가 승인해 저장할 때 앞면을 임베딩해요.
+          검수 화면의 「유사」로 기존·유사 카드를 먼저 확인할 수 있어요.
+        </p>
+      </section>
+
       {/* 요약 통계 */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {stats.map((stat) => (
           <div
             key={stat.label}

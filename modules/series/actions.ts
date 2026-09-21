@@ -22,7 +22,7 @@ const seriesInputSchema = z.object({
 export type SeriesInput = z.infer<typeof seriesInputSchema>;
 
 function revalidateCatalog() {
-  revalidatePath("/admin/catalog");
+  revalidatePath("/catalog");
 }
 
 export async function createSeries(

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Calculator,
   Coins,
-  Download,
   ImageIcon,
   Layers,
   LayoutDashboard,
@@ -18,10 +17,7 @@ import {
   ShoppingBag,
   Star,
   Truck,
-  User,
   UserCog,
-  Users,
-  WalletCards,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,7 +29,7 @@ type NavItem = {
   matchPrefix?: string;
 };
 
-type NavSection = {
+export type NavSection = {
   title?: string;
   items: NavItem[];
   // 게시판 moderator에게도 노출되는 섹션(커뮤니티 관리). 없으면 site admin 전용.
@@ -60,12 +56,6 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/orders",
         icon: ShoppingBag,
         matchPrefix: "/admin/orders",
-      },
-      {
-        label: "카드 가져오기",
-        href: "/admin/import",
-        icon: Download,
-        matchPrefix: "/admin/import",
       },
       {
         label: "정산",
@@ -138,28 +128,12 @@ const NAV_SECTIONS: NavSection[] = [
     title: "카탈로그",
     items: [
       {
-        label: "통합 보기",
-        href: "/admin/catalog",
+        // 토레카·종류/포즈·그룹·멤버·분석기 가져오기는 별도 카탈로그 공간(/catalog)에서 관리한다.
+        // 운영 관리자에서는 진입 링크만 둔다.
+        label: "카탈로그 관리 →",
+        href: "/catalog",
         icon: Layers,
-        matchPrefix: "/admin/catalog",
-      },
-      {
-        label: "토레카",
-        href: "/admin/cards",
-        icon: WalletCards,
-        matchPrefix: "/admin/cards",
-      },
-      {
-        label: "그룹",
-        href: "/admin/teams",
-        icon: Users,
-        matchPrefix: "/admin/teams",
-      },
-      {
-        label: "멤버",
-        href: "/admin/members",
-        icon: User,
-        matchPrefix: "/admin/members",
+        matchPrefix: "/catalog",
       },
     ],
   },
@@ -196,17 +170,22 @@ export function AdminSidebar({
   mobileOpen,
   onClose,
   isSiteAdmin = true,
+  sections: sectionsProp = NAV_SECTIONS,
+  ariaLabel = "관리자 메뉴",
 }: {
   mobileOpen: boolean;
   onClose: () => void;
   isSiteAdmin?: boolean;
+  // 다른 전용 공간(카탈로그 등)이 같은 드로어/접기 UI를 재사용할 때 메뉴 정의를 주입한다.
+  sections?: NavSection[];
+  ariaLabel?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   // 게시판 moderator는 커뮤니티 관리 섹션만 — 나머지는 site admin 전용.
   const sections = isSiteAdmin
-    ? NAV_SECTIONS
-    : NAV_SECTIONS.filter((s) => s.managerAllowed);
+    ? sectionsProp
+    : sectionsProp.filter((s) => s.managerAllowed);
 
   return (
     <>
@@ -229,7 +208,7 @@ export function AdminSidebar({
           "md:static md:z-auto md:w-60 md:translate-x-0 md:shadow-none md:transition-[width]",
           collapsed && "md:w-16",
         )}
-        aria-label="관리자 메뉴"
+        aria-label={ariaLabel}
       >
         <nav className="flex-1 space-y-3 p-2">
           {sections.map((section, sectionIndex) => (

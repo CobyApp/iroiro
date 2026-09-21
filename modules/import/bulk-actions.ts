@@ -121,7 +121,7 @@ export async function purgeAllProducts(confirm: string): Promise<PurgeResult> {
   });
 
   revalidatePath("/admin/products");
-  revalidatePath("/admin/import");
+  revalidatePath("/catalog/import");
   revalidatePath("/admin/settlement");
   revalidatePath("/");
   return result;
@@ -287,7 +287,7 @@ export async function bulkImportAllCards(input: {
   }
 
   revalidatePath("/admin/products");
-  revalidatePath("/admin/import");
+  revalidatePath("/catalog/import");
   revalidatePath("/admin/settlement");
   revalidatePath("/");
 
@@ -460,8 +460,8 @@ export async function syncCatalogFromExternal(): Promise<CatalogSyncResult> {
   }
 
   revalidatePath("/admin/products");
-  revalidatePath("/admin/import");
-  revalidatePath("/admin/cards");
+  revalidatePath("/catalog/import");
+  revalidatePath("/catalog/cards");
   revalidatePath("/");
 
   return {

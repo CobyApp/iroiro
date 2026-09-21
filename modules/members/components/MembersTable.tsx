@@ -20,7 +20,7 @@ export function MembersTable({ members, teamNameById }: Props) {
   const router = useRouter();
 
   function navigateTo(id: number) {
-    router.push(`/admin/members/${id}/edit`);
+    router.push(`/catalog/members/${id}/edit`);
   }
 
   type Row = {

@@ -24,7 +24,7 @@ export default async function AdminCardNewPage() {
     <div className="space-y-5 p-4 sm:p-6">
       <div>
         <Link
-          href="/admin/cards"
+          href="/catalog/cards"
           className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />

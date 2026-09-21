@@ -139,3 +139,39 @@ export async function listAnalyzedCandidates(
       : null,
   }));
 }
+
+// 카탈로그 홈 AI 요약 — 전체/분석 완료/검수 대기 수와 모델별 분포.
+// 임베딩·모델·analyzedAt은 항상 함께 저장되므로 analyzedAt 유무가 "분석됨"의 단일 기준이다.
+export type CardAnalysisSummary = {
+  total: number;
+  analyzed: number;
+  pending: number;
+  byModel: { model: string; count: number }[];
+  latestAnalyzedAt: string | null;
+};
+
+export async function getCardAnalysisSummary(): Promise<CardAnalysisSummary> {
+  const [total, analyzed, pending, byModelRows, latest] = await Promise.all([
+    db.card.count(),
+    db.card.count({ where: { analyzedAt: { not: null } } }),
+    db.card.count({ where: { status: "pending" } }),
+    db.card.groupBy({
+      by: ["analysisModel"],
+      where: { analyzedAt: { not: null } },
+      _count: { _all: true },
+    }),
+    db.card.aggregate({ _max: { analyzedAt: true } }),
+  ]);
+  return {
+    total,
+    analyzed,
+    pending,
+    byModel: byModelRows
+      .filter((r) => r.analysisModel !== null)
+      .map((r) => ({ model: r.analysisModel as string, count: r._count._all }))
+      .sort((a, b) => b.count - a.count),
+    latestAnalyzedAt: latest._max.analyzedAt
+      ? latest._max.analyzedAt.toISOString()
+      : null,
+  };
+}

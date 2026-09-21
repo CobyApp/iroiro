@@ -25,7 +25,9 @@ const SIMILAR_MIN_SCORE = 0.5;
 const SIMILAR_TOP_K = 6;
 
 // 앞면 R2 키를 분석해 Prisma create/update에 넣을 분석 필드로 변환한다.
-// AWS 미설정·분석 실패면 빈 객체 — 등록은 분석 없이 진행(fail-soft).
+// 호출 시점 = "우리 데이터로 저장하는 순간"만: 관리자 직접 등록, 제보 승인. 유저 제보 접수
+// 시점에는 호출하지 않는다(접수는 가볍게, 분석은 카탈로그 검수에서).
+// AWS 미설정·분석 실패면 빈 객체 — 저장은 분석 없이 진행(fail-soft).
 async function analysisFields(frontR2Key: string): Promise<{
   analysisEmbedding?: number[];
   analysisModel?: string;
@@ -102,7 +104,7 @@ function parse(input: CardInput) {
 }
 
 function revalidateCards() {
-  revalidatePath("/admin/cards");
+  revalidatePath("/catalog/cards");
   revalidatePath("/cards/new");
 }
 
@@ -264,10 +266,11 @@ export async function submitCardReport(
         "too_many_pending",
       );
     }
-    const [name, pose, analysis] = await Promise.all([
+    // 유저 제보는 AI 분석 없이 접수한다 — 분석(임베딩 저장)은 관리자가 카탈로그에서
+    // 승인해 우리 데이터로 확정하는 시점(reviewCard/approveCards)에 한다.
+    const [name, pose] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
       nextPose(data.memberId, data.seriesId),
-      analysisFields(data.frontR2Key),
     ]);
     const row = await db.card.create({
       data: {
@@ -282,7 +285,6 @@ export async function submitCardReport(
         seriesId: BigInt(data.seriesId),
         frontR2Key: data.frontR2Key,
         backR2Key: data.backR2Key,
-        ...analysis,
       },
     });
     revalidateCards();
@@ -317,12 +319,19 @@ export async function reviewCard(
     await requireAdmin();
     const row = await db.card.findUnique({ where: { id: BigInt(id) } });
     if (!row) throw new DomainError("카드를 찾을 수 없어요", "not_found");
+    // 승인 = 우리 데이터로 저장하는 순간 → 이때 앞면을 AI 분석해 임베딩을 함께 저장한다.
+    // (제보 접수 시점에는 분석하지 않았다.) 반려는 분석하지 않는다.
+    const analysis =
+      decision === "approve" && row.frontR2Key
+        ? await analysisFields(row.frontR2Key)
+        : {};
     await db.card.update({
       where: { id: BigInt(id) },
       data: {
         status: decision === "approve" ? "active" : "rejected",
         reviewNote: note?.trim() || null,
         updatedAt: new Date(),
+        ...analysis,
       },
     });
     // 유저 제보가 처음 승인될 때만 100P 적립(대기 → 공개 전이 1회).
@@ -416,7 +425,7 @@ export async function createSeriesInline(
     const row = await db.series.create({
       data: { sku, teamId: BigInt(teamId), label: cleanLabel, kind: cleanKind },
     });
-    revalidatePath("/admin/catalog");
+    revalidatePath("/catalog");
     revalidateCards();
     return { id: Number(row.id), label: row.label, kind: row.kind };
   });
@@ -439,14 +448,26 @@ export async function approveCards(
       },
       select: { id: true, submittedByAccountId: true },
     });
-    const result = await db.card.updateMany({
+    // 승인 대상(대기 중)을 확보하고 카드별로 저장한다 — 승인 = 저장 시점이므로 각 앞면을
+    // AI 분석해 임베딩을 함께 넣는다(updateMany는 행별 데이터를 못 넣어 개별 update).
+    const targets = await db.card.findMany({
       where: { id: { in: ids.map((id) => BigInt(id)) }, status: "pending" },
-      data: { status: "active", updatedAt: new Date() },
+      select: { id: true, frontR2Key: true },
     });
+    const now = new Date();
+    await Promise.all(
+      targets.map(async (t) => {
+        const analysis = t.frontR2Key ? await analysisFields(t.frontR2Key) : {};
+        await db.card.update({
+          where: { id: t.id },
+          data: { status: "active", updatedAt: now, ...analysis },
+        });
+      }),
+    );
     for (const target of rewardTargets) {
       await grantCardReportPoints(target.submittedByAccountId!, target.id);
     }
     revalidateCards();
-    return { approved: result.count };
+    return { approved: targets.length };
   });
 }

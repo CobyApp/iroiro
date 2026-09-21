@@ -111,7 +111,7 @@ export default async function AdminCardsPage({
             카드 원본 데이터 {total.toLocaleString()}건
             {pendingCount > 0 && (
               <Link
-                href={`/admin/cards${qs({ status: "pending", page: undefined })}`}
+                href={`/catalog/cards${qs({ status: "pending", page: undefined })}`}
                 className="ml-2 font-medium text-primary underline-offset-2 hover:underline"
               >
                 검수 대기 {pendingCount}건 →
@@ -121,13 +121,13 @@ export default async function AdminCardsPage({
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <a href={`/admin/cards/export${qs({ page: undefined })}`}>
+            <a href={`/catalog/cards/export${qs({ page: undefined })}`}>
               <Download className="h-4 w-4" />
               CSV 내보내기
             </a>
           </Button>
           <Button asChild size="sm" className="gap-1.5">
-            <Link href="/admin/cards/new">
+            <Link href="/catalog/cards/new">
               <Plus className="h-4 w-4" />
               토레카 등록
             </Link>
@@ -137,7 +137,7 @@ export default async function AdminCardsPage({
 
       {/* 필터 — 출처·상태·그룹 칩 + 검색 */}
       <div className="space-y-2">
-        <form action="/admin/cards" className="max-w-xs">
+        <form action="/catalog/cards" className="max-w-xs">
           <input
             type="search"
             name="q"
@@ -147,31 +147,31 @@ export default async function AdminCardsPage({
           />
         </form>
         <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-1">
-          <Link href={`/admin/cards${qs({ source: undefined })}`} className={chip(!source)}>
+          <Link href={`/catalog/cards${qs({ source: undefined })}`} className={chip(!source)}>
             모든 출처
           </Link>
           {CARD_SOURCES.map((s) => (
-            <Link key={s} href={`/admin/cards${qs({ source: s })}`} className={chip(source === s)}>
+            <Link key={s} href={`/catalog/cards${qs({ source: s })}`} className={chip(source === s)}>
               {CARD_SOURCE_LABEL[s]}
             </Link>
           ))}
           <span className="mx-1 my-auto h-4 w-px bg-border" aria-hidden />
-          <Link href={`/admin/cards${qs({ status: undefined })}`} className={chip(!status)}>
+          <Link href={`/catalog/cards${qs({ status: undefined })}`} className={chip(!status)}>
             모든 상태
           </Link>
           {CARD_STATUSES.map((s) => (
-            <Link key={s} href={`/admin/cards${qs({ status: s })}`} className={chip(status === s)}>
+            <Link key={s} href={`/catalog/cards${qs({ status: s })}`} className={chip(status === s)}>
               {CARD_STATUS_LABEL[s]}
             </Link>
           ))}
           <span className="mx-1 my-auto h-4 w-px bg-border" aria-hidden />
-          <Link href={`/admin/cards${qs({ team: undefined, member: undefined })}`} className={chip(!teamId)}>
+          <Link href={`/catalog/cards${qs({ team: undefined, member: undefined })}`} className={chip(!teamId)}>
             모든 그룹
           </Link>
           {teams.map((team) => (
             <Link
               key={team.id}
-              href={`/admin/cards${qs({ team: team.id, member: undefined })}`}
+              href={`/catalog/cards${qs({ team: team.id, member: undefined })}`}
               className={chip(teamId === team.id)}
             >
               {team.name}
@@ -180,7 +180,7 @@ export default async function AdminCardsPage({
         </div>
         {teamId !== undefined && (
           <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-1">
-            <Link href={`/admin/cards${qs({ member: undefined })}`} className={chip(!memberId)}>
+            <Link href={`/catalog/cards${qs({ member: undefined })}`} className={chip(!memberId)}>
               모든 멤버
             </Link>
             {members
@@ -188,7 +188,7 @@ export default async function AdminCardsPage({
               .map((member) => (
                 <Link
                   key={member.id}
-                  href={`/admin/cards${qs({ member: member.id })}`}
+                  href={`/catalog/cards${qs({ member: member.id })}`}
                   className={chip(memberId === member.id)}
                 >
                   {member.name}
@@ -216,7 +216,7 @@ export default async function AdminCardsPage({
         <nav className="flex justify-center gap-2" aria-label="페이지">
           {page > 1 && (
             <Link
-              href={`/admin/cards${qs({ page: page - 1 })}`}
+              href={`/catalog/cards${qs({ page: page - 1 })}`}
               className="rounded-full border border-border bg-card px-3 py-1.5 text-sm"
             >
               이전
@@ -227,7 +227,7 @@ export default async function AdminCardsPage({
           </span>
           {page < totalPages && (
             <Link
-              href={`/admin/cards${qs({ page: page + 1 })}`}
+              href={`/catalog/cards${qs({ page: page + 1 })}`}
               className="rounded-full border border-border bg-card px-3 py-1.5 text-sm"
             >
               다음
