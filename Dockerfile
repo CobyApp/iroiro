@@ -13,7 +13,9 @@ COPY --chown=nextjs:nodejs .next/static ./.next/static
 COPY --chown=nextjs:nodejs public ./public
 # Schema migration runner (deploy.yml runs it as a one-off ECS task before rolling the service).
 # `pg` is already in the standalone node_modules via @prisma/adapter-pg.
-COPY --chown=nextjs:nodejs scripts/db-migrate.mjs scripts/lib/schema-sections.mjs ./scripts/
+# Separate COPYs keep the scripts/lib/ layout (a multi-source COPY flattens into the destination).
+COPY --chown=nextjs:nodejs scripts/db-migrate.mjs ./scripts/
+COPY --chown=nextjs:nodejs scripts/lib/schema-sections.mjs ./scripts/lib/
 COPY --chown=nextjs:nodejs db/schema.sql db/catalog-schema.sql ./db/
 # RDS CA bundle so DATABASE_URL can use sslmode=verify-full&sslrootcert=/app/rds-ca.pem
 ADD --chown=nextjs:nodejs https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem ./rds-ca.pem
