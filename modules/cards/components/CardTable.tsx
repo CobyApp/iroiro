@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ import type {
   SeriesOption,
   TeamOption,
 } from "./CardForm";
+import { CardSimilarPanel } from "./CardSimilarPanel";
 
 // 관리자 토레카 표 — 검수 대기 카드를 한 장씩(수정·승인·반려) 또는
 // 여러 장 선택해 한 번에 승인할 수 있다.
@@ -65,6 +66,8 @@ export function CardTable({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<Card | null>(null);
   const [noteById, setNoteById] = useState<Record<number, string>>({});
+  // 검수 보조 — 보류 카드의 기존·유사 카드를 AI로 확인하는 다이얼로그 대상.
+  const [similarFor, setSimilarFor] = useState<Card | null>(null);
 
   const teamById = new Map(teams.map((t) => [t.id, t.name]));
   const memberById = new Map(members.map((m) => [m.id, m.name]));
@@ -246,6 +249,18 @@ export function CardTable({
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-8 gap-1 px-2 text-xs"
+                        aria-label={`${card.name} 유사 카드 보기`}
+                        title="AI로 기존·유사 카드 확인 (저장 전 비교)"
+                        disabled={pending || !card.frontR2Key}
+                        onClick={() => setSimilarFor(card)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        유사
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-8 w-8 p-0"
                         aria-label={`${card.name} 수정`}
                         disabled={pending}
@@ -345,6 +360,26 @@ export function CardTable({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* 검수 보조 — 보류 카드 앞면을 AI로 분석해 기존·유사 카드를 보여준다(저장 전 비교).
+          분석 결과는 저장하지 않고, 승인 시점에 다시 분석해 임베딩을 저장한다. */}
+      {similarFor && similarFor.frontR2Key && (
+        <Dialog open onOpenChange={(open) => !open && setSimilarFor(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                유사 카드 — #{similarFor.id} {similarFor.name}
+              </DialogTitle>
+            </DialogHeader>
+            <CardSimilarPanel
+              frontR2Key={similarFor.frontR2Key}
+              teamId={similarFor.teamId}
+              memberId={similarFor.memberId}
+              publicBaseUrl={publicBaseUrl}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* 개별 수정 — 멤버/시리즈 교정 시 이름도 자동 재생성 */}

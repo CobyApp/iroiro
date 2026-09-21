@@ -19,7 +19,7 @@ export default async function AdminImportResetPage() {
       <Toaster />
       <div className="flex items-center gap-2">
         <Link
-          href="/admin/import"
+          href="/catalog/import"
           aria-label="뒤로"
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-muted"
         >

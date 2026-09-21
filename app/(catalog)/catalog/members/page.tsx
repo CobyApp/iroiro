@@ -14,7 +14,7 @@ export default async function AdminMembersPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">멤버</h2>
         <Button asChild>
-          <Link href="/admin/members/new">
+          <Link href="/catalog/members/new">
             <Plus className="mr-0.5 h-4 w-4" />
             신규 멤버
           </Link>

@@ -12,7 +12,7 @@ export default async function AdminTeamsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">그룹</h2>
         <Button asChild>
-          <Link href="/admin/teams/new">
+          <Link href="/catalog/teams/new">
             <Plus className="mr-0.5 h-4 w-4" />
             신규 그룹
           </Link>

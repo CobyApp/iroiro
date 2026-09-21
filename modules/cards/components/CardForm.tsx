@@ -169,7 +169,7 @@ export function CardForm({
       }
       if (mode === "admin") {
         toast.success("토레카를 등록했어요");
-        router.push("/admin/cards");
+        router.push("/catalog/cards");
       } else {
         toast.success("제보 완료! 승인되면 100P가 적립돼요");
         router.refresh();
@@ -400,8 +400,9 @@ export function CardForm({
         규격(63:88)으로 자동 잘리고 해상도 정리 후 워터마크가 들어갑니다.
       </p>
 
-      {/* AI 유사 카드 — 앞면 업로드 후 노출. 중복 등록을 이미지로 확인. */}
-      {front && (
+      {/* AI 유사 카드 — 관리자 등록에서만. 유저 제보는 AI 분석 없이 접수하고(위 "이미 등록된 카드"로
+          중복만 안내), 분석·유사 비교는 카탈로그 검수 단계에서 관리자가 한다. */}
+      {mode === "admin" && front && (
         <CardSimilarPanel
           frontR2Key={front.r2Key}
           teamId={teamId}

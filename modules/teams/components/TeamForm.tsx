@@ -82,7 +82,7 @@ export function TeamForm({ mode, team }: Props) {
         toast.error(result.message);
         return;
       }
-      router.push("/admin/teams");
+      router.push("/catalog/teams");
     });
   }
 
@@ -104,7 +104,7 @@ export function TeamForm({ mode, team }: Props) {
       }
       toast.success(`그룹 "${team.name}" 삭제 완료`);
       setConfirmOpen(false);
-      router.push("/admin/teams");
+      router.push("/catalog/teams");
     });
   }
 
@@ -182,7 +182,7 @@ export function TeamForm({ mode, team }: Props) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin/teams")}
+                onClick={() => router.push("/catalog/teams")}
                 disabled={pending || deleting}
               >
                 취소

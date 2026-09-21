@@ -19,7 +19,7 @@ export function TeamsTable({ teams }: Props) {
   const router = useRouter();
 
   function navigateTo(id: number) {
-    router.push(`/admin/teams/${id}/edit`);
+    router.push(`/catalog/teams/${id}/edit`);
   }
 
   return (
