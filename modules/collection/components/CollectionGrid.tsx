@@ -42,7 +42,6 @@ export function CollectionGrid({ sections }: Props) {
                   onOpen={() =>
                     setActive({
                       front: card.productThumbnailUrl,
-                      back: null,
                       title: card.productName,
                     })
                   }
@@ -106,7 +105,7 @@ export function CardTile({
       type="button"
       onClick={onOpen}
       className="group block w-full text-left"
-      aria-label={`${card.productName} 확대·3D 보기`}
+      aria-label={`${card.productName} 확대 보기`}
     >
       {content}
     </button>
