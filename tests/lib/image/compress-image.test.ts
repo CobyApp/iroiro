@@ -60,4 +60,20 @@ describe("compressImageBuffer", () => {
   it("이미지가 아니면 거부한다", async () => {
     await expect(compressImageBuffer(Buffer.from("nope"))).rejects.toThrow();
   });
+
+  it("watermark:true여도 크기·비율·포맷은 그대로이고 워터마크로 픽셀이 바뀐다", async () => {
+    const src = await jpeg(2000, 1500);
+    const plain = await compressImageBuffer(src, { maxDim: 1000, quality: 80 });
+    const marked = await compressImageBuffer(src, {
+      maxDim: 1000,
+      quality: 80,
+      watermark: true,
+    });
+    const meta = await sharp(marked).metadata();
+    // 크롭 없음 — 워터마크 있어도 출력 규격은 동일
+    expect([meta.width, meta.height]).toEqual([1000, 750]);
+    expect(meta.format).toBe("jpeg");
+    // 워터마크가 합성되어 워터마크 없는 결과와 바이트가 다르다
+    expect(marked.equals(plain)).toBe(false);
+  });
 });

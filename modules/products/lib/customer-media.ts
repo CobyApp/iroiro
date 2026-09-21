@@ -9,17 +9,17 @@ import { env } from "@/lib/env";
 
 const SIGNATURE_BYTES = 18;
 
-// 고객 노출 이미지 변형. 서명이 변형 코드까지 포함하므로 URL만으로 워터마크·
-// 해상도를 임의로 바꿀 수 없다.
-//  g  = 그리드/목록 (작게, 워터마크)         — 상품 카드·마키·장바구니 등
-//  d  = 상세 (크게, 워터마크)                — 상품 상세 갤러리·3D·OG
-//  cg = 컬렉션 그리드 (작게, 워터마크 없음)   — 소유자 컬렉션 타일
-//  cd = 컬렉션 상세 (크게, 워터마크 없음)     — 소유자 컬렉션 3D 뷰어
+// 고객 노출 이미지 변형(해상도만). 서명이 변형 코드까지 포함하므로 URL만으로 해상도를
+// 임의로 바꿀 수 없다. 워터마크는 업로드 시점에 원본에 구워지므로 변형은 크기·품질만 다르다.
+//  g  = 그리드/목록 (작게)   — 상품 카드·마키·장바구니 등
+//  d  = 상세 (크게)          — 상품 상세 갤러리·3D·OG
+//  cg = 컬렉션 그리드 (작게) — 소유자 컬렉션 타일
+//  cd = 컬렉션 상세 (크게)   — 소유자 컬렉션 3D 뷰어
 export const MEDIA_VARIANTS = {
-  g: { width: 600, watermark: true, quality: 78 },
-  d: { width: 1100, watermark: true, quality: 82 },
-  cg: { width: 600, watermark: false, quality: 80 },
-  cd: { width: 1100, watermark: false, quality: 84 },
+  g: { width: 600, quality: 74 },
+  d: { width: 1100, quality: 78 },
+  cg: { width: 600, quality: 74 },
+  cd: { width: 1100, quality: 80 },
 } as const;
 
 export type MediaVariant = keyof typeof MEDIA_VARIANTS;
@@ -52,26 +52,26 @@ function thumbnailUrl(productId: number, variant: MediaVariant): string {
   return `/media/product-thumbnails/${productId}/${variant}/${signature("thumbnail", productId, variant)}`;
 }
 
-// ── 공개(워터마크) ──────────────────────────────────────────────
-/** 상품 상세 갤러리·3D·OG — 크게 + 워터마크 */
+// ── 공개 ────────────────────────────────────────────────────────
+/** 상품 상세 갤러리·3D·OG — 크게 */
 export function productDetailPhotoUrl(photoId: number): string {
   return photoUrl(photoId, "d");
 }
-/** 그리드/목록/마키의 개별 사진 — 작게 + 워터마크 */
+/** 그리드/목록/마키의 개별 사진 — 작게 */
 export function productGridPhotoUrl(photoId: number): string {
   return photoUrl(photoId, "g");
 }
-/** 그리드/목록/장바구니 썸네일(상품 대표) — 작게 + 워터마크 */
+/** 그리드/목록/장바구니 썸네일(상품 대표) — 작게 */
 export function productGridThumbnailUrl(productId: number): string {
   return thumbnailUrl(productId, "g");
 }
 
-// ── 컬렉션(소유자, 워터마크 없음) ───────────────────────────────
-/** 소유자 컬렉션 타일 썸네일 — 작게 + 워터마크 없음 */
+// ── 컬렉션(소유자) ──────────────────────────────────────────────
+/** 소유자 컬렉션 타일 썸네일 — 작게 */
 export function collectionThumbnailUrl(productId: number): string {
   return thumbnailUrl(productId, "cg");
 }
-/** 소유자 컬렉션 3D 뷰어 사진 — 크게 + 워터마크 없음 */
+/** 소유자 컬렉션 3D 뷰어 사진 — 크게 */
 export function collectionPhotoUrl(photoId: number): string {
   return photoUrl(photoId, "cd");
 }
