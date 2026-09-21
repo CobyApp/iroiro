@@ -104,9 +104,10 @@ export async function presignProductPhotos(
 }
 
 // 저장 규격 — Card(oshikore-card) compress_image 방식(크롭 없음·비율 유지·progressive JPEG).
-// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px.
+// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px. 저장 시 워터마크를 구워 넣고
+// (서빙은 정적 리사이즈만), 압축은 예전(82)보다 낮춰 파일을 줄인다.
 const PRODUCT_PHOTO_MAX_DIM = 2000;
-const PRODUCT_PHOTO_QUALITY = 82;
+const PRODUCT_PHOTO_QUALITY = 78;
 
 // 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadProductPhotoFile(
@@ -128,6 +129,7 @@ export async function uploadProductPhotoFile(
       compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
         maxDim: PRODUCT_PHOTO_MAX_DIM,
         quality: PRODUCT_PHOTO_QUALITY,
+        watermark: true,
       });
     } catch {
       throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
