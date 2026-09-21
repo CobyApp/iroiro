@@ -85,7 +85,12 @@ export default async function SignupPage({
           <div className="rounded-md border border-border bg-muted/30 p-4">
             <FavoriteCheckboxGrid
               teams={teams.map((t) => ({ id: t.id, name: t.name }))}
-              members={members.map((m) => ({ id: m.id, name: m.name }))}
+              members={members.map((m) => ({
+                id: m.id,
+                name: m.name,
+                teamIds: m.teamIds,
+                displayOrderByTeam: m.displayOrderByTeam,
+              }))}
             />
             <p className="mt-3 text-xs text-muted-foreground">
               선택하면 홈에서 최애 위주로 추천해 드려요. 나중에 회원정보에서

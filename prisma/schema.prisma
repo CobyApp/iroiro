@@ -18,6 +18,7 @@ model Team {
   nameI18n    Json?        @map("name_i18n")
   debutDate   DateTime?    @map("debut_date") @db.Date
   disbandDate DateTime?    @map("disband_date") @db.Date
+  displayOrder Int?        @map("display_order")
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy   String?      @map("created_by")
   updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -25,6 +26,7 @@ model Team {
   memberships TeamMember[]
 
   @@index([name])
+  @@index([displayOrder], map: "team_display_order_idx")
   @@index([createdAt], map: "team_created_at_idx")
   @@index([updatedAt], map: "team_updated_at_idx")
   @@map("team")
@@ -843,6 +845,7 @@ model Series {
   teamId     BigInt?  @map("team_id")
   kind       String
   label      String
+  labelI18n  Json?    @map("label_i18n")
   productUrl String?  @map("product_url")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -851,6 +854,20 @@ model Series {
   @@index([teamId, kind], map: "series_team_kind_idx")
   @@index([createdAt], map: "series_created_at_idx")
   @@map("series")
+}
+
+model SeriesKind {
+  id           BigInt   @id @default(autoincrement())
+  key          String
+  label        String
+  displayOrder Int      @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([key], map: "series_kind_key_unique")
+  @@index([createdAt], map: "series_kind_created_at_idx")
+  @@index([updatedAt], map: "series_kind_updated_at_idx")
+  @@map("series_kind")
 }
 
 // ── 사이트 전역 설정 — 항상 1행(singleton, DB CHECK id=1) ────────────────────

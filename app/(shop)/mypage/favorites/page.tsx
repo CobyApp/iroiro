@@ -33,7 +33,12 @@ export default async function FavoritesPage() {
       <section className="shop-content-surface">
         <FavoritesForm
           teams={teams.map((t) => ({ id: t.id, name: t.name }))}
-          members={members.map((m) => ({ id: m.id, name: m.name }))}
+          members={members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            teamIds: m.teamIds,
+            displayOrderByTeam: m.displayOrderByTeam,
+          }))}
           initialTeamIds={favorites.teamIds}
           initialMemberIds={favorites.memberIds}
         />
