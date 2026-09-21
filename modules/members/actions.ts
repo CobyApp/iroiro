@@ -8,6 +8,7 @@ import {
   runAction,
 } from "@/lib/action-result";
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { isNotFoundError } from "@/lib/prisma-errors";
 import type { TeamMember } from "@/modules/team-members/types";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
@@ -20,7 +21,7 @@ import {
 } from "./lib/schema";
 import { toMember } from "./lib/transform";
 import type { Member, MemberWithTeams } from "./types";
-import { Prisma } from "@prisma/client";
+import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
 
 /**
  * 같은 멤버 입력에 (teamId 동일 + active_end_date NULL)인 항목이 둘 이상이면 reject.
@@ -72,7 +73,7 @@ export async function createMember(
     const data = parseActionInput(memberCreateSchema, input);
     ensureActiveUniqueWithinMembership(data.memberships);
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await catalogDb.$transaction(async (tx) => {
       const memberRow = await tx.member.create({
         data: {
           name: data.name,
@@ -139,7 +140,7 @@ export async function updateMember(
     if (data.retireDate !== undefined)
       patch.retireDate = data.retireDate ? new Date(data.retireDate) : null;
 
-    const row = await mapMemberWriteError(() => db.$transaction(async (tx) => {
+    const row = await mapMemberWriteError(() => catalogDb.$transaction(async (tx) => {
       const memberRow = await tx.member.update({
         where: { id: BigInt(data.id) },
         data: patch,
@@ -181,7 +182,7 @@ export async function deleteMember(id: number): Promise<ActionResult> {
     }
 
     const memberIdBig = BigInt(id);
-    const existing = await db.member.findUnique({ where: { id: memberIdBig } });
+    const existing = await catalogDb.member.findUnique({ where: { id: memberIdBig } });
     if (!existing) throw new DomainError("멤버를 찾을 수 없습니다");
 
     const productRefs = await db.product.count({
@@ -195,7 +196,7 @@ export async function deleteMember(id: number): Promise<ActionResult> {
 
     // 사전 조회~delete 사이 TOCTOU 삭제 시 P2025 → not-found로 결과화.
     await mapMemberWriteError(() =>
-      db.$transaction(async (tx) => {
+      catalogDb.$transaction(async (tx) => {
         await tx.teamMember.deleteMany({ where: { memberId: memberIdBig } });
         await tx.member.delete({ where: { id: memberIdBig } });
       }),

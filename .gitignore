@@ -44,3 +44,6 @@ next-env.d.ts
 # editor / IDE
 .idea/
 .vscode/
+
+# prisma generated clients (catalog DB) — npm run db:generate 가 만든다
+/lib/generated/

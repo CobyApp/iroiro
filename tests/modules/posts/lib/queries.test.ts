@@ -6,6 +6,15 @@ vi.mock("@/lib/r2/ugc", () => ({
   UGC_GET_TTL_SECONDS: 900,
 }));
 
+// 태그명(그룹/멤버)·첨부 카드는 카탈로그 DB에서 배치 조회 — 이 픽스처엔 태그·카드가 없어 빈 배열.
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: {
+    team: { findMany: vi.fn(async () => []) },
+    member: { findMany: vi.fn(async () => []) },
+    card: { findMany: vi.fn(async () => []) },
+  },
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
 });

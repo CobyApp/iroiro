@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import {
   DomainError,
   runAction,
@@ -118,7 +119,7 @@ export async function createUsedListing(
     const data = usedListingCreateSchema.parse(input);
 
     // 선택한 토레카에서 제목·계층 파생 — 공개(active) 카드만 허용.
-    const card = await db.card.findUnique({
+    const card = await catalogDb.card.findUnique({
       where: { id: BigInt(data.cardId) },
     });
     if (!card || card.status !== "active") {

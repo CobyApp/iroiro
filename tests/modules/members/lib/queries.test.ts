@@ -4,8 +4,8 @@ const tmFindMany = vi.fn();
 const memberFindMany = vi.fn();
 const memberFindUnique = vi.fn();
 
-vi.mock("@/lib/db", () => ({
-  db: {
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: {
     teamMember: { findMany: tmFindMany },
     member: { findMany: memberFindMany, findUnique: memberFindUnique },
   },

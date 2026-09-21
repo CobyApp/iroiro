@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/generated/catalog-client";
 
 // requireAdmin은 세션 DAL 기반 — 액션 경계(허용/거부)만 검증하도록 스텁한다.
 // 가드 자체의 세션·isAdmin 판정은 requireAdmin 단위 테스트에서 검증한다.
@@ -17,10 +17,20 @@ const findUnique = vi.fn();
 const teamMemberCount = vi.fn();
 const productCount = vi.fn();
 
+// 그룹·멤버십은 카탈로그 DB(catalogDb), 상품 참조 검사는 커머스 DB(db).
+// CatalogPrisma(DbNull 등)는 실제 생성 클라이언트의 것을 그대로 노출 — 액션이 DbNull 동일성으로 비운다.
+vi.mock("@/lib/catalog-db", async () => {
+  const { Prisma } = await import("@/lib/generated/catalog-client");
+  return {
+    CatalogPrisma: Prisma,
+    catalogDb: {
+      team: { create, update, delete: deleteFn, findUnique },
+      teamMember: { count: teamMemberCount },
+    },
+  };
+});
 vi.mock("@/lib/db", () => ({
   db: {
-    team: { create, update, delete: deleteFn, findUnique },
-    teamMember: { count: teamMemberCount },
     product: { count: productCount },
   },
 }));

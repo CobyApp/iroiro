@@ -1,6 +1,6 @@
 import "server-only";
 
-import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { toTeamMember } from "./transform";
 import type { TeamMember } from "../types";
 
@@ -9,7 +9,7 @@ export async function listTeamMembers(filter?: {
   memberId?: number;
   activeOnly?: boolean;
 }): Promise<TeamMember[]> {
-  const rows = await db.teamMember.findMany({
+  const rows = await catalogDb.teamMember.findMany({
     where: {
       ...(filter?.teamId !== undefined && { teamId: BigInt(filter.teamId) }),
       ...(filter?.memberId !== undefined && {

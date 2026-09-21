@@ -1,9 +1,9 @@
 import "server-only";
 
 import type {
-  Member as PrismaMember,
-  TeamMember as PrismaTeamMember,
-} from "@prisma/client";
+  CatalogMemberRow as PrismaMember,
+  CatalogTeamMemberRow as PrismaTeamMember,
+} from "@/lib/catalog-db";
 import type { NameI18n } from "@/lib/i18n";
 import { formatKstDate } from "@/lib/datetime";
 import { toTeamMember } from "@/modules/team-members/lib/transform";

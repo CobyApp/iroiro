@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import {
   DomainError,
   parseActionInput,
@@ -50,7 +50,7 @@ export async function createSeriesKind(
     await requireAdmin();
     const data = parseActionInput(kindCreateSchema, input);
     try {
-      const row = await db.seriesKind.create({
+      const row = await catalogDb.seriesKind.create({
         data: { key: data.key, label: data.label, displayOrder: data.displayOrder },
       });
       revalidateKinds();
@@ -68,7 +68,7 @@ export async function updateSeriesKind(
   return runAction(async () => {
     await requireAdmin();
     const data = parseActionInput(kindUpdateSchema, input);
-    await db.seriesKind.update({
+    await catalogDb.seriesKind.update({
       where: { id: BigInt(data.id) },
       data: { label: data.label, displayOrder: data.displayOrder, updatedAt: new Date() },
     });
@@ -80,16 +80,16 @@ export async function updateSeriesKind(
 export async function deleteSeriesKind(id: number): Promise<ActionResult> {
   return runAction(async () => {
     await requireAdmin();
-    const kind = await db.seriesKind.findUnique({ where: { id: BigInt(id) } });
+    const kind = await catalogDb.seriesKind.findUnique({ where: { id: BigInt(id) } });
     if (!kind) throw new DomainError("종류를 찾을 수 없어요", "not_found");
-    const used = await db.series.count({ where: { kind: kind.key } });
+    const used = await catalogDb.series.count({ where: { kind: kind.key } });
     if (used > 0) {
       throw new DomainError(
         `이 종류를 쓰는 시리즈가 ${used}개 있어 삭제할 수 없어요`,
         "kind_in_use",
       );
     }
-    await db.seriesKind.delete({ where: { id: BigInt(id) } });
+    await catalogDb.seriesKind.delete({ where: { id: BigInt(id) } });
     revalidateKinds();
   });
 }

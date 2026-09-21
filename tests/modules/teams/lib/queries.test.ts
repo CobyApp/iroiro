@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const findMany = vi.fn();
 const findUnique = vi.fn();
 
-vi.mock("@/lib/db", () => ({
-  db: { team: { findMany, findUnique } },
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: { team: { findMany, findUnique } },
 }));
 
 const row = {

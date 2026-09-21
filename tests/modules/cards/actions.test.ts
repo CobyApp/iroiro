@@ -15,7 +15,9 @@ const mocks = vi.hoisted(() => ({
   pointTransaction: { create: vi.fn() },
 }));
 
+// 카탈로그 테이블(card·member·series)은 catalogDb, 포인트 적립은 db — 테스트는 한 객체로 둘 다 받는다.
 vi.mock("@/lib/db", () => ({ db: mocks }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: mocks }));
 vi.mock("@/modules/auth/dal", () => ({ getCurrentAccount: vi.fn() }));
 vi.mock("@/modules/admin/lib/requireAdmin", () => ({ requireAdmin: vi.fn() }));
 vi.mock("@/modules/cards/lib/analysis", () => ({

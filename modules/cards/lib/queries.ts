@@ -1,7 +1,6 @@
 import "server-only";
 
-import { db } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
+import { catalogDb, type CatalogPrisma as Prisma } from "@/lib/catalog-db";
 import { toCard } from "./transform";
 import type { Card, CardStatus } from "../types";
 
@@ -38,13 +37,13 @@ export async function listCards(
     ];
   }
   const [rows, total] = await Promise.all([
-    db.card.findMany({
+    catalogDb.card.findMany({
       where,
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    db.card.count({ where }),
+    catalogDb.card.count({ where }),
   ]);
   return { items: rows.map(toCard), total };
 }
@@ -58,7 +57,7 @@ export async function listCardsForExport(
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
   if (filter.status) where.status = filter.status;
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     orderBy: { id: "asc" },
     take: 10000,
@@ -67,7 +66,7 @@ export async function listCardsForExport(
 }
 
 export async function getCardById(id: number): Promise<Card | null> {
-  const row = await db.card.findUnique({ where: { id: BigInt(id) } });
+  const row = await catalogDb.card.findUnique({ where: { id: BigInt(id) } });
   return row ? toCard(row) : null;
 }
 
@@ -82,7 +81,7 @@ export async function listExistingCards(
   const where: Prisma.CardWhereInput = { status: "active" };
   if (seriesId !== null) where.seriesId = BigInt(seriesId);
   if (memberId !== null) where.memberId = BigInt(memberId);
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -92,12 +91,12 @@ export async function listExistingCards(
 
 // 검수 대기 수 — 관리자 목록 뱃지용.
 export async function countPendingCards(): Promise<number> {
-  return db.card.count({ where: { status: "pending" } });
+  return catalogDb.card.count({ where: { status: "pending" } });
 }
 
 // 상태별 카드 수 — 카탈로그 탭(공개 / 검수 대기 / 반려) 카운트.
 export async function countCardsByStatus(): Promise<Record<CardStatus, number>> {
-  const rows = await db.card.groupBy({ by: ["status"], _count: { _all: true } });
+  const rows = await catalogDb.card.groupBy({ by: ["status"], _count: { _all: true } });
   const out: Record<CardStatus, number> = { active: 0, pending: 0, rejected: 0 };
   for (const r of rows) {
     if (r.status in out) out[r.status as CardStatus] = r._count._all;
@@ -107,7 +106,7 @@ export async function countCardsByStatus(): Promise<Record<CardStatus, number>> 
 
 // 그룹별 공개 카드 수 — 카탈로그 홈 그룹 타일.
 export async function countActiveCardsByTeam(): Promise<Map<number, number>> {
-  const rows = await db.card.groupBy({
+  const rows = await catalogDb.card.groupBy({
     by: ["teamId"],
     where: { status: "active" },
     _count: { _all: true },
@@ -140,7 +139,7 @@ export async function listAnalyzedCandidates(
   };
   if (teamId !== null) where.teamId = BigInt(teamId);
   if (memberId !== null) where.memberId = BigInt(memberId);
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     select: {
       id: true,
@@ -175,15 +174,15 @@ export type CardAnalysisSummary = {
 
 export async function getCardAnalysisSummary(): Promise<CardAnalysisSummary> {
   const [total, analyzed, pending, byModelRows, latest] = await Promise.all([
-    db.card.count(),
-    db.card.count({ where: { analyzedAt: { not: null } } }),
-    db.card.count({ where: { status: "pending" } }),
-    db.card.groupBy({
+    catalogDb.card.count(),
+    catalogDb.card.count({ where: { analyzedAt: { not: null } } }),
+    catalogDb.card.count({ where: { status: "pending" } }),
+    catalogDb.card.groupBy({
       by: ["analysisModel"],
       where: { analyzedAt: { not: null } },
       _count: { _all: true },
     }),
-    db.card.aggregate({ _max: { analyzedAt: true } }),
+    catalogDb.card.aggregate({ _max: { analyzedAt: true } }),
   ]);
   return {
     total,

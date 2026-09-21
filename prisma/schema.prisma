@@ -12,68 +12,6 @@ datasource db {
   relationMode = "prisma"
 }
 
-model Team {
-  id          BigInt       @id @default(autoincrement())
-  name        String
-  nameI18n    Json?        @map("name_i18n")
-  debutDate   DateTime?    @map("debut_date") @db.Date
-  disbandDate DateTime?    @map("disband_date") @db.Date
-  displayOrder Int?        @map("display_order")
-  themeColor  String?      @map("theme_color")
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy   String?      @map("created_by")
-  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
-  updatedBy   String?      @map("updated_by")
-  memberships TeamMember[]
-
-  @@index([name])
-  @@index([displayOrder], map: "team_display_order_idx")
-  @@index([createdAt], map: "team_created_at_idx")
-  @@index([updatedAt], map: "team_updated_at_idx")
-  @@map("team")
-}
-
-model Member {
-  id          BigInt       @id @default(autoincrement())
-  name        String
-  nameI18n    Json?        @map("name_i18n")
-  debutDate   DateTime?    @map("debut_date") @db.Date
-  retireDate  DateTime?    @map("retire_date") @db.Date
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy   String?      @map("created_by")
-  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
-  updatedBy   String?      @map("updated_by")
-  memberships TeamMember[]
-
-  @@index([name])
-  @@index([createdAt], map: "member_created_at_idx")
-  @@index([updatedAt], map: "member_updated_at_idx")
-  @@map("member")
-}
-
-model TeamMember {
-  id              BigInt    @id @default(autoincrement())
-  teamId          BigInt    @map("team_id")
-  memberId        BigInt    @map("member_id")
-  activeStartDate DateTime  @map("active_start_date") @db.Date
-  activeEndDate   DateTime? @map("active_end_date") @db.Date
-  role            String?
-  displayOrder    Int?      @map("display_order")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy       String?   @map("created_by")
-  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  updatedBy       String?   @map("updated_by")
-  team            Team      @relation(fields: [teamId], references: [id])
-  member          Member    @relation(fields: [memberId], references: [id])
-
-  @@unique([memberId, teamId], map: "team_member_active_member_team_unique", where: raw("(active_end_date IS NULL)"))
-  @@index([teamId, memberId], map: "team_member_active_idx", where: raw("(active_end_date IS NULL)"))
-  @@index([teamId, displayOrder], map: "team_member_team_order_idx")
-  @@index([createdAt], map: "team_member_created_at_idx")
-  @@index([updatedAt], map: "team_member_updated_at_idx")
-  @@map("team_member")
-}
-
 model Product {
   id                   BigInt   @id @default(autoincrement())
   itemCode             String?  @map("item_code")
@@ -583,35 +521,6 @@ model AccountAddress {
   @@map("account_address")
 }
 
-model Card {
-  id                   BigInt   @id @default(autoincrement())
-  itemCode             String?  @map("item_code")
-  itemType             String   @default("photocard") @map("item_type")
-  teamId               BigInt?  @map("team_id")
-  memberId             BigInt?  @map("member_id")
-  seriesId             BigInt?  @map("series_id")
-  name                 String
-  description          String?
-  frontR2Key           String?  @map("front_r2_key")
-  retailPriceJpy       Int      @default(0) @map("retail_price_jpy")
-  pose                 Int      @default(1)
-  status               String   @default("active")
-  submittedByAccountId String?  @map("submitted_by_account_id") @db.Uuid
-  reviewNote           String?  @map("review_note")
-  analysisEmbedding    Json?    @map("analysis_embedding")
-  analysisModel        String?  @map("analysis_model")
-  analyzedAt           DateTime? @map("analyzed_at") @db.Timestamptz(6)
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@index([teamId, memberId], map: "card_team_member_idx")
-  @@index([seriesId], map: "card_series_idx")
-  @@index([status], map: "card_status_idx")
-  @@index([createdAt], map: "card_created_at_idx")
-  @@index([teamId, memberId], map: "card_analyzed_idx", where: raw("(analyzed_at IS NOT NULL)"))
-  @@map("card")
-}
-
 model UsedWishlist {
   id        BigInt   @id @default(autoincrement())
   accountId String   @map("account_id") @db.Uuid
@@ -829,37 +738,6 @@ model InventoryItem {
 
 // ── 카탈로그 시리즈 (그룹→멤버→종류→시리즈 계층의 최하위) ─────────────────────
 // 외부 분석기 sku가 단일 진실 — 임포트 시 find-or-create로 자동 생성.
-model Series {
-  id         BigInt   @id @default(autoincrement())
-  sku        String
-  teamId     BigInt?  @map("team_id")
-  kind       String
-  label      String
-  labelI18n  Json?    @map("label_i18n")
-  productUrl String?  @map("product_url")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([sku], map: "series_sku_unique")
-  @@index([teamId, kind], map: "series_team_kind_idx")
-  @@index([createdAt], map: "series_created_at_idx")
-  @@map("series")
-}
-
-model SeriesKind {
-  id           BigInt   @id @default(autoincrement())
-  key          String
-  label        String
-  displayOrder Int      @map("display_order")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([key], map: "series_kind_key_unique")
-  @@index([createdAt], map: "series_kind_created_at_idx")
-  @@index([updatedAt], map: "series_kind_updated_at_idx")
-  @@map("series_kind")
-}
-
 // ── 사이트 전역 설정 — 항상 1행(singleton, DB CHECK id=1) ────────────────────
 model SiteSetting {
   id               BigInt   @id

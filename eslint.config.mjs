@@ -51,6 +51,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Storybook build output.
     "storybook-static/**",
+    // Prisma generated clients (catalog DB) — npm run db:generate output.
+    "lib/generated/**",
   ]),
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],

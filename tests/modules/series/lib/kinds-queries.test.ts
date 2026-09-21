@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({
   seriesKind: { findMany: vi.fn() },
   series: { groupBy: vi.fn() },
 }));
-vi.mock("@/lib/db", () => ({ db: m }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: m }));
 
 import {
   buildKindLabelMap,

@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/lib/db", () => ({ db: mocks }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: mocks }));
 
 import {
   getCardAnalysisSummary,

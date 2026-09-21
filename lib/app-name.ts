@@ -16,6 +16,22 @@ export function isDevDeploy(): boolean {
   }
 }
 
+// 배포 환경 이름 — dev·prd 가 공유하는 데이터(카탈로그 DB)에 "어느 환경에서 생긴 행인지" 적을 때 쓴다.
+// 계정 id 는 환경별 커머스 DB 에만 있으므로, 공유 행의 account_id 는 같은 환경에서만 의미가 있다.
+export type DeployEnv = "dev" | "prd" | "local";
+
+export function deployEnvName(): DeployEnv {
+  const url = env.APP_URL;
+  if (!url) return "local";
+  try {
+    const host = new URL(url).hostname;
+    if (host === "localhost" || host === "127.0.0.1") return "local";
+    return host.startsWith("dev.") ? "dev" : "prd";
+  } catch {
+    return "local";
+  }
+}
+
 export function appDisplayName(base: string): string {
   return isDevDeploy() ? `${base} dev` : base;
 }
