@@ -26,7 +26,6 @@ const productInputBase = z.object({
     .optional()
     .transform((value) => (value === "" ? null : value)),
   // 외부 분석기 카드 고유 id — 일괄 가져오기 중복 판별/보유 체크 키. 외부 임포트만 채움.
-  sourceId: z.string().trim().min(1).max(64).nullable().optional(),
   itemType: z.enum(ITEM_TYPES),
   teamId: z.number().int().positive().nullable().optional(),
   memberId: z.number().int().positive().nullable().optional(),

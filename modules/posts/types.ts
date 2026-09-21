@@ -40,12 +40,11 @@ export type PostEventInfo = {
 };
 // 외부 링크 첨부 — http(s)만. label 없으면 도메인을 표시한다.
 export type PostLink = { url: string; label: string | null };
-// 첨부한 토레카(card 마스터) 요약 — 이미지·이름·일본 시세.
+// 첨부한 토레카(card 마스터) 요약 — 이미지·이름.
 export type PostCardRef = {
   id: number;
   name: string;
   imageUrl: string | null;
-  marketAvgJpy: number;
 };
 
 // 공개 DTO — account_id·신고자·스냅샷·타인 hidden_reason 미포함(프라이버시 §).

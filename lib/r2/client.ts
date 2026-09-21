@@ -17,3 +17,6 @@ export const r2Endpoint = env.R2_ENDPOINT;
 export const r2Bucket = env.R2_BUCKET;
 export const r2PublicBase = env.R2_PUBLIC_BASE;
 export const r2UgcBucket = env.R2_UGC_BUCKET;
+// 카탈로그 버킷(dev·prd 공유) — 카드 앞면 wm(공개)/clean(비공개) 두 벌. lib/r2/catalog.ts 가 쓴다.
+export const r2CatalogBucket = env.CATALOG_BUCKET;
+export const r2CatalogPublicBase = env.CATALOG_PUBLIC_BASE;

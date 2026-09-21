@@ -243,11 +243,6 @@ export function PostDetail({ view, isLoggedIn }: Props) {
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">이 글이 다루는 토레카</p>
             <p className="truncate font-semibold text-foreground">{post.card.name}</p>
-            {post.card.marketAvgJpy > 0 && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                일본 시세 평균 ≈ ¥{post.card.marketAvgJpy.toLocaleString()}
-              </p>
-            )}
           </div>
         </div>
       )}

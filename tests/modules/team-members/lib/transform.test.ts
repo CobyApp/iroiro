@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TeamMember as PrismaTeamMember } from "@prisma/client";
+import type { TeamMember as PrismaTeamMember } from "@/lib/generated/catalog-client";
 import { toTeamMember } from "@/modules/team-members/lib/transform";
 
 const row: PrismaTeamMember = {

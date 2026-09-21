@@ -27,6 +27,14 @@ const envSchema = z
     // UGC 전용 비공개 버킷(§결정 8) — products 공개 버킷과 분리. 서빙은 서명 GET만.
     // 자격증명은 상품용 R2_*를 공유한다(2026-08-02) — 운영 토큰 스코프에 이 버킷도 포함할 것.
     R2_UGC_BUCKET: z.string().min(1).default("iroiro-ugc-dev"),
+    // 카탈로그(토레카 마스터) 이미지 버킷 — dev·prd 가 **하나를 공유**한다(카탈로그 DB 와 짝).
+    // cards/wm/ 만 버킷 정책으로 공개(고객 화면), cards/clean/ 은 비공개(관리자 라우트 /media/catalog-clean 이 프록시).
+    // 자격증명은 R2_* 를 공유 — 두 환경 앱 IAM 사용자 모두 이 버킷 권한을 가져야 한다.
+    CATALOG_BUCKET: z.string().min(1).default("iroiro-catalog-dev"),
+    CATALOG_PUBLIC_BASE: z
+      .string()
+      .url()
+      .default("http://localhost:9000/iroiro-catalog-dev"),
     // 결제 게이트웨이 어댑터 선택. 실 PG 도입 시 enum에 "toss" 등 추가 + lib/payments 어댑터 구현.
     PAYMENT_PROVIDER: z.enum(["mock"]).default("mock"),
     // 웹 푸시(VAPID) — 미설정이면 푸시 발송만 조용히 비활성(인앱 알림은 동작).
@@ -43,12 +51,6 @@ const envSchema = z
     KAKAO_SCOPE: optionalString,
     NAVER_CLIENT_ID: z.string().min(1), // 필수 (네이버는 ID·시크릿 둘 다 필요)
     NAVER_CLIENT_SECRET: z.string().min(1), // 필수
-    // 외부 Cutie Card 분석기 API (card.taba.asia) — 관리자 카드 임포트용. 서버 전용(키 노출 X).
-    CUTIE_CARD_API_BASE: z.preprocess(
-      emptyToUndefined,
-      z.string().url().default("https://card.taba.asia"),
-    ),
-    CUTIE_CARD_API_KEY: optionalString,
     // 매입일 환율(JPY→KRW) 조회 API. 기본 Frankfurter(ECB, 키 불필요, 과거 영업일 지원).
     // 정식 호스트는 api.frankfurter.dev/v1 (.app은 301 리다이렉트).
     FX_API_BASE: z.preprocess(

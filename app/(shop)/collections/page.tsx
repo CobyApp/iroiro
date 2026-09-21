@@ -63,20 +63,15 @@ export default async function CollectionsPage() {
   const teamNames = Object.fromEntries(teams.map((t) => [t.id, t.name]));
   const memberNames = Object.fromEntries(members.map((m) => [m.id, m.name]));
 
-  // 보유 카드 앞/뒤 이미지 — 3D 뷰어 뒤집기용.
+  // 보유 카드 대표(앞면) 이미지 — 3D 확대 뷰어용. 토레카는 앞면만 다룬다.
   const products = inventory.length
     ? await getProductsByIds(inventory.map((e) => Number(e.productId)))
     : [];
-  const imagesByProduct: Record<
-    number,
-    { front: string | null; back: string | null }
-  > = {};
+  const imagesByProduct: Record<number, { front: string | null }> = {};
   for (const p of products) {
     const thumb = p.photos.find((ph) => ph.isThumbnail) ?? p.photos[0];
-    const back = p.photos.find((ph) => ph !== thumb) ?? null;
     imagesByProduct[Number(p.id)] = {
       front: thumb ? collectionPhotoUrl(thumb.id) : null,
-      back: back ? collectionPhotoUrl(back.id) : null,
     };
   }
 

@@ -1,97 +1,109 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  Download,
+  ClipboardCheck,
+  Layers,
   LayoutDashboard,
-  Menu,
+  Tag,
   User,
   Users,
   WalletCards,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
-import { AdminSidebar, type NavSection } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-// 카탈로그 전용 공간 메뉴 — 토레카 마스터 데이터만 다룬다(운영 관리자 메뉴와 분리).
-// 홈은 정확히 /catalog일 때만 활성(matchPrefix 없음), 나머지는 하위 경로까지 활성.
-const CATALOG_NAV_SECTIONS: NavSection[] = [
-  {
-    items: [{ label: "카탈로그 홈 · AI", href: "/catalog", icon: LayoutDashboard }],
-  },
-  {
-    title: "토레카",
-    items: [
-      {
-        label: "토레카",
-        href: "/catalog/cards",
-        icon: WalletCards,
-        matchPrefix: "/catalog/cards",
-      },
-      {
-        label: "분석기 가져오기",
-        href: "/catalog/import",
-        icon: Download,
-        matchPrefix: "/catalog/import",
-      },
-    ],
-  },
-  {
-    title: "아티스트",
-    items: [
-      {
-        label: "그룹",
-        href: "/catalog/teams",
-        icon: Users,
-        matchPrefix: "/catalog/teams",
-      },
-      {
-        label: "멤버",
-        href: "/catalog/members",
-        icon: User,
-        matchPrefix: "/catalog/members",
-      },
-    ],
-  },
+// 카탈로그 셸 — 이로이로 디자인 시스템(Storybook › Patterns › Navigation)의 알약(pill) 내비를 상단에 두고
+// 본문은 넓게 쓴다. 관리자(사이드바)와 구분되는 건 레이아웃이지 색·폰트가 아니다 — 토큰은 공통.
+// 홈은 정확히 /catalog 일 때만 활성, 나머지는 하위 경로까지 활성.
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const NAV: NavItem[] = [
+  { label: "홈", href: "/catalog", icon: LayoutDashboard, exact: true },
+  { label: "토레카", href: "/catalog/cards", icon: WalletCards },
+  { label: "검수", href: "/catalog/cards?view=pending", icon: ClipboardCheck },
+  { label: "시리즈", href: "/catalog/series", icon: Layers },
+  { label: "종류", href: "/catalog/kinds", icon: Tag },
+  { label: "그룹", href: "/catalog/teams", icon: Users },
+  { label: "멤버", href: "/catalog/members", icon: User },
 ];
 
-// 카탈로그 셸 — 관리자 셸과 같은 헤더/드로어/접기 UI를 쓰되, 배지와 메뉴만 카탈로그용.
-// 드로어·접기 로직은 AdminSidebar에 sections를 주입해 재사용한다(중복 구현 금지).
-export function CatalogShell({ children }: { children: React.ReactNode }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+function isActive(pathname: string, search: string, item: NavItem): boolean {
+  const [path, query] = item.href.split("?");
+  if (item.exact) return pathname === path;
+  if (query) return pathname === path && search.includes(query);
+  // 같은 경로에 쿼리로 구분되는 항목(검수)이 있으면, 쿼리 없는 항목은 그 쿼리가 아닐 때만 활성
+  const sibling = NAV.find((n) => n !== item && n.href.startsWith(`${path}?`));
+  if (sibling && search.includes(sibling.href.split("?")[1] ?? "")) return false;
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
+export function CatalogShell({
+  children,
+  appName,
+  isDev,
+}: {
+  children: React.ReactNode;
+  appName: string;
+  isDev: boolean;
+}) {
+  const pathname = usePathname();
+  // useSearchParams 는 Suspense 경계를 요구하므로 window 기반으로 가볍게 읽는다(활성 표시 용도).
+  const search = typeof window === "undefined" ? "" : window.location.search;
 
   return (
-    <div className="grid h-dvh grid-rows-[auto_1fr] bg-background">
-      <header className="flex items-center justify-between gap-2 border-b-[3px] border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            aria-label="메뉴 열기"
-            className="grid h-9 w-9 place-items-center rounded-md text-foreground hover:bg-muted md:hidden"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <BrandLockup
-            markClassName="h-9 w-9"
-            wordmarkClassName="h-6"
-            preload
-          />
-          <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            CATALOG
-          </span>
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 border-b-[3px] border-border bg-card/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <Link href="/catalog" className="flex items-center gap-2.5">
+            <BrandLockup wordmarkAlt={appName} />
+            <span className="hidden rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-[0.09em] text-accent sm:inline">
+              TRADING CARD ARCHIVE
+            </span>
+            {isDev && (
+              <span className="rounded-full bg-lemon px-2 py-0.5 text-[10px] font-medium text-ink">
+                dev
+              </span>
+            )}
+          </Link>
+          <AdminAccountMenu />
         </div>
-        <AdminAccountMenu />
+        <nav
+          aria-label="카탈로그 메뉴"
+          className="scroll-x mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2.5 sm:px-5"
+        >
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, search, item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted",
+                  active ? "bg-primary/10 text-primary" : "text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
-      <div className="grid min-h-0 grid-cols-1 md:grid-cols-[auto_1fr]">
-        <AdminSidebar
-          mobileOpen={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          sections={CATALOG_NAV_SECTIONS}
-          ariaLabel="카탈로그 메뉴"
-        />
-        <main className="min-w-0 overflow-y-auto">{children}</main>
-      </div>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <footer className="py-5 text-center text-[11px] text-muted-foreground">
+        {appName} · 토레카 마스터 데이터 관리 · site admin 전용
+      </footer>
     </div>
   );
 }

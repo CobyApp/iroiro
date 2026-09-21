@@ -21,6 +21,35 @@ export type CompressImageOptions = {
   watermark?: boolean;
 };
 
+// 두 벌 결과 — clean(원본, 비공개 보관)과 wm(워터마크, 공개 서빙). 같은 리사이즈 결과에서 인코딩만 두 번.
+export type ImageVariants = { clean: Buffer; wm: Buffer };
+
+function resizePipeline(input: Buffer, maxDim: number): Sharp {
+  return sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
+    .rotate()
+    .flatten({ background: "#ffffff" })
+    .resize(maxDim, maxDim, {
+      fit: "inside",
+      withoutEnlargement: true,
+      kernel: "lanczos3",
+    });
+}
+
+function encodeJpeg(pipeline: Sharp, quality: number): Promise<Buffer> {
+  return pipeline.jpeg({ quality, progressive: true, mozjpeg: true }).toBuffer();
+}
+
+// 리사이즈 결과의 raw 픽셀 — 워터마크는 실제 출력 크기에 맞춰야 하므로 크기를 먼저 얻는다.
+// raw 픽셀을 거쳐 합성하면 중간 JPEG 인코딩 없이 최종 1회만 인코딩한다.
+async function rawResized(input: Buffer, maxDim: number) {
+  const { data, info } = await resizePipeline(input, maxDim)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const fromRaw = () =>
+    sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } });
+  return { fromRaw, width: info.width, height: info.height };
+}
+
 export async function compressImageBuffer(
   input: Buffer,
   {
@@ -29,29 +58,25 @@ export async function compressImageBuffer(
     watermark = false,
   }: CompressImageOptions = {},
 ): Promise<Buffer> {
-  const resized = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
-    .rotate()
-    .flatten({ background: "#ffffff" })
-    .resize(maxDim, maxDim, {
-      fit: "inside",
-      withoutEnlargement: true,
-      kernel: "lanczos3",
-    });
+  if (!watermark) return encodeJpeg(resizePipeline(input, maxDim), quality);
+  const { fromRaw, width, height } = await rawResized(input, maxDim);
+  const overlay = await watermarkOverlaySvg(width, height);
+  return encodeJpeg(fromRaw().composite([{ input: overlay, blend: "over" }]), quality);
+}
 
-  const encode = (pipeline: Sharp) =>
-    pipeline.jpeg({ quality, progressive: true, mozjpeg: true }).toBuffer();
-
-  if (!watermark) return encode(resized);
-
-  // 워터마크는 실제 출력 크기에 맞춰야 하므로 리사이즈 결과의 픽셀·크기를 먼저 얻는다.
-  // raw 픽셀을 거쳐 합성하면 중간 JPEG 인코딩 없이 최종 1회만 인코딩한다.
-  const { data, info } = await resized
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const overlay = await watermarkOverlaySvg(info.width, info.height);
-  return encode(
-    sharp(data, {
-      raw: { width: info.width, height: info.height, channels: info.channels },
-    }).composite([{ input: overlay, blend: "over" }]),
-  );
+// 한 번 리사이즈해 clean·wm 두 벌을 만든다 — 상품 사진 업로드가 쓴다(저장은 두 키로).
+export async function compressImageVariants(
+  input: Buffer,
+  {
+    maxDim = COMPRESS_DEFAULT_MAX_DIM,
+    quality = COMPRESS_DEFAULT_QUALITY,
+  }: Omit<CompressImageOptions, "watermark"> = {},
+): Promise<ImageVariants> {
+  const { fromRaw, width, height } = await rawResized(input, maxDim);
+  const overlay = await watermarkOverlaySvg(width, height);
+  const [clean, wm] = await Promise.all([
+    encodeJpeg(fromRaw(), quality),
+    encodeJpeg(fromRaw().composite([{ input: overlay, blend: "over" }]), quality),
+  ]);
+  return { clean, wm };
 }

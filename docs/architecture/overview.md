@@ -59,8 +59,9 @@ db/schema.sql  DB 스키마 단일 진실 (Prisma schema는 db:pull 파생물)
 
 ## 데이터 한 줄 규칙
 
-- DB 접근은 `lib/db.ts`의 `db`(Prisma)만. 접속 롤은 **비특권 `app`** — GRANT 매트릭스가 DB 방어선이고 **RLS는 쓰지 않는다**([db-authorization-review](./db-authorization-review.md)).
-- 스키마 변경은 `db/schema.sql` 편집 → `npm run db:reset` → `npm run db:pull && npm run db:generate`. 새 테이블엔 GRANT를 함께 쓴다.
+- DB는 둘: 커머스 DB는 `lib/db.ts`의 `db`, **토레카 마스터(team·member·series·series_kind·card)는 dev·prd가 공유하는 카탈로그 DB** `lib/catalog-db.ts`의 `catalogDb`. 접속 롤은 **비특권 `app` / `catalog_app`** — GRANT 매트릭스가 DB 방어선이고 **RLS는 쓰지 않는다**([db-authorization-review](./db-authorization-review.md)). 두 DB 사이 조인·FK 없음(id 값 참조 + 앱에서 합침).
+- 스키마 변경은 `db/schema.sql`(커머스) / `db/catalog-schema.sql`(카탈로그) 끝에 `-- [timestamp_name]` 섹션 추가 → `npm run db:reset` → `npm run db:pull && npm run db:generate`. 새 테이블엔 GRANT를 함께 쓴다. dev/prd 적용은 배포 시 `scripts/db-migrate.mjs`(원오프 ECS 태스크)가 자동으로 한다.
+- 이미지는 두 벌: 카드 앞면·상품 사진은 업로드 시 clean(원본, 비공개)·wm(워터마크, 공개)을 함께 저장한다. 고객 화면 = wm, 카탈로그 관리·소유자 컬렉션·관리자 다운로드 = clean.
 - 소유권(내 주문·내 글)은 쿼리의 `WHERE account_id = 세션` — 앱 DAL 책임.
 
 ## 결정 트리 — "어디에 둘지" 30초 판단

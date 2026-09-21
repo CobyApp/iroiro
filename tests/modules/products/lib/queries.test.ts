@@ -10,8 +10,14 @@ vi.mock("@/lib/db", () => ({
   db: {
     product: { findMany: productFindMany, count: productCount },
     productPhoto: { findMany: photoFindMany },
+  },
+}));
+// 그룹·멤버 이름 검색 확장은 카탈로그 DB에서.
+vi.mock("@/lib/catalog-db", () => ({
+  catalogDb: {
     team: { findMany: teamFindMany },
     member: { findMany: memberFindMany },
+    series: { findMany: vi.fn(async () => []) },
   },
 }));
 
@@ -107,36 +113,23 @@ describe("listProducts", () => {
 });
 
 describe("listSiblingListings", () => {
-  it("source_id가 있으면 그것을 카드 키로 쓰고 자기 자신을 제외한다", async () => {
+  it("item_code를 카드 키로 쓰고 자기 자신을 제외한 판매중 매물만 본다", async () => {
     const { listSiblingListings } = await import(
       "@/modules/products/lib/queries"
     );
-    await listSiblingListings({ id: 10, sourceId: "77", itemCode: "CS-1" });
+    await listSiblingListings({ id: 10, itemCode: "CS-1" });
 
     const where = productFindMany.mock.calls[0][0].where;
-    expect(where.sourceId).toBe("77");
+    expect(where.itemCode).toBe("CS-1");
     expect(where.id).toEqual({ not: 10n });
     expect(where.saleStatus).toBe("active");
   });
 
-  it("source_id가 없으면 item_code로 폴백한다", async () => {
+  it("카드 키(item_code)가 없으면 조회 없이 빈 배열", async () => {
     const { listSiblingListings } = await import(
       "@/modules/products/lib/queries"
     );
-    await listSiblingListings({ id: 10, sourceId: null, itemCode: "CS-1" });
-
-    expect(productFindMany.mock.calls[0][0].where.itemCode).toBe("CS-1");
-  });
-
-  it("카드 키가 전혀 없으면 조회 없이 빈 배열", async () => {
-    const { listSiblingListings } = await import(
-      "@/modules/products/lib/queries"
-    );
-    const rows = await listSiblingListings({
-      id: 10,
-      sourceId: null,
-      itemCode: null,
-    });
+    const rows = await listSiblingListings({ id: 10, itemCode: null });
 
     expect(rows).toEqual([]);
     expect(productFindMany).not.toHaveBeenCalled();
@@ -146,8 +139,7 @@ describe("listSiblingListings", () => {
 describe("listRelatedProducts", () => {
   const base = {
     id: 10,
-    sourceId: "77",
-    itemCode: null,
+    itemCode: "CS-1",
     memberId: 3,
     seriesId: 5,
     teamId: 1,
@@ -165,14 +157,14 @@ describe("listRelatedProducts", () => {
     expect(productFindMany.mock.calls[2][0].where.teamId).toBe(1n);
   });
 
-  it("같은 카드(source_id) 매물은 추천에서 제외한다", async () => {
+  it("같은 카드(item_code) 매물은 추천에서 제외한다", async () => {
     const { listRelatedProducts } = await import(
       "@/modules/products/lib/queries"
     );
     await listRelatedProducts(base, 8);
 
     expect(productFindMany.mock.calls[0][0].where.NOT).toEqual({
-      sourceId: "77",
+      itemCode: "CS-1",
     });
   });
 
@@ -180,7 +172,6 @@ describe("listRelatedProducts", () => {
     const row = (id: bigint) => ({
       id,
       itemCode: null,
-      sourceId: null,
       itemType: "photocard",
       teamId: null,
       memberId: null,

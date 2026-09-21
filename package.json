@@ -11,9 +11,9 @@
     "services:status": "docker compose ps",
     "db:reset": "sh scripts/db-reset.sh",
     "db:pull": "dotenv -e .env.local -- prisma db pull",
-    "db:generate": "dotenv -e .env.local -- prisma generate",
+    "db:generate": "dotenv -e .env.local -- prisma generate && dotenv -e .env.local -- prisma generate --config prisma.catalog.config.ts",
     "db:studio": "dotenv -e .env.local -- prisma studio",
-    "build": "prisma generate && next build --webpack",
+    "build": "prisma generate && prisma generate --config prisma.catalog.config.ts && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -27,7 +27,8 @@
     "prepare": "husky",
     "secretlint": "secretlint --secretlintignore .gitignore '**/*'",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "db:pull:catalog": "dotenv -e .env.local -- prisma db pull --config prisma.catalog.config.ts"
   },
   "lint-staged": {
     "*": [

@@ -3,18 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import {
   DomainError,
   runAction,
   type ActionResult,
 } from "@/lib/action-result";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
 
-// 시리즈 관리 — 카탈로그 동기화가 채우는 데이터를 관리자가 보정·추가·정리한다.
+// 시리즈 관리 — 카탈로그 공간에서 관리자가 추가·보정·정리한다.
+// label 은 원본 표기(대개 일본어), labelKo 는 한국어 병기(label_i18n.ko).
 
 const seriesInputSchema = z.object({
   sku: z.string().trim().min(1, "SKU를 입력해주세요").max(120),
   label: z.string().trim().min(1, "시리즈 이름을 입력해주세요").max(200),
+  labelKo: z.string().trim().max(200).nullable().optional(),
   kind: z.string().trim().min(1, "종류를 입력해주세요").max(50),
   teamId: z.number().int().positive().nullable(),
 });
@@ -23,6 +27,13 @@ export type SeriesInput = z.infer<typeof seriesInputSchema>;
 
 function revalidateCatalog() {
   revalidatePath("/catalog");
+  revalidatePath("/catalog/series");
+  revalidatePath("/catalog/cards");
+}
+
+// 한국어 병기 → label_i18n. 비우면 null(컬럼 NULL).
+function labelI18nOf(labelKo: string | null | undefined) {
+  return labelKo ? { ko: labelKo } : null;
 }
 
 export async function createSeries(
@@ -37,14 +48,15 @@ export async function createSeries(
         "invalid_input",
       );
     }
-    const dup = await db.series.findUnique({
+    const dup = await catalogDb.series.findUnique({
       where: { sku: parsed.data.sku },
     });
     if (dup) throw new DomainError("이미 있는 SKU예요", "duplicate_sku");
-    const row = await db.series.create({
+    const row = await catalogDb.series.create({
       data: {
         sku: parsed.data.sku,
         label: parsed.data.label,
+        labelI18n: labelI18nOf(parsed.data.labelKo) ?? undefined,
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),
@@ -68,18 +80,19 @@ export async function updateSeries(
         "invalid_input",
       );
     }
-    const dup = await db.series.findUnique({
+    const dup = await catalogDb.series.findUnique({
       where: { sku: parsed.data.sku },
       select: { id: true },
     });
     if (dup && Number(dup.id) !== id) {
       throw new DomainError("이미 있는 SKU예요", "duplicate_sku");
     }
-    await db.series.update({
+    await catalogDb.series.update({
       where: { id: BigInt(id) },
       data: {
         sku: parsed.data.sku,
         label: parsed.data.label,
+        labelI18n: labelI18nOf(parsed.data.labelKo) ?? Prisma.DbNull,
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),
@@ -112,7 +125,7 @@ export async function deleteSeries(id: number): Promise<ActionResult> {
         "series_in_use",
       );
     }
-    await db.series.delete({ where: { id: BigInt(id) } });
+    await catalogDb.series.delete({ where: { id: BigInt(id) } });
     revalidateCatalog();
   });
 }

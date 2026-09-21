@@ -8,6 +8,7 @@ import {
   runAction,
 } from "@/lib/action-result";
 import { db } from "@/lib/db";
+import { catalogDb } from "@/lib/catalog-db";
 import { isNotFoundError } from "@/lib/prisma-errors";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
 import {
@@ -18,7 +19,7 @@ import {
 } from "./lib/schema";
 import { toTeam } from "./lib/transform";
 import type { Team } from "./types";
-import { Prisma } from "@prisma/client";
+import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
 
 // update 대상이 없을 때(P2025) not-found를 예상 도메인 오류로 결과화.
 async function mapTeamWriteError<T>(work: () => Promise<T>): Promise<T> {
@@ -37,15 +38,17 @@ export async function createTeam(
     await requireAdmin();
     const data = parseActionInput(teamCreateSchema, input);
 
-    const row = await db.team.create({
+    const row = await catalogDb.team.create({
       data: {
         name: data.name,
         nameI18n: data.nameI18n ?? undefined,
         debutDate: data.debutDate ? new Date(data.debutDate) : null,
         disbandDate: data.disbandDate ? new Date(data.disbandDate) : null,
+        themeColor: data.themeColor ?? null,
       },
     });
     revalidatePath("/catalog/teams");
+    revalidatePath("/catalog");
     return toTeam(row);
   });
 }
@@ -67,15 +70,17 @@ export async function updateTeam(
       patch.debutDate = data.debutDate ? new Date(data.debutDate) : null;
     if (data.disbandDate !== undefined)
       patch.disbandDate = data.disbandDate ? new Date(data.disbandDate) : null;
+    if (data.themeColor !== undefined) patch.themeColor = data.themeColor;
 
     const row = await mapTeamWriteError(() =>
-      db.team.update({
+      catalogDb.team.update({
         where: { id: BigInt(data.id) },
         data: patch,
       }),
     );
     revalidatePath("/catalog/teams");
     revalidatePath(`/catalog/teams/${data.id}/edit`);
+    revalidatePath("/catalog");
     return toTeam(row);
   });
 }
@@ -98,11 +103,11 @@ export async function deleteTeam(id: number): Promise<ActionResult> {
     }
 
     const teamIdBig = BigInt(id);
-    const existing = await db.team.findUnique({ where: { id: teamIdBig } });
+    const existing = await catalogDb.team.findUnique({ where: { id: teamIdBig } });
     if (!existing) throw new DomainError("그룹을 찾을 수 없습니다");
 
     const [memberRefs, productRefs] = await Promise.all([
-      db.teamMember.count({ where: { teamId: teamIdBig } }),
+      catalogDb.teamMember.count({ where: { teamId: teamIdBig } }),
       db.product.count({ where: { teamId: teamIdBig } }),
     ]);
     if (memberRefs > 0 || productRefs > 0) {
@@ -110,7 +115,7 @@ export async function deleteTeam(id: number): Promise<ActionResult> {
     }
 
     // 사전 조회~delete 사이 TOCTOU 삭제 시 P2025 → not-found로 결과화.
-    await mapTeamWriteError(() => db.team.delete({ where: { id: teamIdBig } }));
+    await mapTeamWriteError(() => catalogDb.team.delete({ where: { id: teamIdBig } }));
     revalidatePath("/catalog/teams");
   });
 }

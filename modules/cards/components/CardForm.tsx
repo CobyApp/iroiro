@@ -21,7 +21,7 @@ import {
   submitCardReport,
   type CardInput,
 } from "../actions";
-import { cardFrontUrl, type Card } from "../types";
+import { cardImageSrc, type Card, type CardImageView } from "../types";
 import {
   SERIES_KIND_OPTIONS,
   seriesKindLabel,
@@ -50,13 +50,13 @@ export function CardForm({
   teams,
   members,
   series,
-  publicBaseUrl,
+  imageView,
 }: {
   mode: "admin" | "user";
   teams: TeamOption[];
   members: MemberOption[];
   series: SeriesOption[];
-  publicBaseUrl: string;
+  imageView: CardImageView;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -70,7 +70,6 @@ export function CardForm({
   const [newSeriesLabel, setNewSeriesLabel] = useState("");
   const [newSeriesKind, setNewSeriesKind] = useState("random");
   const [front, setFront] = useState<UploadedCardPhoto | null>(null);
-  const [back, setBack] = useState<UploadedCardPhoto | null>(null);
   const [existing, setExisting] = useState<Card[]>([]);
   const [checkedExisting, setCheckedExisting] = useState(false);
 
@@ -156,7 +155,6 @@ export function CardForm({
       memberId,
       seriesId,
       frontR2Key: front.r2Key,
-      backR2Key: back?.r2Key ?? null,
     };
     startTransition(async () => {
       const result =
@@ -174,7 +172,6 @@ export function CardForm({
         toast.success("제보 완료! 승인되면 100P가 적립돼요");
         router.refresh();
         setFront(null);
-        setBack(null);
         setSeriesId(null);
         setExisting([]);
         setCheckedExisting(false);
@@ -360,7 +357,7 @@ export function CardForm({
           </p>
           <HScroll className="scroll-x mt-2 flex gap-2 overflow-x-auto pb-1">
             {existing.map((card) => {
-              const url = cardFrontUrl(card, publicBaseUrl);
+              const url = cardImageSrc(card, imageView);
               return (
                 <figure key={card.id} className="w-20 shrink-0">
                   <div className="aspect-[63/88] overflow-hidden rounded-sm border border-border bg-muted">
@@ -389,10 +386,9 @@ export function CardForm({
         </p>
       )}
 
-      {/* 앞/뒷면 이미지 */}
-      <div className="grid max-w-sm grid-cols-2 gap-3">
+      {/* 앞면 이미지 — 토레카는 앞면만 보관한다 */}
+      <div className="max-w-[11rem]">
         <CardPhotoInput label="앞면" required value={front} onChange={setFront} />
-        <CardPhotoInput label="뒷면" value={back} onChange={setBack} />
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
         카드는 <b className="text-foreground">Google PhotoScan</b>으로 찍어주세요
@@ -407,7 +403,7 @@ export function CardForm({
           frontR2Key={front.r2Key}
           teamId={teamId}
           memberId={memberId}
-          publicBaseUrl={publicBaseUrl}
+          imageView={imageView}
         />
       )}
 

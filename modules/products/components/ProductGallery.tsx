@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { RotateCw, ZoomIn } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "./ProductImage";
 import { CardViewer3D, type Viewer3DCard } from "@/components/CardViewer3D";
+
 export type CustomerProductPhoto = {
   id: number;
   altText: string | null;
@@ -18,10 +18,10 @@ type Props = {
   altFallback: string;
 };
 
-// 포토카드 앞/뒤 3D 플립 히어로 + 라이트박스.
-// 앞면=photos[0], 뒷면=photos[1](있으면). 나머지 사진은 썸네일→라이트박스로 열람.
+// 상품 사진 히어로 + 3D 확대. 토레카는 앞면만 다루므로 뒤집기는 없다 —
+// 사진이 여러 장이면 아래 썸네일로 히어로를 바꾸고, 확대 버튼은 현재 사진을 3D 뷰어로 연다.
 export function ProductGallery({ photos, altFallback }: Props) {
-  const [flipped, setFlipped] = useState(false);
+  const [index, setIndex] = useState(0);
   const [viewer, setViewer] = useState<Viewer3DCard | null>(null);
 
   if (photos.length === 0) {
@@ -30,83 +30,55 @@ export function ProductGallery({ photos, altFallback }: Props) {
     );
   }
 
-  const front = photos[0];
-  const back = photos.length > 1 ? photos[1] : null;
-  const src = (photo: CustomerProductPhoto) => photo.url;
+  const current = photos[Math.min(index, photos.length - 1)];
 
   return (
     <>
       <div className="mx-auto w-full max-w-[360px] space-y-3 sm:max-w-[420px]">
-        <div className="relative aspect-[3/4] [perspective:1200px]">
-          {/* 플립 이너 */}
-          <div
-            className={cn(
-              "relative h-full w-full [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(.2,.7,.3,1.35)]",
-              flipped && "[transform:rotateY(180deg)]",
-            )}
-          >
-            {/* 앞면 */}
-            <div className="absolute inset-0 overflow-hidden rounded-md border border-border bg-muted shadow-card [backface-visibility:hidden]">
-              <Badge className="absolute left-3 top-3 z-10">앞면</Badge>
-              <ProductImage
-                src={src(front)}
-                alt={front.altText ?? altFallback}
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-            </div>
-            {/* 뒷면 */}
-            {back && (
-              <div className="absolute inset-0 overflow-hidden rounded-md border border-border bg-muted shadow-card [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                <Badge
-                  variant="secondary"
-                  className="absolute left-3 top-3 z-10"
-                >
-                  뒷면
-                </Badge>
-                <ProductImage
-                  src={src(back)}
-                  alt={back.altText ?? `${altFallback} 뒷면`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 줌 버튼 */}
+        <div className="relative aspect-[3/4] overflow-hidden rounded-md border border-border bg-muted shadow-card">
+          <ProductImage
+            src={current.url}
+            alt={current.altText ?? altFallback}
+            className="h-full w-full object-cover"
+            loading="eager"
+          />
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              setViewer({
-                front: src(front),
-                back: back ? src(back) : null,
-                title: altFallback,
-              })
-            }
+            onClick={() => setViewer({ front: current.url, title: altFallback })}
             className="absolute right-3 top-3 z-20 h-8 gap-1 bg-card/95 px-2.5 text-xs shadow-card"
-            aria-label="3D 카드 확대 보기"
+            aria-label="카드 확대 보기"
           >
             <ZoomIn className="h-3.5 w-3.5" />
-            3D 보기
+            확대
           </Button>
-
-          {/* 플립 버튼 (뒷면 있을 때만) */}
-          {back && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setFlipped((v) => !v)}
-              className="absolute bottom-3 left-1/2 z-20 h-8 -translate-x-1/2 gap-1.5 px-3 text-xs shadow-card"
-            >
-              <RotateCw className="h-3.5 w-3.5" />
-              {flipped ? "앞면 보기" : "뒤집어 보기"}
-            </Button>
-          )}
         </div>
+
+        {photos.length > 1 && (
+          <div className="scroll-x flex gap-2 overflow-x-auto pb-1">
+            {photos.map((photo, i) => (
+              <button
+                key={photo.id}
+                type="button"
+                onClick={() => setIndex(i)}
+                aria-label={`${i + 1}번 사진 보기`}
+                aria-pressed={i === index}
+                className={cn(
+                  "aspect-[3/4] w-14 shrink-0 overflow-hidden rounded-sm border transition-colors",
+                  i === index ? "border-primary" : "border-border hover:border-primary/50",
+                )}
+              >
+                <ProductImage
+                  src={photo.url}
+                  alt={photo.altText ?? `${altFallback} ${i + 1}`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <CardViewer3D card={viewer} onClose={() => setViewer(null)} />

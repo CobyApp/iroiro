@@ -19,10 +19,9 @@
 | 종류 | 위치 | 누가 넣나 |
 |---|---|---|
 | 🔒 시크릿 | SSM Parameter Store **`/iroiro/<env>/<NAME>`**(SecureString, ap-northeast-2). ECS 태스크 실행 롤이 기동 시 주입 | `infra/aws/setup.sh core`가 placeholder(`CHANGE_ME`) 또는 자동 생성값을 만들고, 사람이 `aws ssm put-parameter --overwrite`로 채운다. `setup.sh db`가 `DATABASE_URL`을, `core`가 S3 키·`CRON_SECRET`을 자동 생성 |
-| 일반 값 | ECS 태스크 정의의 `environment`(`APP_URL`, `R2_ENDPOINT`, `R2_REGION`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET`, `PAYMENT_PROVIDER`, `NEXT_TELEMETRY_DISABLED`) | `setup.sh ecs`가 환경별로 고정 |
+| 일반 값 | ECS 태스크 정의의 `environment`(`APP_URL`, `R2_ENDPOINT`, `R2_REGION`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET`, `CATALOG_BUCKET`, `CATALOG_PUBLIC_BASE`, `PAYMENT_PROVIDER`, `NEXT_TELEMETRY_DISABLED`) | `setup.sh ecs`가 환경별로 고정(`container_json`) |
 | 빌드 타임 공개 값 | GitHub Environment 변수(`NEXT_PUBLIC_VAPID_PUBLIC_KEY`) | `setup.sh github` / 사람 |
 
-SSM 시크릿 목록(`setup.sh`): `DATABASE_URL`, `DATABASE_URL_OWNER`(스키마 적용 전용, 앱 미주입), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `CUTIE_CARD_API_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`.
 값을 바꾼 뒤에는 `aws ecs update-service --cluster iroiro --service iroiro-<env> --force-new-deployment`로 재기동해야 반영된다. 전체 절차는 [deployment.md](./deployment.md).
 
 CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 검증을 통과시키고, 실제 값은 런타임에 ECS가 주입한다.
@@ -31,7 +30,9 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `DATABASE_URL` 🔒 | ⚙️ 운영 필수 | Prisma(`lib/db.ts`, adapter-pg) 연결 문자열. **비특권 `app` 롤로 접속한다** — 소유자 `postgres`로 붙으면 GRANT가 무효라 soft delete 강제 등 DB 방어선이 작동하지 않는다([db-authorization-review](./architecture/db-authorization-review.md)). 로컬: `npm run db:reset`이 `db/schema.sql` 적용 + `ALTER ROLE app WITH LOGIN`을 실행하므로 `postgresql://app:app@127.0.0.1:5432/iroiro` 그대로. `env.ts` 검증 밖이지만 없으면 `prisma generate`부터 실패. dev/prd: RDS `iroiro-<env>`, `setup.sh db`가 생성해 SSM에 넣는다(`sslmode=verify-full&sslrootcert=/app/rds-ca.pem` 포함). 비밀번호 특수문자 주의 → [lessons/10](./lessons/10-database-url-password.md) |
+| `DATABASE_URL` 🔒 | ⚙️ 운영 필수 | 커머스 DB — Prisma(`lib/db.ts`, adapter-pg) 연결 문자열. **비특권 `app` 롤로 접속한다** — 소유자 `postgres`로 붙으면 GRANT가 무효라 soft delete 강제 등 DB 방어선이 작동하지 않는다([db-authorization-review](./architecture/db-authorization-review.md)). 로컬: `npm run db:reset`이 `db/schema.sql` 적용 + `ALTER ROLE app WITH LOGIN`을 실행하므로 `postgresql://app:app@127.0.0.1:5432/iroiro` 그대로. `env.ts` 검증 밖이지만 없으면 `prisma generate`부터 실패. dev/prd: RDS `iroiro-<env>`, `setup.sh db`가 생성해 SSM에 넣는다(`sslmode=verify-full&sslrootcert=/app/rds-ca.pem` 포함). 비밀번호 특수문자 주의 → [lessons/10](./lessons/10-database-url-password.md) |
+| `CATALOG_DATABASE_URL` 🔒 | ⚙️ 운영 필수 | **카탈로그 DB**(토레카 마스터: team·member·team_member·series·series_kind·card) — `lib/catalog-db.ts`의 `catalogDb`. dev·prd가 **같은 DB 하나**를 공유한다(운영 RDS `iroiro-prd` 안 `iroiro_catalog`, 비특권 `catalog_app` 롤). 로컬: compose의 `iroiro_catalog`, `postgresql://catalog_app:app@127.0.0.1:5432/iroiro_catalog`. 정본은 `db/catalog-schema.sql`, Prisma는 `prisma/catalog.prisma`(`npm run db:pull:catalog`) |
+| `DATABASE_URL_OWNER`, `CATALOG_DATABASE_URL_OWNER` 🔒 | ◯ 마이그레이션 태스크 전용 | 소유자 롤 연결 문자열. 앱 컨테이너에는 주입하지 않고, 배포 시 `iroiro-migrate-<env>` 원오프 태스크(`scripts/db-migrate.mjs`)만 받는다. SSM `/iroiro/<env>/…` |
 
 ## 스토리지 (AWS S3 / 로컬 MinIO)
 
@@ -46,6 +47,8 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 | `R2_BUCKET` | ⚙️ 운영 필수 | 공개 버킷 이름(상품 `products/`·공지 `notices/`·배너 `banners/`·아바타 `avatars/`). 기본 `iroiro-products-dev`. 운영: `iroiro-kr-products-<env>`(버킷 정책 public read) |
 | `R2_PUBLIC_BASE` | ⚙️ 운영 필수 | 공지·배너·관리 미리보기용 공개 객체 URL 베이스. 로컬 `http://localhost:9000/iroiro-products-dev`, 운영 `https://iroiro-kr-products-<env>.s3.ap-northeast-2.amazonaws.com`. 고객용 상품 사진은 이 주소를 노출하지 않고 `/media/product-*`에서 워터마크 처리한다([product-image-protection](./product-image-protection.md)) |
 | `R2_UGC_BUCKET` | ⚙️ 운영 필수 | UGC(게시판) 사진 전용 **비공개** 버킷. 기본 `iroiro-ugc-dev`. 운영 `iroiro-kr-ugc-<env>`(public access block, `posts/tmp/` 1일 만료 lifecycle). 서빙은 서명 GET만. 자격증명은 위 `R2_*` 공유 |
+| `CATALOG_BUCKET` | ⚙️ 운영 필수 | 카탈로그(토레카 앞면) 버킷 — dev·prd **공유** `iroiro-kr-catalog`(로컬 MinIO `iroiro-catalog-dev`). 카드 한 장 = `cards/wm/<uuid>.jpg`(워터마크·공개) + `cards/clean/<uuid>.jpg`(원본·비공개, `/media/catalog-clean` 관리자 라우트로만). 버킷 정책은 `cards/wm/*`만 public read. 자격증명은 `R2_*` 공유(두 환경 앱 IAM 사용자 모두 권한, `setup.sh catalog`) |
+| `CATALOG_PUBLIC_BASE` | ⚙️ 운영 필수 | 카탈로그 버킷 공개 URL 베이스 — 고객 화면의 카드 이미지(`cardFrontUrl`). 운영 `https://iroiro-kr-catalog.s3.ap-northeast-2.amazonaws.com` |
 
 ## OAuth 소셜 로그인 (카카오 · 네이버)
 
@@ -84,8 +87,6 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `CUTIE_CARD_API_BASE` | ◯ 선택 | Cutie Card 분석기 API 베이스 URL. 기본 `https://card.taba.asia`. 관리자 카드 임포트가 `{BASE}/api/v1/collection`을 호출한다([cutie-card.ts](../modules/import/lib/cutie-card.ts)) |
-| `CUTIE_CARD_API_KEY` 🔒 | ◯ 조건부 | Cutie Card API 키. **미설정 시 `env.ts` 검증은 통과하지만 카드 임포트 실행 시점에 에러로 실패한다.** 관리자 임포트 기능을 쓸 때만 필요. SSM |
 | `FX_API_BASE` | ◯ 선택 | 매입일 환율(JPY→KRW) 조회 API. 기본 [Frankfurter](https://frankfurter.dev)(ECB 기준, 키 불필요, 과거 영업일 지원). 정식 호스트는 `https://api.frankfurter.dev/v1` — `.app` 도메인은 301 리다이렉트 |
 
 ## 런타임 토글

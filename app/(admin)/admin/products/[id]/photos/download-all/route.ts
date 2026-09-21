@@ -4,8 +4,8 @@ import { createRequire } from "node:module";
 import { Readable } from "node:stream";
 import type archiverType from "archiver";
 import { type NextRequest, NextResponse } from "next/server";
-import { fetchR2Object } from "@/lib/r2/get";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { fetchProductPhotoOriginal } from "@/modules/products/lib/photo-source";
 import {
   buildContentDisposition,
   buildPhotoFilename,
@@ -56,7 +56,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const fetched = await Promise.all(
     context.photos.map(async (photo) => {
       try {
-        const obj = await fetchR2Object(photo.r2Key);
+        const obj = await fetchProductPhotoOriginal(photo.r2Key);
         const filename = buildPhotoFilename({
           productName: context.productName,
           memberName: context.memberName,

@@ -9,6 +9,11 @@
 #   ./infra/aws/setup.sh github    GitHub environment variables for deploy.yml (+ DEPLOY_ENABLED gate)
 #   ./infra/aws/setup.sh domains   ACM cert (Tokyo) + ALB host rules → prints DNS records for Squarespace
 #   ./infra/aws/setup.sh cron      EventBridge → /api/cron/close-auctions every 10 min
+#   ./infra/aws/setup.sh catalog   Shared catalog (dev+prd): S3 bucket (cards/wm public, cards/clean private),
+#                                  app-user S3 policy, SSM placeholders for CATALOG_DATABASE_URL(_OWNER).
+#                                  Then run `ecs` (pushes the new env/secrets) and `domains`.
+#   ./infra/aws/setup.sh migrate   Fargate task definitions iroiro-migrate-<env> (scripts/db-migrate.mjs)
+#                                  + deploy-role permissions so deploy.yml can run them.
 #   ./infra/aws/setup.sh status    Summary
 #
 # Env overrides: AWS_PROFILE (default personal), ENVS (default "dev prd"), IMAGE_ONLY=1 (github phase).
@@ -51,6 +56,29 @@ service_trust() { echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\
 default_vpc()  { aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text; }
 express_arn()  { aws ecs list-services --cluster "$APP" --query "serviceArns[?ends_with(@, '/${APP}-$1')] | [0]" --output text 2>/dev/null || echo None; }
 
+# Shared catalog bucket (one for dev+prd — the trading-card master is shared, see docs/deployment.md §카탈로그).
+CATALOG_BUCKET="${APP}-kr-catalog"
+catalog_public_base() { echo "https://${CATALOG_BUCKET}.s3.${REGION}.amazonaws.com"; }
+
+# Public-read policy for the products bucket — prefix allow-list. products/clean/ (watermark-free originals)
+# stays private and is served only through owner/admin routes; cards/original/ is the legacy card location
+# (public until the catalog bucket cut-over is complete).
+products_bucket_policy() { # bucket
+  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadPrefixes\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":[\"arn:aws:s3:::$1/products/original/*\",\"arn:aws:s3:::$1/notices/*\",\"arn:aws:s3:::$1/banners/*\",\"arn:aws:s3:::$1/avatars/*\",\"arn:aws:s3:::$1/used/*\",\"arn:aws:s3:::$1/cards/original/*\"]}]}"
+}
+app_user_s3_policy() { # pub ugc
+  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\",\"arn:aws:s3:::$2\",\"arn:aws:s3:::$2/*\",\"arn:aws:s3:::${CATALOG_BUCKET}\",\"arn:aws:s3:::${CATALOG_BUCKET}/*\"]}]}"
+}
+
+# Express primary container JSON for an environment — single source for `ecs` (create/update).
+container_json() { # env image
+  local e=$1 image=$2 dom lg="/ecs/${APP}-$1"; dom=$(domain_for "$e")
+  local secrets="["; for s in DATABASE_URL CATALOG_DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
+    secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
+  local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"CATALOG_BUCKET\",\"value\":\"${CATALOG_BUCKET}\"},{\"name\":\"CATALOG_PUBLIC_BASE\",\"value\":\"$(catalog_public_base)\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
+  echo "{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"
+}
+
 # ───────────────────────────── core ─────────────────────────────
 phase_core() {
   say "ECR repository"
@@ -81,7 +109,7 @@ phase_core() {
     # products: public read (catalog images are served by URL)
     aws s3api put-public-access-block --bucket "$pub" --public-access-block-configuration \
       "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-    aws s3api put-bucket-policy --bucket "$pub" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicRead\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${pub}/*\"}]}"
+    aws s3api put-bucket-policy --bucket "$pub" --policy "$(products_bucket_policy "$pub")"
     # ugc: private, signed GET only; tmp uploads expire after a day
     aws s3api put-public-access-block --bucket "$ugc" --public-access-block-configuration \
       "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
@@ -96,7 +124,7 @@ phase_core() {
     say "App IAM user for S3 ($e)"
     local user="${APP}-app-${e}"
     aws iam get-user --user-name "$user" >/dev/null 2>&1 || aws iam create-user --user-name "$user" --tags "Key=app,Value=$APP" >/dev/null
-    aws iam put-user-policy --user-name "$user" --policy-name s3-buckets --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::${pub}\",\"arn:aws:s3:::${pub}/*\",\"arn:aws:s3:::${ugc}\",\"arn:aws:s3:::${ugc}/*\"]}]}"
+    aws iam put-user-policy --user-name "$user" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc")"
     if ! aws ssm get-parameter --name "/${APP}/${e}/R2_ACCESS_KEY_ID" >/dev/null 2>&1; then
       local key; key=$(aws iam create-access-key --user-name "$user" --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
       ssm_put_if_missing "/${APP}/${e}/R2_ACCESS_KEY_ID"     "$(echo "$key" | cut -f1)"
@@ -104,7 +132,7 @@ phase_core() {
     else ok "access key already stored in SSM"; fi
 
     say "SSM placeholders for app secrets ($e)"
-    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET CUTIE_CARD_API_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do
+    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT; do
       ssm_put_if_missing "/${APP}/${e}/${s}" "CHANGE_ME"
     done
     ssm_put_if_missing "/${APP}/${e}/CRON_SECRET" "$(rand)"
@@ -204,11 +232,7 @@ phase_ecs() {
     local image="${ECR_URI}:${e}-latest"
     aws ecr describe-images --repository-name "$APP" --image-ids "imageTag=${e}-latest" >/dev/null 2>&1 \
       || die "image ${image} not found — push it first (CI on branch '$(branch_for "$e")', or docker push)"
-    local dom; dom=$(domain_for "$e")
-    local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET CUTIE_CARD_API_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
-      secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
-    local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
-    local container="{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"
+    local container; container=$(container_json "$e" "$image")
     local cpu=512 mem=1024 max=2; [ "$e" = prd ] && { cpu=1024; mem=2048; max=3; }
     local arn; arn=$(express_arn "$e")
     if [ "$arn" = "None" ] || [ -z "$arn" ]; then
@@ -333,6 +357,67 @@ phase_cron() {
   done
 }
 
+# ───────────────────────────── catalog ─────────────────────────────
+# Shared trading-card master: one S3 bucket for both environments (wm public / clean private) and SSM
+# placeholders for the shared catalog DB URLs. The catalog database itself lives inside the prd RDS
+# instance and is created over the SSM bastion tunnel (docs/deployment.md §카탈로그 DB) — not here.
+phase_catalog() {
+  say "S3 catalog bucket $CATALOG_BUCKET (shared)"
+  if ! aws s3api head-bucket --bucket "$CATALOG_BUCKET" 2>/dev/null; then
+    aws s3api create-bucket --bucket "$CATALOG_BUCKET" --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
+  fi
+  aws s3api put-bucket-tagging --bucket "$CATALOG_BUCKET" --tagging "TagSet=[{Key=app,Value=$APP},{Key=env,Value=shared}]"
+  aws s3api put-bucket-encryption --bucket "$CATALOG_BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+  aws s3api put-public-access-block --bucket "$CATALOG_BUCKET" --public-access-block-configuration \
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
+  # Only the watermarked variant is public; clean originals are proxied by /media/catalog-clean (site admin).
+  aws s3api put-bucket-policy --bucket "$CATALOG_BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadWatermarked\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${CATALOG_BUCKET}/cards/wm/*\"}]}"
+  ok "$CATALOG_BUCKET (public: cards/wm/* only) → $(catalog_public_base)"
+
+  for e in $ENVS; do
+    say "App IAM user S3 policy + products bucket prefix policy ($e)"
+    local pub="${APP}-kr-products-${e}" ugc="${APP}-kr-ugc-${e}"
+    aws iam put-user-policy --user-name "${APP}-app-${e}" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc")"
+    aws s3api put-bucket-policy --bucket "$pub" --policy "$(products_bucket_policy "$pub")"
+    ok "${APP}-app-${e} may use $CATALOG_BUCKET; $pub public read limited to prefixes (products/clean private)"
+    say "SSM placeholders for the shared catalog DB ($e)"
+    ssm_put_if_missing "/${APP}/${e}/CATALOG_DATABASE_URL"       "CHANGE_ME"
+    ssm_put_if_missing "/${APP}/${e}/CATALOG_DATABASE_URL_OWNER" "CHANGE_ME"
+  done
+  warn "next: create the catalog DB/role and fill CATALOG_DATABASE_URL(_OWNER) (docs/deployment.md §카탈로그 DB), then run 'ecs' and 'domains'"
+}
+
+# ───────────────────────────── migrate ─────────────────────────────
+# One-off Fargate task per environment that runs scripts/db-migrate.mjs against both DBs with owner URLs.
+# deploy.yml runs it before rolling the service; the task uses the freshly pushed <env>-latest image.
+phase_migrate() {
+  local vpc; vpc=$(default_vpc)
+  for e in $ENVS; do
+    say "migration task definition ${APP}-migrate-${e}"
+    local exec_role; exec_role=$(role_arn "${APP}-ecs-execution-${e}")
+    local lg="/ecs/${APP}-${e}"
+    local secrets="[{\"name\":\"DATABASE_URL_OWNER\",\"valueFrom\":\"$(ssm_arn "$e" DATABASE_URL_OWNER)\"},{\"name\":\"CATALOG_DATABASE_URL_OWNER\",\"valueFrom\":\"$(ssm_arn "$e" CATALOG_DATABASE_URL_OWNER)\"}]"
+    local container="[{\"name\":\"migrate\",\"image\":\"${ECR_URI}:${e}-latest\",\"essential\":true,\"command\":[\"node\",\"scripts/db-migrate.mjs\"],\"environment\":[{\"name\":\"MIGRATE_TARGETS\",\"value\":\"commerce,catalog\"}],\"secrets\":${secrets},\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"${lg}\",\"awslogs-region\":\"${REGION}\",\"awslogs-stream-prefix\":\"migrate\"}}}]"
+    aws ecs register-task-definition --family "${APP}-migrate-${e}" --requires-compatibilities FARGATE --network-mode awsvpc \
+      --cpu 256 --memory 512 --execution-role-arn "$exec_role" --runtime-platform "cpuArchitecture=X86_64,operatingSystemFamily=LINUX" \
+      --container-definitions "$container" --tags "key=app,value=$APP" "key=env,value=$e" --query 'taskDefinition.taskDefinitionArn' --output text | sed 's/^/  /'
+  done
+
+  say "deploy role: allow run-task for the migration tasks"
+  local role="${APP}-github-deploy" exec_roles="" taskdefs=""
+  for e in $ENVS; do
+    exec_roles+="\"$(role_arn "${APP}-ecs-execution-${e}")\","
+    taskdefs+="\"arn:aws:ecs:${REGION}:${ACCOUNT_ID}:task-definition/${APP}-migrate-${e}:*\","
+  done
+  aws iam put-role-policy --role-name "$role" --policy-name deploy-migrate --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[
+    {\"Effect\":\"Allow\",\"Action\":\"ecs:RunTask\",\"Resource\":[${taskdefs%,}],\"Condition\":{\"ArnEquals\":{\"ecs:cluster\":\"arn:aws:ecs:${REGION}:${ACCOUNT_ID}:cluster/${APP}\"}}},
+    {\"Effect\":\"Allow\",\"Action\":\"ecs:DescribeTasks\",\"Resource\":\"arn:aws:ecs:${REGION}:${ACCOUNT_ID}:task/${APP}/*\"},
+    {\"Effect\":\"Allow\",\"Action\":\"iam:PassRole\",\"Resource\":[${exec_roles%,}],\"Condition\":{\"StringEquals\":{\"iam:PassedToService\":\"ecs-tasks.amazonaws.com\"}}},
+    {\"Effect\":\"Allow\",\"Action\":[\"ec2:DescribeVpcs\",\"ec2:DescribeSubnets\",\"ec2:DescribeSecurityGroups\"],\"Resource\":\"*\"},
+    {\"Effect\":\"Allow\",\"Action\":[\"logs:GetLogEvents\"],\"Resource\":\"arn:aws:logs:${REGION}:${ACCOUNT_ID}:log-group:/ecs/${APP}-*:*\"}]}"
+  ok "policy deploy-migrate on $role (vpc $vpc)"
+}
+
 # ───────────────────────────── status ─────────────────────────────
 phase_status() {
   say "account $ACCOUNT_ID / $REGION"
@@ -348,6 +433,7 @@ phase_status() {
 }
 
 case "${1:-}" in
-  core) phase_core ;; db) phase_db ;; ecs) phase_ecs ;; github) phase_github ;; domains) phase_domains ;; cron) phase_cron ;; status) phase_status ;;
-  *) sed -n 2,14p "$0"; exit 1 ;;
+  core) phase_core ;; db) phase_db ;; ecs) phase_ecs ;; github) phase_github ;; domains) phase_domains ;; cron) phase_cron ;;
+  catalog) phase_catalog ;; migrate) phase_migrate ;; status) phase_status ;;
+  *) sed -n 2,19p "$0"; exit 1 ;;
 esac

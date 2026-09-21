@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/generated/catalog-client";
 
 // requireAdmin이 자체 세션(DAL) 기반 실검증이므로 admin 세션을 스텁한다.
 const { mockGetCurrentAccount } = vi.hoisted(() => ({
@@ -18,22 +18,32 @@ const tmFindMany = vi.fn();
 const tmDeleteMany = vi.fn();
 const productCount = vi.fn();
 
+// 멤버·멤버십은 카탈로그 DB(catalogDb), 상품 참조 검사는 커머스 DB(db).
+// CatalogPrisma(DbNull 등)는 실제 생성 클라이언트의 것을 그대로 노출 — 액션이 DbNull 동일성으로 비운다.
+vi.mock("@/lib/catalog-db", async () => {
+  const { Prisma } = await import("@/lib/generated/catalog-client");
+  return {
+    CatalogPrisma: Prisma,
+    catalogDb: {
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          member: {
+            create: memberCreate,
+            update: memberUpdate,
+            delete: memberDelete,
+          },
+          teamMember: {
+            createMany: tmCreateMany,
+            findMany: tmFindMany,
+            deleteMany: tmDeleteMany,
+          },
+        }),
+      member: { findUnique: memberFindUnique },
+    },
+  };
+});
 vi.mock("@/lib/db", () => ({
   db: {
-    $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({
-        member: {
-          create: memberCreate,
-          update: memberUpdate,
-          delete: memberDelete,
-        },
-        teamMember: {
-          createMany: tmCreateMany,
-          findMany: tmFindMany,
-          deleteMany: tmDeleteMany,
-        },
-      }),
-    member: { findUnique: memberFindUnique },
     product: { count: productCount },
   },
 }));

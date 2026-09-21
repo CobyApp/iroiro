@@ -1,16 +1,16 @@
 import "server-only";
 
-import { db } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
+import { catalogDb, type CatalogPrisma as Prisma } from "@/lib/catalog-db";
 import { toCard } from "./transform";
-import type { Card, CardSource, CardStatus } from "../types";
+import type { Card, CardStatus } from "../types";
 
 export type CardListFilter = {
   teamId?: number;
   memberId?: number;
   seriesId?: number;
-  source?: CardSource;
   status?: CardStatus;
+  /** true = 분석 완료만, false = 미분석만. 생략하면 전체. */
+  analyzed?: boolean;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -26,8 +26,10 @@ export async function listCards(
   if (filter.teamId !== undefined) where.teamId = BigInt(filter.teamId);
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
-  if (filter.source) where.source = filter.source;
   if (filter.status) where.status = filter.status;
+  if (filter.analyzed !== undefined) {
+    where.analyzedAt = filter.analyzed ? { not: null } : null;
+  }
   if (filter.q) {
     where.OR = [
       { name: { contains: filter.q, mode: "insensitive" } },
@@ -35,13 +37,13 @@ export async function listCards(
     ];
   }
   const [rows, total] = await Promise.all([
-    db.card.findMany({
+    catalogDb.card.findMany({
       where,
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    db.card.count({ where }),
+    catalogDb.card.count({ where }),
   ]);
   return { items: rows.map(toCard), total };
 }
@@ -54,9 +56,8 @@ export async function listCardsForExport(
   if (filter.teamId !== undefined) where.teamId = BigInt(filter.teamId);
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
-  if (filter.source) where.source = filter.source;
   if (filter.status) where.status = filter.status;
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     orderBy: { id: "asc" },
     take: 10000,
@@ -65,7 +66,7 @@ export async function listCardsForExport(
 }
 
 export async function getCardById(id: number): Promise<Card | null> {
-  const row = await db.card.findUnique({ where: { id: BigInt(id) } });
+  const row = await catalogDb.card.findUnique({ where: { id: BigInt(id) } });
   return row ? toCard(row) : null;
 }
 
@@ -80,7 +81,7 @@ export async function listExistingCards(
   const where: Prisma.CardWhereInput = { status: "active" };
   if (seriesId !== null) where.seriesId = BigInt(seriesId);
   if (memberId !== null) where.memberId = BigInt(memberId);
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -90,7 +91,31 @@ export async function listExistingCards(
 
 // 검수 대기 수 — 관리자 목록 뱃지용.
 export async function countPendingCards(): Promise<number> {
-  return db.card.count({ where: { status: "pending" } });
+  return catalogDb.card.count({ where: { status: "pending" } });
+}
+
+// 상태별 카드 수 — 카탈로그 탭(공개 / 검수 대기 / 반려) 카운트.
+export async function countCardsByStatus(): Promise<Record<CardStatus, number>> {
+  const rows = await catalogDb.card.groupBy({ by: ["status"], _count: { _all: true } });
+  const out: Record<CardStatus, number> = { active: 0, pending: 0, rejected: 0 };
+  for (const r of rows) {
+    if (r.status in out) out[r.status as CardStatus] = r._count._all;
+  }
+  return out;
+}
+
+// 그룹별 공개 카드 수 — 카탈로그 홈 그룹 타일.
+export async function countActiveCardsByTeam(): Promise<Map<number, number>> {
+  const rows = await catalogDb.card.groupBy({
+    by: ["teamId"],
+    where: { status: "active" },
+    _count: { _all: true },
+  });
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.teamId !== null) out.set(Number(r.teamId), r._count._all);
+  }
+  return out;
 }
 
 // 유사도 후보 — 분석 임베딩이 있는 공개 카드. 같은 그룹(+멤버)으로 좁혀 비교 대상을 줄인다.
@@ -100,7 +125,6 @@ export type CardEmbeddingCandidate = {
   name: string;
   pose: number;
   frontR2Key: string | null;
-  frontImageUrl: string | null;
   embedding: number[] | null;
 };
 
@@ -115,14 +139,13 @@ export async function listAnalyzedCandidates(
   };
   if (teamId !== null) where.teamId = BigInt(teamId);
   if (memberId !== null) where.memberId = BigInt(memberId);
-  const rows = await db.card.findMany({
+  const rows = await catalogDb.card.findMany({
     where,
     select: {
       id: true,
       name: true,
       pose: true,
       frontR2Key: true,
-      frontImageUrl: true,
       analysisEmbedding: true,
     },
     orderBy: { createdAt: "desc" },
@@ -133,7 +156,6 @@ export async function listAnalyzedCandidates(
     name: r.name,
     pose: r.pose,
     frontR2Key: r.frontR2Key,
-    frontImageUrl: r.frontImageUrl,
     embedding: Array.isArray(r.analysisEmbedding)
       ? (r.analysisEmbedding as unknown[]).map(Number)
       : null,
@@ -152,15 +174,15 @@ export type CardAnalysisSummary = {
 
 export async function getCardAnalysisSummary(): Promise<CardAnalysisSummary> {
   const [total, analyzed, pending, byModelRows, latest] = await Promise.all([
-    db.card.count(),
-    db.card.count({ where: { analyzedAt: { not: null } } }),
-    db.card.count({ where: { status: "pending" } }),
-    db.card.groupBy({
+    catalogDb.card.count(),
+    catalogDb.card.count({ where: { analyzedAt: { not: null } } }),
+    catalogDb.card.count({ where: { status: "pending" } }),
+    catalogDb.card.groupBy({
       by: ["analysisModel"],
       where: { analyzedAt: { not: null } },
       _count: { _all: true },
     }),
-    db.card.aggregate({ _max: { analyzedAt: true } }),
+    catalogDb.card.aggregate({ _max: { analyzedAt: true } }),
   ]);
   return {
     total,

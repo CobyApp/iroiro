@@ -106,7 +106,12 @@ export async function MyFaveSection() {
     })),
     ...faveMembers.map((member, i) => ({
       key: `m-${member.id}`,
-      eyebrow: "MY FAVE MEMBER",
+      // 그룹명을 함께 — 다중 그룹 멤버·비슷한 이름을 구분할 수 있게.
+      eyebrow: `MY FAVE MEMBER${
+        member.teamIds[0] !== undefined
+          ? ` · ${teams.find((t) => t.id === member.teamIds[0])?.name ?? ""}`
+          : ""
+      }`,
       title: member.name,
       href:
         member.teamIds[0] !== undefined
@@ -137,7 +142,7 @@ export async function MyFaveSection() {
           <div className="kawaii-section-heading">
             <div>
               <span>{row.eyebrow}</span>
-              <h2>♡ {row.title}</h2>
+              <h2>{row.title}</h2>
             </div>
             {/* 이 오시로 필터링된 둘러보기로 이동 */}
             <Link href={row.href} className="kawaii-more-link">

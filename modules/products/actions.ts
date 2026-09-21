@@ -8,7 +8,8 @@ import {
   runAction,
 } from "@/lib/action-result";
 import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
-import { compressImageBuffer } from "@/lib/image/compress-image";
+import { compressImageVariants } from "@/lib/image/compress-image";
+import { productCleanKey } from "./lib/photo-keys";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
@@ -34,7 +35,6 @@ import { SALE_STATUSES, type Product, type SaleStatus } from "./types";
 import { Prisma } from "@prisma/client";
 
 // 상품 write(create/update/delete)의 알려진 Prisma 오류를 사용자 메시지로 변환.
-// - P2002 source_id unique 위반 = 이미 가져온 외부 카드
 // - P2002 item_code unique 위반 = (item_code, item_type, condition) 조합 중복
 // - P2025(update/delete 대상 없음) = not-found → 예상 도메인 오류로 결과화
 // adapter-pg에서 meta.target이 비므로 판별은 반드시 헬퍼를 거친다(lib/prisma-errors).
@@ -42,9 +42,6 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();
   } catch (error) {
-    if (isUniqueViolationOn(error, "source_id")) {
-      throw new DomainError("이미 등록된 카드입니다");
-    }
     if (isUniqueViolationOn(error, "item_code")) {
       throw new DomainError(
         "같은 아이템 코드·구분·컨디션 조합의 상품이 이미 있습니다",
@@ -104,12 +101,12 @@ export async function presignProductPhotos(
 }
 
 // 저장 규격 — Card(oshikore-card) compress_image 방식(크롭 없음·비율 유지·progressive JPEG).
-// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px. 저장 시 워터마크를 구워 넣고
-// (서빙은 정적 리사이즈만), 압축은 예전(82)보다 낮춰 파일을 줄인다.
+// 상세 변형(/media, 최대 1100px)보다 여유 있게 긴 변 2000px. 저장 시 clean(원본)·wm(워터마크)
+// 두 벌을 만든다 — 고객 화면은 wm, 소유자 컬렉션·관리자 다운로드는 clean(products/lib/photo-keys).
 const PRODUCT_PHOTO_MAX_DIM = 2000;
 const PRODUCT_PHOTO_QUALITY = 78;
 
-// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
+// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 wm 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadProductPhotoFile(
   formData: FormData,
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
@@ -124,18 +121,21 @@ export async function uploadProductPhotoFile(
     if (file.size > MAX_FILE_BYTES) {
       throw new DomainError(`파일 크기 초과 (5MB 이하): ${filename}`);
     }
-    let compressed: Buffer;
+    let variants: { clean: Buffer; wm: Buffer };
     try {
-      compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
+      variants = await compressImageVariants(Buffer.from(await file.arrayBuffer()), {
         maxDim: PRODUCT_PHOTO_MAX_DIM,
         quality: PRODUCT_PHOTO_QUALITY,
-        watermark: true,
       });
     } catch {
       throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
     }
     const r2Key = buildR2Key(`${filename.replace(/\.[^.]+$/, "")}.jpg`);
-    await relayUploadToR2(new Blob([new Uint8Array(compressed)], { type: "image/jpeg" }), r2Key);
+    const cleanKey = productCleanKey(r2Key)!;
+    await Promise.all([
+      relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
+      relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanKey),
+    ]);
     return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
 }
@@ -158,7 +158,6 @@ export async function createProduct(
     const result = await mapProductWriteError(() => db.$transaction(async (tx) => {
       const baseCreateData = {
           itemCode: data.itemCode ?? null,
-          sourceId: data.sourceId ?? null,
           itemType: data.itemType,
           teamId: data.teamId !== undefined && data.teamId !== null
             ? BigInt(data.teamId)
@@ -242,7 +241,6 @@ export async function updateProduct(
       updatedAt: new Date(),
     };
     if (data.itemCode !== undefined) patch.itemCode = data.itemCode;
-    if (data.sourceId !== undefined) patch.sourceId = data.sourceId;
     if (data.itemType !== undefined) patch.itemType = data.itemType;
     if (data.teamId !== undefined)
       patch.teamId = data.teamId !== null ? BigInt(data.teamId) : null;

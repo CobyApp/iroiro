@@ -6,9 +6,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { saveFavorites } from "../actions";
+import {
+  groupMembersByTeam,
+  type FavoriteMemberItem,
+  type FavoriteTeamItem,
+} from "../lib/group-members";
 
 // 회원정보 화면의 최애 편집 — 칩 토글 + 저장.
-type Item = { id: number; name: string };
+// 멤버는 그룹별 섹션으로 나눠 보여주고, 다중 소속 멤버는 대표 그룹 아래 한 번만 둔다(lib/group-members).
 
 function toggle(list: number[], id: number): number[] {
   return list.includes(id) ? list.filter((v) => v !== id) : [...list, id];
@@ -16,10 +21,13 @@ function toggle(list: number[], id: number): number[] {
 
 function Chip({
   label,
+  hint,
   selected,
   onClick,
 }: {
   label: string;
+  /** 다중 소속 멤버의 다른 그룹명 — 작게 덧붙인다. */
+  hint?: string;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -29,13 +37,16 @@ function Chip({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-3.5 py-1.5 text-sm transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-colors",
         selected
           ? "border-primary bg-primary/10 font-semibold text-primary"
           : "border-border bg-card text-foreground hover:bg-muted/50",
       )}
     >
-      ♡ {label}
+      {label}
+      {hint && (
+        <span className="text-[10px] font-normal text-muted-foreground">{hint}</span>
+      )}
     </button>
   );
 }
@@ -46,8 +57,8 @@ export function FavoritesForm({
   initialTeamIds,
   initialMemberIds,
 }: {
-  teams: Item[];
-  members: Item[];
+  teams: FavoriteTeamItem[];
+  members: FavoriteMemberItem[];
   initialTeamIds: number[];
   initialMemberIds: number[];
 }) {
@@ -55,6 +66,7 @@ export function FavoritesForm({
   const [pending, startTransition] = useTransition();
   const [teamIds, setTeamIds] = useState<number[]>(initialTeamIds);
   const [memberIds, setMemberIds] = useState<number[]>(initialMemberIds);
+  const groups = groupMembersByTeam(teams, members);
 
   const dirty =
     JSON.stringify([...teamIds].sort()) !==
@@ -75,7 +87,7 @@ export function FavoritesForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {teams.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-foreground">
@@ -94,22 +106,36 @@ export function FavoritesForm({
           </div>
         </div>
       )}
-      {members.length > 0 && (
-        <div className="space-y-2">
+      {groups.length > 0 && (
+        <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">
             최애 멤버{" "}
-            <span className="font-normal text-muted-foreground">(복수 선택)</span>
+            <span className="font-normal text-muted-foreground">
+              (복수 선택 · {memberIds.length}명)
+            </span>
           </p>
-          <div className="flex flex-wrap gap-2">
-            {members.map((member) => (
-              <Chip
-                key={member.id}
-                label={member.name}
-                selected={memberIds.includes(member.id)}
-                onClick={() => setMemberIds((prev) => toggle(prev, member.id))}
-              />
-            ))}
-          </div>
+          {groups.map((group) => (
+            <div key={group.team?.id ?? "etc"} className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                {group.team?.name ?? "기타"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.members.map((member) => (
+                  <Chip
+                    key={member.id}
+                    label={member.name}
+                    hint={
+                      member.otherTeamNames.length > 0
+                        ? `+ ${member.otherTeamNames.join(" · ")}`
+                        : undefined
+                    }
+                    selected={memberIds.includes(member.id)}
+                    onClick={() => setMemberIds((prev) => toggle(prev, member.id))}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
       <Button onClick={onSave} disabled={pending || !dirty}>

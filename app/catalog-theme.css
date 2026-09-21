@@ -1,0 +1,59 @@
+/* 카탈로그 공간(/catalog) 전용 유틸 — 토큰은 덮어쓰지 않는다.
+   시각 언어는 소비자·관리자와 같은 이로이로 디자인 시스템(app/globals.css · Storybook "Design System")을 그대로 쓰고,
+   카탈로그만의 것은 "그룹 고유색"과 수치 표기 두 가지뿐이다. app/(catalog)/layout.tsx 가 import 한다. */
+
+/* 수치 — 통계 타일·카운트 배지. 표 숫자가 흔들리지 않게 tabular. */
+.catalog-stat {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 코드·SKU·키 — 본문 폰트(Jua)보다 한 단계 작은 모노 */
+.catalog-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  letter-spacing: 0;
+}
+
+/* 그룹 고유색 칩 — 배경은 색의 14%, 글자·점은 원색. 색은 인라인 style(--team-color)로 주입한다(서버가 #rrggbb 검증). */
+.team-chip {
+  --team-color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.75rem 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--team-color) 70%, var(--ink));
+  background: color-mix(in srgb, var(--team-color) 14%, white);
+  border: 1px solid color-mix(in srgb, var(--team-color) 35%, transparent);
+  white-space: nowrap;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+.team-chip:hover {
+  background: color-mix(in srgb, var(--team-color) 24%, white);
+  transform: translateY(-1px);
+}
+.team-chip::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--team-color);
+}
+
+/* 그룹 섹션 — 왼콽 컬러 띠(둥근 카드 안쪽에서도 자연스럽게 보이도록 inset shadow 로) */
+.team-bar {
+  --team-color: var(--primary);
+  box-shadow: inset 5px 0 0 var(--team-color), var(--shadow-card);
+}
+
+/* 임베딩 스파크라인 — AI 분석값 시각화(막대 하나 = 벡터 한 차원) */
+.embedding-bar {
+  fill: var(--accent);
+  opacity: 0.75;
+}
+.embedding-bar[data-negative="true"] {
+  fill: var(--primary);
+}

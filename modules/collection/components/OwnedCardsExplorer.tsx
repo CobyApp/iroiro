@@ -31,10 +31,7 @@ export function OwnedCardsExplorer({
   entries: CustomerInventoryEntry[];
   teamNames: Record<number, string>;
   memberNames: Record<number, string>;
-  imagesByProduct: Record<
-    number,
-    { front: string | null; back: string | null }
-  >;
+  imagesByProduct: Record<number, { front: string | null }>;
 }) {
   const [view, setView] = useState<View>("all");
   const [active, setActive] = useState<Viewer3DCard | null>(null);
@@ -48,7 +45,6 @@ export function OwnedCardsExplorer({
     const fallback = e.productThumbnailUrl;
     setActive({
       front: imgs?.front ?? fallback,
-      back: imgs?.back ?? null,
       title: e.productName,
     });
   }

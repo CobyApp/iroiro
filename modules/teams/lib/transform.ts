@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Team as PrismaTeam } from "@prisma/client";
+import type { CatalogTeamRow as PrismaTeam } from "@/lib/catalog-db";
 import type { NameI18n } from "@/lib/i18n";
 import { formatKstDate } from "@/lib/datetime";
 import type { Team } from "../types";
@@ -12,6 +12,8 @@ export function toTeam(row: PrismaTeam): Team {
     nameI18n: (row.nameI18n as NameI18n | null) ?? null,
     debutDate: row.debutDate ? formatKstDate(row.debutDate) : null,
     disbandDate: row.disbandDate ? formatKstDate(row.disbandDate) : null,
+    displayOrder: row.displayOrder,
+    themeColor: row.themeColor,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

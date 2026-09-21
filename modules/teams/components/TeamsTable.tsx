@@ -64,7 +64,17 @@ export function TeamsTable({ teams }: Props) {
               <TableCell className="text-right text-sm text-muted-foreground">
                 {index + 1}
               </TableCell>
-              <TableCell className="font-medium">{team.name}</TableCell>
+              <TableCell className="font-medium">
+                <span className="inline-flex items-center gap-2">
+                  {/* 그룹 고유색 스와치 — 카탈로그 칩 색과 동일 */}
+                  <span
+                    aria-hidden
+                    className="inline-block h-2.5 w-2.5 rounded-full border border-black/10"
+                    style={{ background: team.themeColor ?? "var(--primary)" }}
+                  />
+                  {team.name}
+                </span>
+              </TableCell>
               <TableCell>{team.nameI18n?.["ja-jpan"] ?? "-"}</TableCell>
               <TableCell>{team.nameI18n?.["ja-hira"] ?? "-"}</TableCell>
               <TableCell>{team.nameI18n?.en ?? "-"}</TableCell>

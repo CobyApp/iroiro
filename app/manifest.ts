@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { APP_NAMES, appDisplayName } from "@/lib/app-name";
 
-// PWA 매니페스트 — 홈 화면 설치·standalone 웹앱.
+// PWA 매니페스트 — 홈 화면 설치·standalone 웹앱. dev 배포는 이름에 " dev" 를 붙여 운영 앱과 구분.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "이로이로",
-    short_name: "이로이로",
+    name: appDisplayName(APP_NAMES.consumer),
+    short_name: appDisplayName(APP_NAMES.consumer),
     description: "일본 아이돌 토레카·굿즈 카탈로그",
     start_url: "/",
     scope: "/",

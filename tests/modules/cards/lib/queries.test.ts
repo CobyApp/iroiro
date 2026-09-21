@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/lib/db", () => ({ db: mocks }));
+vi.mock("@/lib/catalog-db", () => ({ catalogDb: mocks }));
 
 import {
   getCardAnalysisSummary,
@@ -82,7 +82,6 @@ describe("listAnalyzedCandidates", () => {
         name: "A",
         pose: 1,
         frontR2Key: "a.jpg",
-        frontImageUrl: null,
         analysisEmbedding: [0.5, "0.25"], // JSON 값이 문자열이어도 Number로 정규화
       },
       {
@@ -90,7 +89,6 @@ describe("listAnalyzedCandidates", () => {
         name: "B",
         pose: 2,
         frontR2Key: null,
-        frontImageUrl: "https://x/b.jpg",
         analysisEmbedding: null,
       },
     ]);
