@@ -225,7 +225,7 @@ export function ImportForm({
           </Button>
           <Button
             variant="ghost"
-            onClick={() => router.push("/admin/import")}
+            onClick={() => router.push("/catalog/import")}
             disabled={pending}
           >
             취소

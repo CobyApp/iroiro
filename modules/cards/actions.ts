@@ -11,9 +11,36 @@ import {
 import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
-import { listExistingCards } from "./lib/queries";
+import { listAnalyzedCandidates, listExistingCards } from "./lib/queries";
 import { normalizeCardImageBuffer } from "./lib/normalize-card-server";
+import {
+  analyzeCardFrontByKey,
+  rankSimilarCards,
+  type SimilarCard,
+} from "./lib/analysis";
 import type { Card } from "./types";
+
+// 유사 카드 매칭 파라미터 — 노이즈를 줄이는 최소 유사도와 표시 개수.
+const SIMILAR_MIN_SCORE = 0.5;
+const SIMILAR_TOP_K = 6;
+
+// 앞면 R2 키를 분석해 Prisma create/update에 넣을 분석 필드로 변환한다.
+// 호출 시점 = "우리 데이터로 저장하는 순간"만: 관리자 직접 등록, 제보 승인. 유저 제보 접수
+// 시점에는 호출하지 않는다(접수는 가볍게, 분석은 카탈로그 검수에서).
+// AWS 미설정·분석 실패면 빈 객체 — 저장은 분석 없이 진행(fail-soft).
+async function analysisFields(frontR2Key: string): Promise<{
+  analysisEmbedding?: number[];
+  analysisModel?: string;
+  analyzedAt?: Date;
+}> {
+  const analysis = await analyzeCardFrontByKey(frontR2Key);
+  if (!analysis) return {};
+  return {
+    analysisEmbedding: analysis.embedding,
+    analysisModel: analysis.model,
+    analyzedAt: new Date(),
+  };
+}
 
 // 토레카 마스터 액션 — 관리자 CRUD + 유저 제보(검수 대기) + 검수 승인/반려.
 
@@ -77,7 +104,7 @@ function parse(input: CardInput) {
 }
 
 function revalidateCards() {
-  revalidatePath("/admin/cards");
+  revalidatePath("/catalog/cards");
   revalidatePath("/cards/new");
 }
 
@@ -133,9 +160,10 @@ export async function createCardAdmin(
   return runAction(async () => {
     await requireAdmin();
     const data = parse(input);
-    const [name, pose] = await Promise.all([
+    const [name, pose, analysis] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
       nextPose(data.memberId, data.seriesId),
+      analysisFields(data.frontR2Key),
     ]);
     const row = await db.card.create({
       data: {
@@ -151,6 +179,7 @@ export async function createCardAdmin(
         backR2Key: data.backR2Key,
         itemCode: data.itemCode || null,
         retailPriceJpy: data.retailPriceJpy ?? 0,
+        ...analysis,
       },
     });
     revalidateCards();
@@ -237,6 +266,8 @@ export async function submitCardReport(
         "too_many_pending",
       );
     }
+    // 유저 제보는 AI 분석 없이 접수한다 — 분석(임베딩 저장)은 관리자가 카탈로그에서
+    // 승인해 우리 데이터로 확정하는 시점(reviewCard/approveCards)에 한다.
     const [name, pose] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
       nextPose(data.memberId, data.seriesId),
@@ -288,12 +319,19 @@ export async function reviewCard(
     await requireAdmin();
     const row = await db.card.findUnique({ where: { id: BigInt(id) } });
     if (!row) throw new DomainError("카드를 찾을 수 없어요", "not_found");
+    // 승인 = 우리 데이터로 저장하는 순간 → 이때 앞면을 AI 분석해 임베딩을 함께 저장한다.
+    // (제보 접수 시점에는 분석하지 않았다.) 반려는 분석하지 않는다.
+    const analysis =
+      decision === "approve" && row.frontR2Key
+        ? await analysisFields(row.frontR2Key)
+        : {};
     await db.card.update({
       where: { id: BigInt(id) },
       data: {
         status: decision === "approve" ? "active" : "rejected",
         reviewNote: note?.trim() || null,
         updatedAt: new Date(),
+        ...analysis,
       },
     });
     // 유저 제보가 처음 승인될 때만 100P 적립(대기 → 공개 전이 1회).
@@ -315,6 +353,44 @@ export async function fetchExistingCards(
   memberId: number | null,
 ): Promise<ActionResult<Card[]>> {
   return runAction(async () => listExistingCards(seriesId, memberId));
+}
+
+// AI 유사 카드 찾기 — 업로드한 앞면을 임베딩해 같은 그룹(+멤버)의 공개 카드와 코사인 비교.
+// 토레카분석기의 "저장 전 비교" 단계 포팅. AWS 미설정이면 configured=false로 알려 UI가
+// 안내 문구를 띄운다(에러 아님). 로그인만 요구 — 관리자 등록·유저 제보 화면 공용.
+export type SimilarCardsResult = {
+  configured: boolean;
+  matches: SimilarCard[];
+};
+
+const similarInputSchema = z.object({
+  frontR2Key: z.string().trim().min(1),
+  teamId: z.number().int().positive().nullable(),
+  memberId: z.number().int().positive().nullable(),
+});
+
+export async function findSimilarCards(input: {
+  frontR2Key: string;
+  teamId: number | null;
+  memberId: number | null;
+}): Promise<ActionResult<SimilarCardsResult>> {
+  return runAction(async () => {
+    const account = await getCurrentAccount();
+    if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
+    const parsed = similarInputSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new DomainError("입력값을 확인해주세요", "invalid_input");
+    }
+    const data = parsed.data;
+    const analysis = await analyzeCardFrontByKey(data.frontR2Key);
+    if (!analysis) return { configured: false, matches: [] };
+    const candidates = await listAnalyzedCandidates(data.teamId, data.memberId);
+    const matches = rankSimilarCards(analysis.embedding, candidates, {
+      k: SIMILAR_TOP_K,
+      minScore: SIMILAR_MIN_SCORE,
+    });
+    return { configured: true, matches };
+  });
 }
 
 // 목록에 없는 시리즈를 등록 화면에서 바로 추가 — 분석기와 같은 흐름.
@@ -349,7 +425,7 @@ export async function createSeriesInline(
     const row = await db.series.create({
       data: { sku, teamId: BigInt(teamId), label: cleanLabel, kind: cleanKind },
     });
-    revalidatePath("/admin/catalog");
+    revalidatePath("/catalog");
     revalidateCards();
     return { id: Number(row.id), label: row.label, kind: row.kind };
   });
@@ -372,14 +448,26 @@ export async function approveCards(
       },
       select: { id: true, submittedByAccountId: true },
     });
-    const result = await db.card.updateMany({
+    // 승인 대상(대기 중)을 확보하고 카드별로 저장한다 — 승인 = 저장 시점이므로 각 앞면을
+    // AI 분석해 임베딩을 함께 넣는다(updateMany는 행별 데이터를 못 넣어 개별 update).
+    const targets = await db.card.findMany({
       where: { id: { in: ids.map((id) => BigInt(id)) }, status: "pending" },
-      data: { status: "active", updatedAt: new Date() },
+      select: { id: true, frontR2Key: true },
     });
+    const now = new Date();
+    await Promise.all(
+      targets.map(async (t) => {
+        const analysis = t.frontR2Key ? await analysisFields(t.frontR2Key) : {};
+        await db.card.update({
+          where: { id: t.id },
+          data: { status: "active", updatedAt: now, ...analysis },
+        });
+      }),
+    );
     for (const target of rewardTargets) {
       await grantCardReportPoints(target.submittedByAccountId!, target.id);
     }
     revalidateCards();
-    return { approved: result.count };
+    return { approved: targets.length };
   });
 }

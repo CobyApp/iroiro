@@ -100,7 +100,7 @@ export async function createMember(
       return { memberRow, tmRows };
     });
 
-    revalidatePath("/admin/members");
+    revalidatePath("/catalog/members");
 
     const member = toMember(result.memberRow);
     const memberships: TeamMember[] = result.tmRows.map((tm) => ({
@@ -166,8 +166,8 @@ export async function updateMember(
       return memberRow;
     }));
 
-    revalidatePath("/admin/members");
-    revalidatePath(`/admin/members/${data.id}/edit`);
+    revalidatePath("/catalog/members");
+    revalidatePath(`/catalog/members/${data.id}/edit`);
     return toMember(row);
   });
 }
@@ -201,6 +201,6 @@ export async function deleteMember(id: number): Promise<ActionResult> {
       }),
     );
 
-    revalidatePath("/admin/members");
+    revalidatePath("/catalog/members");
   });
 }

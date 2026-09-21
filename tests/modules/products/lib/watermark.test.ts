@@ -11,12 +11,9 @@ async function makeSource() {
 }
 
 describe("processProductImage", () => {
-  it("상세(워터마크) 변형은 지정 폭 이하 WebP로 변환한다", async () => {
+  it("상세 변형은 지정 폭 이하 WebP로 변환한다(워터마크는 업로드 시 이미 구워짐)", async () => {
     const source = await makeSource();
-    const output = await processProductImage(source, {
-      width: 1100,
-      watermark: true,
-    });
+    const output = await processProductImage(source, { width: 1100 });
     const metadata = await sharp(output).metadata();
 
     expect(metadata.format).toBe("webp");
@@ -24,12 +21,9 @@ describe("processProductImage", () => {
     expect(output.equals(source)).toBe(false);
   });
 
-  it("그리드 변형은 상세보다 작게, 워터마크 없이도 처리된다", async () => {
+  it("그리드 변형은 상세보다 작게 처리된다", async () => {
     const source = await makeSource();
-    const grid = await processProductImage(source, {
-      width: 600,
-      watermark: false,
-    });
+    const grid = await processProductImage(source, { width: 600 });
     const meta = await sharp(grid).metadata();
 
     expect(meta.format).toBe("webp");
@@ -38,7 +32,7 @@ describe("processProductImage", () => {
 
   it("빈 입력은 처리하지 않는다", async () => {
     await expect(
-      processProductImage(Buffer.alloc(0), { width: 600, watermark: true }),
+      processProductImage(Buffer.alloc(0), { width: 600 }),
     ).rejects.toThrow(/processing limit/);
   });
 });

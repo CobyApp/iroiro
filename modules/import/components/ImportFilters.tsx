@@ -37,7 +37,7 @@ export function ImportFilters({
       else q.delete(k);
     }
     q.delete("offset"); // 필터 변경 시 페이지 초기화
-    router.push(`/admin/import?${q.toString()}`);
+    router.push(`/catalog/import?${q.toString()}`);
   }
 
   return (

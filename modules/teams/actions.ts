@@ -45,7 +45,7 @@ export async function createTeam(
         disbandDate: data.disbandDate ? new Date(data.disbandDate) : null,
       },
     });
-    revalidatePath("/admin/teams");
+    revalidatePath("/catalog/teams");
     return toTeam(row);
   });
 }
@@ -74,8 +74,8 @@ export async function updateTeam(
         data: patch,
       }),
     );
-    revalidatePath("/admin/teams");
-    revalidatePath(`/admin/teams/${data.id}/edit`);
+    revalidatePath("/catalog/teams");
+    revalidatePath(`/catalog/teams/${data.id}/edit`);
     return toTeam(row);
   });
 }
@@ -111,6 +111,6 @@ export async function deleteTeam(id: number): Promise<ActionResult> {
 
     // 사전 조회~delete 사이 TOCTOU 삭제 시 P2025 → not-found로 결과화.
     await mapTeamWriteError(() => db.team.delete({ where: { id: teamIdBig } }));
-    revalidatePath("/admin/teams");
+    revalidatePath("/catalog/teams");
   });
 }

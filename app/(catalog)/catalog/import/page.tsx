@@ -98,7 +98,7 @@ export default async function AdminImportPage({
         <div className="flex flex-wrap items-center gap-2">
         <CatalogSyncButton />
         <Link
-          href="/admin/import/reset"
+          href="/catalog/import/reset"
           className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm shadow-card transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         >
           데이터 초기화 · 일괄 가져오기
@@ -157,7 +157,7 @@ export default async function AdminImportPage({
               return (
                 <Link
                   key={c.id}
-                  href={`/admin/import/${c.id}`}
+                  href={`/catalog/import/${c.id}`}
                   className={`group relative block rounded-sm border p-2 shadow-card transition-transform hover:-translate-y-0.5 ${
                     registered
                       ? "border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20"
