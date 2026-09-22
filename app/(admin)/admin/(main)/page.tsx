@@ -6,7 +6,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { Dashboard } from "@/modules/dashboard/components/Dashboard";
 import { getDashboardData } from "@/modules/dashboard/lib/queries";
 
-// 대시보드는 site admin 전용. 레이아웃 가드가 이미 site admin 만 통과시키지만(모더레이터는 /board로),
+// 대시보드는 site admin 전용. 레이아웃 가드가 이미 site admin 만 통과시키지만(모더레이터는 /admin/posts로),
 // Server Component 방어선으로 한 번 더 확인해 비-admin은 게시판 공간으로 보낸다.
 export default async function AdminDashboardPage() {
   const account = await getCurrentAccount();

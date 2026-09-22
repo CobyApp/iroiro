@@ -1,7 +1,7 @@
 import { APP_NAMES, appDisplayName } from "@/lib/app-name";
 
 // 게시판 관리 전용 PWA 매니페스트 — 운영 관리자(/admin)·카탈로그(/admin/catalog)와 별개의 설치형 앱 "이로이로 게시판".
-// id·scope·start_url을 /board로 두어 브라우저가 독립 앱으로 인식한다. dev 배포는 이름에 " dev".
+// id·scope·start_url을 /admin/posts로 두어 브라우저가 독립 앱으로 인식한다. dev 배포는 이름에 " dev".
 export function GET(): Response {
   const name = appDisplayName(APP_NAMES.board);
   const manifest = {
