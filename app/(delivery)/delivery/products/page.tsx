@@ -17,7 +17,7 @@ import {
   ADMIN_PRODUCT_PAGE_SIZE,
   parseProductFilters,
 } from "@/modules/products/lib/filters";
-import { listProducts } from "@/modules/products/lib/queries";
+import { listProducts, posesByCatalogCard } from "@/modules/products/lib/queries";
 
 const ADMIN_PRODUCTS_PATH = "/delivery/products";
 
@@ -38,6 +38,9 @@ export default async function ProductsListPage({
         <Suspense fallback={null}>
           <BulkImportSlot />
         </Suspense>
+        <Button asChild variant="outline">
+          <Link href="/delivery/products/duplicates">중복 정리</Link>
+        </Button>
         <Button asChild>
           <Link href="/delivery/products/new">
             <Plus className="mr-0.5 h-4 w-4" />
@@ -121,6 +124,11 @@ async function AdminProductsView({
     listMembers(),
   ]);
 
+  // 이 페이지 상품들의 출처 카드 포즈 번호(있으면) — 목록에 "포즈 N" 표시.
+  const poses = await posesByCatalogCard(
+    items.map((p) => p.catalogCardId).filter((id): id is number => id != null),
+  );
+
   const startIndex = (filter.page - 1) * filter.pageSize;
 
   return (
@@ -129,6 +137,7 @@ async function AdminProductsView({
         products={items}
         teams={teams}
         members={members}
+        poses={poses}
         publicBaseUrl={env.R2_PUBLIC_BASE}
         startIndex={startIndex}
       />

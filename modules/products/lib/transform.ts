@@ -28,6 +28,7 @@ export function toProduct(row: PrismaProduct): Product {
     condition: row.condition as ProductCondition | null,
     stockQuantity: row.stockQuantity,
     saleStatus: row.saleStatus as SaleStatus,
+    catalogCardId: row.catalogCardId !== null ? Number(row.catalogCardId) : null,
     seriesId: row.seriesId !== null ? Number(row.seriesId) : null,
     marketAvgJpy: row.marketAvgJpy,
     marketMinJpy: row.marketMinJpy,

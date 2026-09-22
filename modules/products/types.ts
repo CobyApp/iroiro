@@ -131,6 +131,8 @@ export type Product = {
   stockQuantity: number;
   saleStatus: SaleStatus;
   // ── 카탈로그 계층·외부 시세 (임포트 스냅샷) ──
+  /** 등록 출처 카탈로그 카드 id — 포즈 표시·중복 판별에 쓴다(수기 등록은 null). */
+  catalogCardId: number | null;
   seriesId: number | null;
   marketAvgJpy: number;
   marketMinJpy: number;
