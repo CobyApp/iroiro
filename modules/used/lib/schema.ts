@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS } from "@/modules/products/types";
-import { USED_REPORT_REASONS, USED_SHIPPING_METHODS } from "../types";
+import { USED_ITEM_TYPES, USED_REPORT_REASONS, USED_SHIPPING_METHODS } from "../types";
 
 // 신고·차단·처리 입력 길이 상한(글 신고와 동일 어휘·값).
 export const USED_REPORT_DETAIL_MAX = 500;
@@ -47,8 +47,15 @@ export const usedPhotoInputSchema = z.object({
 });
 
 const usedListingBase = z.object({
-  // 제목·그룹·멤버·시리즈는 선택한 토레카(card)에서 서버가 파생한다.
-  cardId: z.number().int().positive({ message: "카드를 선택해주세요" }),
+  // 굿즈 종류. photocard(토레카)만 카탈로그 카드와 연결되고, 나머지는 제목·그룹·멤버를 직접 입력.
+  itemType: z.enum(USED_ITEM_TYPES).default("photocard"),
+  // 토레카일 때: 선택한 카드에서 제목·그룹·멤버·시리즈를 서버가 파생.
+  cardId: z.number().int().positive().nullable().optional(),
+  // 토레카가 아닐 때: 제목·그룹·멤버를 직접 입력(시리즈는 선택).
+  title: z.string().trim().max(80).nullable().optional().transform((v) => (v === "" ? null : (v ?? null))),
+  teamId: z.number().int().positive().nullable().optional(),
+  memberId: z.number().int().positive().nullable().optional(),
+  seriesId: z.number().int().positive().nullable().optional(),
   // 상태 설명 — 흠집·보관 방법 등 실물 상태 위주.
   description: z
     .string()
@@ -75,7 +82,16 @@ const usedListingBase = z.object({
 });
 
 // 판매방식별 필수값 — 고정가는 price, 경매는 시작가·마감시각.
+// 종류별 필수값 — 토레카는 카드 선택, 그 외는 제목.
 export const usedListingCreateSchema = usedListingBase
+  .refine((v) => v.itemType !== "photocard" || (v.cardId ?? 0) > 0, {
+    message: "카드를 선택해주세요",
+    path: ["cardId"],
+  })
+  .refine((v) => v.itemType === "photocard" || !!(v.title && v.title.length > 0), {
+    message: "제목을 입력해주세요",
+    path: ["title"],
+  })
   .refine((v) => v.saleMode !== "fixed" || (v.price ?? 0) > 0, {
     message: "판매가를 입력하세요",
     path: ["price"],
