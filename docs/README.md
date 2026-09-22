@@ -28,23 +28,6 @@
 - [계정 연동·병합 설계](./account-linking.md) — deferred 가입(`pending_account`), 전화 인증 축 병합(자동 병합 금지·step-up·감사 기록)
 - [장바구니·주문·결제 플로우 설계](./order-checkout-payment.md) — 상태 모델, 재고 원자 차감, 배송비 정책, `lib/payments` 포트/어댑터(mock)
 
-### 기능 스펙 (`specs/`)
-
-- [2026-06-13 카카오·네이버 OAuth 소셜 로그인](./specs/2026-06-13-oauth-social-login.md)
-- [2026-07-13 컬렉션(보유 원장·전시 앨범)](./specs/2026-07-13-collection-design.md)
-- [2026-07-19 공지사항·자유게시판](./specs/2026-07-19-community-design.md)
-- [2026-07-22 모바일 하단 내비게이션](./specs/2026-07-22-mobile-bottom-nav-design.md)
-- [2026-07-22 마이페이지 프로필](./specs/2026-07-22-mypage-profile-design.md)
-- [2026-07-22 프로필 아바타·설정·탈퇴](./specs/2026-07-22-profile-avatar-settings-deletion-design.md)
-- [2026-07-22 탭 홈·위시리스트·배너·컬렉션 마스터](./specs/2026-07-22-tabs-home-wishlist-banners-collection-master.md)
-- [2026-07-23 디자인 테마 전환](./specs/2026-07-23-design-theme-switch-design.md)
-- [2026-08-02 공지사항 사진 첨부](./specs/2026-08-02-notice-photos-design.md)
-
-### 조사 자료 (`research/`)
-
-- [공지·커뮤니티 게시판 도메인 조사](./research/2026-07-19-community-board-research.html) (HTML)
-- [중고거래 3사 연락처 정책 조사](./research/2026-07-19-secondhand-contact-policy.html) (HTML)
-
 ## 학습 노트
 
 - **[데이터베이스 설계 레슨](./lessons/README.md)** — 스키마를 설계하며 마주친 Postgres 결정의 배경(PK 전략, FK 정책, audit 컬럼, TIMESTAMPTZ, slug, 객체 스토리지 패턴, 세션 vs JWT, 롤·GRANT, 트랜잭션 GUC 등)

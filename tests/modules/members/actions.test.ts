@@ -299,7 +299,7 @@ describe("members actions", () => {
     it("비관리자는 mutation 전에 거부한다", async () => {
       mockGetCurrentAccount.mockResolvedValue({ id: "user-1", isAdmin: false });
       const { quickCreateMember } = await import("@/modules/members/actions");
-      await expect(quickCreateMember({ name: "x", teamId: 1 })).rejects.toThrow(/관리자 권한/);
+      await expect(quickCreateMember({ name: "x", teamId: 1 })).rejects.toThrow(/권한/);
       expect(memberCreate).not.toHaveBeenCalled();
     });
   });
@@ -445,7 +445,7 @@ describe("members actions", () => {
     it("비로그인 사용자는 권한 에러 — requireAdmin 가드 동작", async () => {
       mockGetCurrentAccount.mockResolvedValue(null);
       const { deleteMember } = await import("@/modules/members/actions");
-      await expect(deleteMember(1)).rejects.toThrow(/관리자 권한/);
+      await expect(deleteMember(1)).rejects.toThrow(/권한/);
       expect(memberDelete).not.toHaveBeenCalled();
     });
 
@@ -460,9 +460,9 @@ describe("members actions", () => {
           name: "x",
           memberships: [{ teamId: 1, activeStartDate: "2020-01-01" }],
         }),
-      ).rejects.toThrow(/관리자 권한/);
+      ).rejects.toThrow(/권한/);
       await expect(updateMember({ id: 1, name: "y" })).rejects.toThrow(
-        /관리자 권한/,
+        /권한/,
       );
       expect(memberCreate).not.toHaveBeenCalled();
       expect(memberUpdate).not.toHaveBeenCalled();
@@ -471,7 +471,7 @@ describe("members actions", () => {
     it("일반 회원(isAdmin=false)은 권한 에러 — requireAdmin 가드 동작", async () => {
       mockGetCurrentAccount.mockResolvedValue({ id: "user-1", isAdmin: false });
       const { deleteMember } = await import("@/modules/members/actions");
-      await expect(deleteMember(1)).rejects.toThrow(/관리자 권한/);
+      await expect(deleteMember(1)).rejects.toThrow(/권한/);
     });
 
     it("0 또는 음수 id는 ok:false 반환", async () => {

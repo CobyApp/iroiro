@@ -4,21 +4,20 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
-import { isBoardManager } from "@/modules/admin/lib/roles";
 import { listAdminUsers } from "@/modules/admin/lib/users";
 import { UsersTable } from "@/modules/admin/components/UsersTable";
 
 export const metadata: Metadata = { title: "회원 · 등급" };
 
-// 회원 등급·작성 제재 관리. 등급(모더레이터) 변경은 site admin만, 작성 제재는
-// board manager(admin·moderator)도 가능 — canManageRoles로 UI를 가른다.
+// 회원 권한 부여·작성 제재 — site admin 전용. 배송·중고·커뮤니티·토레카 관리 권한을 복수로
+// 부여/회수하고, 사이트 관리자 지정과 작성 제재도 여기서 한다.
 export default async function AdminUsersPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
   const account = await getCurrentAccount();
-  if (!isBoardManager(account)) redirect("/");
+  if (!isAdmin(account)) redirect("/board");
   const { q } = await searchParams;
   const users = await listAdminUsers(q);
 
@@ -27,9 +26,9 @@ export default async function AdminUsersPage({
       <AdminPageHeader
         title="회원 · 등급"
         count={users.length}
-        description="사이트 관리자·게시판 모더레이터를 지정하거나, 신고 누적 회원의 작성을 제재해요."
+        description="관리 권한(배송·중고·커뮤니티·토레카)을 부여하거나, 사이트 관리자 지정·작성 제재를 해요."
       >
-        <form action="/admin/users" className="w-full sm:w-72">
+        <form action="/board/users" className="w-full sm:w-72">
           <input
             type="search"
             name="q"
@@ -41,11 +40,7 @@ export default async function AdminUsersPage({
         </form>
       </AdminPageHeader>
 
-      <UsersTable
-        users={users}
-        canManageRoles={isAdmin(account)}
-        currentAccountId={account!.id}
-      />
+      <UsersTable users={users} currentAccountId={account!.id} />
     </AdminPage>
   );
 }

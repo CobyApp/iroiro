@@ -10,7 +10,7 @@ import {
   type ActionResult,
 } from "@/lib/action-result";
 import { isUniqueViolationOn } from "@/lib/prisma-errors";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 
 // 시리즈 종류(kind) 편집 — 카탈로그 공간에서 라벨·순서를 관리한다.
 // key 는 series.kind 값이라 만든 뒤에는 바꾸지 않는다(바꾸면 기존 시리즈와 끊어짐).
@@ -47,7 +47,7 @@ export async function createSeriesKind(
   input: SeriesKindCreateInput,
 ): Promise<ActionResult<{ id: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(kindCreateSchema, input);
     try {
       const row = await catalogDb.seriesKind.create({
@@ -66,7 +66,7 @@ export async function updateSeriesKind(
   input: SeriesKindUpdateInput,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(kindUpdateSchema, input);
     await catalogDb.seriesKind.update({
       where: { id: BigInt(data.id) },
@@ -79,7 +79,7 @@ export async function updateSeriesKind(
 // 삭제는 그 종류를 쓰는 시리즈가 없을 때만 — 있으면 먼저 시리즈의 종류를 바꿔야 한다.
 export async function deleteSeriesKind(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const kind = await catalogDb.seriesKind.findUnique({ where: { id: BigInt(id) } });
     if (!kind) throw new DomainError("종류를 찾을 수 없어요", "not_found");
     const used = await catalogDb.series.count({ where: { kind: kind.key } });

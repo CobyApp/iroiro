@@ -6,6 +6,7 @@ import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
+import { adminRolesOf, hasAdminSpace } from "@/modules/admin/lib/adminRoles";
 import { APP_NAMES, appDisplayName, isDevDeploy } from "@/lib/app-name";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -39,19 +40,19 @@ export default async function CatalogLayout({
 }) {
   await connection();
 
-  // 권한 가드 (룰 3) — 카탈로그는 site admin 전용. 게시판 moderator는 들어올 수 없다.
-  // 비로그인은 로그인으로, 권한 없으면 홈으로. Server Action은 requireAdmin에서 재검증.
+  // 권한 가드 (룰 3) — 토레카 관리 권한(catalog) 또는 site admin. 비로그인은 로그인으로,
+  // 권한 없으면 홈으로. Server Action은 requireCatalogManager에서 재검증.
   const account = await getCurrentAccount();
   if (!account) redirect("/login?returnTo=/catalog");
-  if (!isAdmin(account)) redirect("/");
+  if (!hasAdminSpace(account, "catalog")) redirect("/");
 
   return (
     <AdminShell
       scope="catalog"
       appName={appDisplayName(APP_NAMES.catalog)}
       isDev={isDevDeploy()}
-      isSiteAdmin
-      isBoardManager
+      isSiteAdmin={isAdmin(account)}
+      spaces={[...adminRolesOf(account)]}
     >
       {/* 카탈로그 페이지는 자체 여백이 없어 레이아웃에서 공용 페이지 프레임을 한 번 감싼다. */}
       <AdminPage className="mx-auto max-w-7xl">

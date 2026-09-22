@@ -2316,3 +2316,33 @@ COMMENT ON COLUMN product.catalog_card_id IS '등록 출처 카탈로그 카드 
 CREATE INDEX IF NOT EXISTS product_catalog_card_idx ON product (catalog_card_id);
 
 -- ============================================================================
+
+-- [20260924000000_account_admin_roles]
+-- ============================================================================
+
+-- account_admin_roles: 부분 관리 권한(복수 보유) — delivery|used|community|catalog.
+-- site admin(is_admin)은 상위 권한으로 네 권한을 모두 암묵 보유한다(앱 판정, adminRoles.ts).
+-- 권한 부여·회수는 메인 운영 관리자(/admin)의 회원·등급 화면에서 한다.
+-- 기존 board_role='moderator'(게시판 관리자)는 community 권한으로 백필한다. board_role 컬럼은
+-- 레거시로 남기되(작성 제재 로직 참조 없음) 새 코드는 admin_roles 만 본다.
+ALTER TABLE account
+    ADD COLUMN IF NOT EXISTS admin_roles TEXT[] NOT NULL DEFAULT '{}';
+COMMENT ON COLUMN account.admin_roles IS '부분 관리 권한 배열 — delivery|used|community|catalog. site admin 은 전 권한 암묵 보유';
+
+-- 배열 원소 화이트리스트 — 알 수 없는 권한 문자열 저장 차단(앱도 검증하지만 DB 백스톱).
+ALTER TABLE account DROP CONSTRAINT IF EXISTS account_admin_roles_chk;
+ALTER TABLE account
+    ADD CONSTRAINT account_admin_roles_chk
+    CHECK (admin_roles <@ ARRAY['delivery','used','community','catalog']::text[]);
+
+-- 미해결 신고 큐처럼, 권한 보유자만 빠르게 훑기 위한 GIN 인덱스.
+CREATE INDEX IF NOT EXISTS account_admin_roles_idx ON account USING GIN (admin_roles);
+
+-- 기존 moderator → community 권한 백필(재실행 안전).
+UPDATE account
+   SET admin_roles = array_append(admin_roles, 'community'), updated_at = now()
+ WHERE board_role = 'moderator' AND NOT ('community' = ANY (admin_roles));
+
+-- app 롤은 account 에 이미 SELECT,INSERT,UPDATE 보유(컬럼 무제한) — 권한 부여/회수 가능. 추가 GRANT 불필요.
+
+-- ============================================================================

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { getPublicUrl } from "@/lib/r2/presign";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
@@ -20,7 +19,6 @@ export default async function EditProfilePage() {
         eyebrow="PROFILE SETTINGS"
         title="프로필 편집"
         description="이로이로에서 표시될 이름과 프로필 사진을 관리하세요."
-        action={<PageBack fallbackHref="/mypage" />}
       />
       <section className="shop-content-surface">
         <EditProfileForm

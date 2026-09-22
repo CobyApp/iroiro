@@ -9,7 +9,7 @@ import {
   runAction,
   type ActionResult,
 } from "@/lib/action-result";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
 
 // 시리즈 관리 — 카탈로그 공간에서 관리자가 추가·보정·정리한다.
@@ -67,7 +67,7 @@ export async function createSeries(
   input: SeriesCreateInput,
 ): Promise<ActionResult<CreatedSeries>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const parsed = seriesCreateSchema.safeParse(input);
     if (!parsed.success) {
       throw new DomainError(
@@ -109,7 +109,7 @@ export async function updateSeries(
   input: SeriesInput,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const parsed = seriesInputSchema.safeParse(input);
     if (!parsed.success) {
       throw new DomainError(
@@ -144,7 +144,7 @@ export async function updateSeries(
 // 삭제는 연결된 상품이 없을 때만 — 있으면 먼저 상품에서 시리즈를 바꿔야 한다.
 export async function deleteSeries(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const linked = await db.product.count({
       where: { seriesId: BigInt(id) },
     });

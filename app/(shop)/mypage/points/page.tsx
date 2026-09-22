@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Coins, Ticket } from "lucide-react";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import {
@@ -43,7 +42,6 @@ export default async function PointsPage() {
   return (
     <div className="shop-page-frame space-y-6">
       <div className="flex items-center gap-2">
-        <PageBack fallbackHref="/mypage" />
         <h1 className="text-2xl font-bold">포인트 · 쿠폰</h1>
       </div>
 

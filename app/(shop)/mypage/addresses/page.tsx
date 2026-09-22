@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
@@ -22,7 +21,6 @@ export default async function AddressesPage() {
         eyebrow="ADDRESS BOOK"
         title="주소록"
         description="자주 쓰는 배송지를 저장해 두고 주문할 때 바로 골라 쓰세요."
-        action={<PageBack fallbackHref="/mypage" />}
       />
       <section className="shop-content-surface">
         <AddressBook addresses={addresses} />

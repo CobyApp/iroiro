@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PageBack } from "@/components/PageBack";
 import { PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentAccount } from "@/modules/auth/dal";
@@ -28,7 +27,6 @@ export default async function OrdersPage() {
   return (
     <div className="shop-page-frame space-y-6">
       <div className="flex items-center gap-2">
-        <PageBack fallbackHref="/mypage" />
         <h1 className="text-2xl font-bold">주문 내역</h1>
       </div>
       {orders.length === 0 ? (

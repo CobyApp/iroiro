@@ -76,13 +76,13 @@ export default async function AdminPostsPage({
       if (q) sp.set("q", q);
       if (status) sp.set("status", status);
       if (totalPages > 1) sp.set("page", String(totalPages));
-      redirect(`/admin/posts?${sp.toString()}`);
+      redirect(`/board/posts?${sp.toString()}`);
     }
   }
 
   return (
     <AdminPage>
-      <AdminPageHeader title="게시판 관리" />
+      <AdminPageHeader title="게시판 · 신고" />
 
       {/* 탭 — 폰에서 줄바꿈 대신 가로 스크롤 */}
       <nav
@@ -92,7 +92,7 @@ export default async function AdminPostsPage({
         {TABS.map((t) => (
           <Link
             key={t.value}
-            href={`/admin/posts?tab=${t.value}`}
+            href={`/board/posts?tab=${t.value}`}
             aria-current={tab === t.value ? "page" : undefined}
             className={cn(
               "shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",

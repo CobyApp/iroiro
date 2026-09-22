@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
@@ -84,7 +83,6 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
 
   return (
     <div className="shop-page-frame space-y-4">
-      <PageBack fallbackHref="/used" />
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[420px_minmax(0,1fr)]">
         <UsedPhotoGallery
           photos={listing.photos.map((p) => ({

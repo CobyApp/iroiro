@@ -13,7 +13,7 @@ import { catalogPublicUrl } from "@/lib/r2/catalog";
 import { deployEnvName } from "@/lib/app-name";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   getRegistrationHint,
   listAnalyzedCandidates,
@@ -153,7 +153,7 @@ export async function createCardAdmin(
   input: CardInput,
 ): Promise<ActionResult<{ id: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parse(input);
     const [name, pose, analysis] = await Promise.all([
       buildCardName(data.memberId, data.seriesId),
@@ -191,7 +191,7 @@ export async function updateCard(
   input: CardUpdateInput,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const parsed = cardUpdateSchema.safeParse(input);
     if (!parsed.success) {
       throw new DomainError(
@@ -234,7 +234,7 @@ export async function updateCard(
 
 export async function deleteCard(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     await catalogDb.card.delete({ where: { id: BigInt(id) } });
     revalidateCards();
   });
@@ -320,7 +320,7 @@ export async function reviewCard(
   note?: string,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const row = await catalogDb.card.findUnique({ where: { id: BigInt(id) } });
     if (!row) throw new DomainError("카드를 찾을 수 없어요", "not_found");
     // 승인 = 우리 데이터로 저장하는 순간 → 이때 앞면을 AI 분석해 임베딩을 함께 저장한다.
@@ -369,7 +369,7 @@ export async function fetchRegistrationHint(input: {
   seriesId: number;
 }): Promise<ActionResult<RegistrationHint>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const parsed = hintInputSchema.safeParse(input);
     if (!parsed.success) {
       throw new DomainError("입력값을 확인해주세요", "invalid_input");
@@ -436,7 +436,7 @@ export async function getCardAnalysisDetail(
   cardId: number,
 ): Promise<ActionResult<CardAnalysisDetail>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const row = await catalogDb.card.findUnique({
       where: { id: BigInt(cardId) },
       select: {
@@ -533,7 +533,7 @@ export async function approveCards(
   ids: number[],
 ): Promise<ActionResult<{ approved: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     if (ids.length === 0) throw new DomainError("선택된 카드가 없어요");
     // 지급 대상(대기 중인 유저 제보)을 먼저 확보 — updateMany 후엔 전이를 알 수 없다.
     const rewardTargets = await catalogDb.card.findMany({

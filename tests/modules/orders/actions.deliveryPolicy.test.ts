@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockRequireAdmin } = vi.hoisted(() => ({
   mockRequireAdmin: vi.fn(),
 }));
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({
-  requireAdmin: mockRequireAdmin,
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({
+  requireDeliveryManager: mockRequireAdmin,
 }));
 
 const policyUpdate = vi.fn();

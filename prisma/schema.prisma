@@ -245,6 +245,7 @@ model Account {
   deletedAt             DateTime?         @map("deleted_at") @db.Timestamptz(6)
   isAdmin               Boolean           @default(false) @map("is_admin")
   boardRole             String            @default("member") @map("board_role")
+  adminRoles            String[]          @map("admin_roles")
   postingBannedAt       DateTime?         @map("posting_banned_at") @db.Timestamptz(6)
   postingBanReason      String?           @map("posting_ban_reason")
   createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)

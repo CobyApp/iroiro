@@ -6,8 +6,8 @@ import { Prisma } from "@/lib/generated/catalog-client";
 const { mockRequireAdmin } = vi.hoisted(() => ({
   mockRequireAdmin: vi.fn(),
 }));
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({
-  requireAdmin: mockRequireAdmin,
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({
+  requireCatalogManager: mockRequireAdmin,
 }));
 
 const create = vi.fn();
