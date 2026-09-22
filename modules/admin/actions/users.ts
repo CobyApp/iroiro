@@ -29,7 +29,7 @@ export async function setBoardRole(input: unknown): Promise<ActionResult> {
       where: { id: data.accountId },
       data: { boardRole: data.boardRole, updatedAt: new Date() },
     });
-    revalidatePath("/admin/users");
+    revalidatePath("/board/users");
   });
 }
 
@@ -63,7 +63,7 @@ export async function setSiteAdmin(input: unknown): Promise<ActionResult> {
         updatedAt: new Date(),
       },
     });
-    revalidatePath("/admin/users");
+    revalidatePath("/board/users");
   });
 }
 
@@ -98,6 +98,6 @@ export async function setPostingBan(input: unknown): Promise<ActionResult> {
         updatedAt: new Date(),
       },
     });
-    revalidatePath("/admin/users");
+    revalidatePath("/board/users");
   });
 }

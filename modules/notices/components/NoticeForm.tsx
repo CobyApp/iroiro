@@ -71,7 +71,7 @@ export function NoticeForm({ mode, notice }: Props) {
         toast.error(result.message);
         return;
       }
-      router.push("/admin/notices");
+      router.push("/board/notices");
     });
   }
 
@@ -85,7 +85,7 @@ export function NoticeForm({ mode, notice }: Props) {
       }
       toast.success(`공지 "${notice.title}" 삭제 완료`);
       setConfirmOpen(false);
-      router.push("/admin/notices");
+      router.push("/board/notices");
     });
   }
 
@@ -190,7 +190,7 @@ export function NoticeForm({ mode, notice }: Props) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push("/admin/notices")}
+                onClick={() => router.push("/board/notices")}
                 disabled={pending || deleting}
               >
                 취소

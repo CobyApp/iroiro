@@ -122,36 +122,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // 커뮤니티 관리 — site admin + 게시판 moderator 공용.
-    title: "커뮤니티",
-    items: [
-      {
-        key: "notices",
-        label: "공지",
-        href: "/admin/notices",
-        icon: Megaphone,
-        matchPrefix: "/admin/notices",
-        role: "boardManager",
-      },
-      {
-        key: "posts",
-        label: "게시판 · 신고",
-        href: "/admin/posts",
-        icon: MessageSquare,
-        matchPrefix: "/admin/posts",
-        role: "boardManager",
-      },
-      {
-        key: "users",
-        label: "회원 · 등급",
-        href: "/admin/users",
-        icon: UserCog,
-        matchPrefix: "/admin/users",
-        role: "boardManager",
-      },
-    ],
-  },
-  {
     title: "콘텐츠",
     items: [
       {
@@ -201,7 +171,66 @@ export const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "바로가기",
     items: [
-      // 토레카 마스터 데이터는 별도 공간(/catalog)에서 관리 — 여기서는 진입 링크만.
+      // 토레카 마스터·게시판 관리는 각각 별도 공간(/catalog·/board)에서 — 여기서는 진입 링크만.
+      {
+        key: "to-catalog",
+        label: "토레카 카탈로그 →",
+        href: "/catalog",
+        icon: ArrowRight,
+        role: "siteAdmin",
+      },
+      {
+        key: "to-board",
+        label: "게시판 관리 →",
+        href: "/board",
+        icon: MessageSquare,
+        role: "admin",
+      },
+    ],
+  },
+];
+
+// 게시판 관리 — 별도 설치형 공간. site admin + 게시판 moderator 진입.
+// 공지·게시판/신고는 moderator+admin, 회원·등급(권한 부여·제재)은 site admin 전용.
+export const BOARD_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { key: "home", label: "홈", href: "/board", icon: LayoutDashboard, role: "boardManager" },
+    ],
+  },
+  {
+    title: "게시판",
+    items: [
+      {
+        key: "posts",
+        label: "게시판 · 신고",
+        href: "/board/posts",
+        icon: MessageSquare,
+        matchPrefix: "/board/posts",
+        role: "boardManager",
+      },
+      {
+        key: "notices",
+        label: "공지",
+        href: "/board/notices",
+        icon: Megaphone,
+        matchPrefix: "/board/notices",
+        role: "boardManager",
+      },
+      {
+        key: "users",
+        label: "회원 · 등급",
+        href: "/board/users",
+        icon: UserCog,
+        matchPrefix: "/board/users",
+        role: "admin",
+      },
+    ],
+  },
+  {
+    title: "바로가기",
+    items: [
+      { key: "to-admin", label: "운영 관리자 →", href: "/admin", icon: ArrowRight, role: "siteAdmin" },
       {
         key: "to-catalog",
         label: "토레카 카탈로그 →",

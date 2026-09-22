@@ -6,11 +6,11 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { Dashboard } from "@/modules/dashboard/components/Dashboard";
 import { getDashboardData } from "@/modules/dashboard/lib/queries";
 
-// 대시보드는 site admin 전용 — 게시판 moderator(레이아웃 가드는 통과)는 메뉴에 없는 이 화면 대신
-// 자신의 첫 메뉴인 게시판 관리로 보낸다.
+// 대시보드는 site admin 전용. 레이아웃 가드가 이미 site admin 만 통과시키지만(모더레이터는 /board로),
+// Server Component 방어선으로 한 번 더 확인해 비-admin은 게시판 공간으로 보낸다.
 export default async function AdminDashboardPage() {
   const account = await getCurrentAccount();
-  if (!isAdmin(account)) redirect("/admin/posts");
+  if (!isAdmin(account)) redirect("/board");
 
   const data = await getDashboardData();
 
