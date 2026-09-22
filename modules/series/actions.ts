@@ -53,9 +53,9 @@ function autoSku(): string {
 }
 
 function revalidateCatalog() {
-  revalidatePath("/catalog");
-  revalidatePath("/catalog/series");
-  revalidatePath("/catalog/cards");
+  revalidatePath("/admin/catalog");
+  revalidatePath("/admin/catalog/series");
+  revalidatePath("/admin/catalog/cards");
 }
 
 // 한국어 병기 → label_i18n. 비우면 null(컬럼 NULL).

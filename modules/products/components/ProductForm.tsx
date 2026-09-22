@@ -49,7 +49,7 @@ export function ProductForm({
   // 목록에서 전달한 필터·페이지·정렬 query를 그대로 보존해 돌아갈 URL을 구성.
   function backToList(): string {
     const qs = searchParams.toString();
-    return `/delivery/products${qs ? `?${qs}` : ""}`;
+    return `/admin/store/products${qs ? `?${qs}` : ""}`;
   }
 
   // 토레카 정보는 card 가 소유(읽기전용). 저장 시 기존값을 그대로 실어 서버가 비우지 않게 한다.

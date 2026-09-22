@@ -592,7 +592,7 @@ export async function advanceOrderStatus(input: {
           },
     );
     revalidateOrder(order.orderNo);
-    revalidatePath("/delivery/orders");
+    revalidatePath("/admin/store/orders");
     return { status: next };
   });
 }

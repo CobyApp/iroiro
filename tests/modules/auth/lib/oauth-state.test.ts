@@ -4,8 +4,8 @@ import { safeReturnPath } from "@/modules/auth/lib/oauth/state";
 describe("safeReturnPath", () => {
   it("같은 사이트 절대경로는 통과한다", () => {
     expect(safeReturnPath("/admin")).toBe("/admin");
-    expect(safeReturnPath("/catalog/cards?view=pending")).toBe(
-      "/catalog/cards?view=pending",
+    expect(safeReturnPath("/admin/catalog/cards?view=pending")).toBe(
+      "/admin/catalog/cards?view=pending",
     );
   });
   it("오픈 리다이렉트·비내부 경로는 거부한다", () => {

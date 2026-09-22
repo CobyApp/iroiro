@@ -75,7 +75,7 @@ function buildQuery(filter: { q?: string; status?: Status; page: number }): stri
   if (filter.q) params.set("q", filter.q);
   if (filter.status) params.set("status", filter.status);
   if (filter.page > 1) params.set("page", String(filter.page));
-  return `/board/posts?${params.toString()}`;
+  return `/admin/posts/posts?${params.toString()}`;
 }
 
 export function PostsAdminTable({ items, total, page, pageSize, q, status }: Props) {

@@ -207,7 +207,7 @@ export async function createProduct(
   return runAction(async () => {
     await requireDeliveryManager();
     const result = await persistNewProduct(input);
-    revalidatePath("/delivery/products");
+    revalidatePath("/admin/store/products");
     revalidatePath("/");
     return toProduct(result);
   });
@@ -314,7 +314,7 @@ export async function updateProduct(
       console.error("[products] 찜 알림 발송 실패", error),
     );
 
-    revalidatePath("/delivery/products");
+    revalidatePath("/admin/store/products");
     revalidatePath(`/products/${data.id}`);
     revalidatePath("/");
     return toProduct(result);
@@ -331,7 +331,7 @@ export async function deleteProduct(id: number): Promise<ActionResult> {
       }),
     );
 
-    revalidatePath("/delivery/products");
+    revalidatePath("/admin/store/products");
     revalidatePath("/");
   });
 }
@@ -400,7 +400,7 @@ export async function bulkUpdateProducts(
       await db.product.updateMany({ where, data });
     }
 
-    revalidatePath("/delivery/products");
+    revalidatePath("/admin/store/products");
     revalidatePath("/");
     return { updated: uniqueIds.length };
   });
@@ -451,7 +451,7 @@ export async function createDraftProductForCard(
       { rate100, useRateForSalePrice: rate100 > 0, photoR2Key },
     );
     await persistNewProduct(draft);
-    revalidatePath("/delivery/products");
+    revalidatePath("/admin/store/products");
     return { created: true };
   });
 }

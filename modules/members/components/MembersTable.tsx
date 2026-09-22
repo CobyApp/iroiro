@@ -26,7 +26,7 @@ export function MembersTable({ members, teamNameById, teamFilter }: Props) {
   const router = useRouter();
 
   function navigateTo(id: number) {
-    router.push(`/catalog/members/${id}/edit`);
+    router.push(`/admin/catalog/members/${id}/edit`);
   }
 
   type Row = {
@@ -105,7 +105,7 @@ export function MembersTable({ members, teamNameById, teamFilter }: Props) {
                 </p>
               </div>
               <Link
-                href={`/catalog/members/${member.id}/edit`}
+                href={`/admin/catalog/members/${member.id}/edit`}
                 aria-label={`${member.name} 편집`}
                 className="inline-flex h-11 shrink-0 items-center gap-1 rounded-md px-3 text-xs font-medium text-primary hover:bg-muted"
               >
@@ -166,7 +166,7 @@ export function MembersTable({ members, teamNameById, teamFilter }: Props) {
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/catalog/members/${member.id}/edit`}
+                      href={`/admin/catalog/members/${member.id}/edit`}
                       aria-label={`${member.name} 편집`}
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-primary hover:bg-muted"

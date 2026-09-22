@@ -109,11 +109,11 @@ export async function adminDeleteReview(
     if (result.count === 0) {
       throw new DomainError("리뷰를 찾을 수 없습니다");
     }
-    revalidatePath("/delivery/reviews");
+    revalidatePath("/admin/store/reviews");
   });
 }
 
-// ── 리뷰 신고 처리(스토어 관리 공간 /delivery) — 모두 delivery 부분 권한(또는 site admin)만.
+// ── 리뷰 신고 처리(스토어 관리 공간 /admin/store) — 모두 delivery 부분 권한(또는 site admin)만.
 // 도메인 로직은 lib/report.ts(순수·테스트 대상), 여기선 가드·검증·revalidate 만 담당(룰 2·3).
 
 /** 리뷰 숨김 — hidden_* 스탬프 + 미해결 신고 일괄 처리. 고객 화면에서 사라지므로 함께 revalidate. */
@@ -122,7 +122,7 @@ export async function hideProductReview(input: unknown): Promise<ActionResult> {
     const admin = await requireDeliveryManager();
     const data = parseActionInput(reviewHideSchema, input);
     await reportLib.hideProductReview(admin.id, data);
-    revalidatePath("/delivery/reviews");
+    revalidatePath("/admin/store/reviews");
   });
 }
 
@@ -132,7 +132,7 @@ export async function unhideProductReview(input: unknown): Promise<ActionResult>
     const admin = await requireDeliveryManager();
     const { reviewId } = parseActionInput(reviewIdSchema, input);
     await reportLib.unhideProductReview(admin.id, reviewId);
-    revalidatePath("/delivery/reviews");
+    revalidatePath("/admin/store/reviews");
   });
 }
 
@@ -142,7 +142,7 @@ export async function dismissProductReviewReport(input: unknown): Promise<Action
     const admin = await requireDeliveryManager();
     const data = parseActionInput(reviewDismissReportSchema, input);
     await reportLib.dismissProductReviewReport(admin.id, data);
-    revalidatePath("/delivery/reviews");
+    revalidatePath("/admin/store/reviews");
   });
 }
 

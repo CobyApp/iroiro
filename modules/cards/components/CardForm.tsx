@@ -65,7 +65,7 @@ const NEW_MEMBER_VALUE = "__new_member__";
 // 토레카 등록 폼 — 관리자(즉시 공개)와 유저 제보(검수 대기) 공용.
 // 분석기와 같은 흐름: 그룹 → 멤버 → 시리즈(없으면 바로 추가), 카드 이름은
 // "멤버 · 시리즈"로 자동 생성. 선택이 끝나면 기존 카드를 먼저 보여줘 중복을 줄인다.
-// 종류 라벨·순서·선택지는 DB(series_kind)에서 내려온 kinds 로 그린다 — /catalog/kinds 편집이 그대로 반영.
+// 종류 라벨·순서·선택지는 DB(series_kind)에서 내려온 kinds 로 그린다 — /admin/catalog/kinds 편집이 그대로 반영.
 // 관리자 모드는 폼을 떠나지 않고 멤버·시리즈를 추가할 수 있고(빠른 추가 다이얼로그), 저장 후에도
 // 그룹·멤버·시리즈를 유지하는 연속 등록이 기본이다.
 export function CardForm({
@@ -254,11 +254,11 @@ export function CardForm({
       if (mode === "admin") {
         if (!continuous) {
           toast.success("토레카를 등록했어요");
-          router.push("/catalog/cards");
+          router.push("/admin/catalog/cards");
           return;
         }
         // 연속 등록 — 선택은 유지, 사진만 비우고 기존 카드·다음 포즈를 갱신한다.
-        const viewUrl = `/catalog/cards?team=${teamId}&member=${memberId}&series=${seriesId}#card-${result.data.id}`;
+        const viewUrl = `/admin/catalog/cards?team=${teamId}&member=${memberId}&series=${seriesId}#card-${result.data.id}`;
         toast.success(
           `#${result.data.id} 등록 — ${autoName ?? "토레카"}${hint ? ` · 포즈 ${hint.nextPose}` : ""}`,
           { action: { label: "카드 보기", onClick: () => router.push(viewUrl) } },

@@ -29,16 +29,16 @@ const SECTIONS: NavSection[] = [
   {
     title: "게시판",
     items: [
-      item({ key: "posts", href: "/board/posts", role: "community", matchPrefix: "/board/posts" }),
-      item({ key: "users", href: "/board/users", role: "siteAdmin", matchPrefix: "/board/users" }),
+      item({ key: "posts", href: "/admin/posts/posts", role: "community", matchPrefix: "/admin/posts/posts" }),
+      item({ key: "users", href: "/admin/posts/users", role: "siteAdmin", matchPrefix: "/admin/posts/users" }),
     ],
   },
   {
     title: "혼합",
     items: [
-      item({ key: "notices", href: "/board/notices", role: "community" }),
-      item({ key: "cards", href: "/catalog/cards", role: "catalog" }),
-      item({ key: "policy", href: "/delivery", role: "delivery" }),
+      item({ key: "notices", href: "/admin/posts/notices", role: "community" }),
+      item({ key: "cards", href: "/admin/catalog/cards", role: "catalog" }),
+      item({ key: "policy", href: "/admin/store", role: "delivery" }),
     ],
   },
 ];
@@ -100,10 +100,10 @@ describe("실제 섹션 정의", () => {
 
   it("메인 관리자는 네 공간으로 가는 바로가기를 갖되 역방향 링크는 없다", () => {
     const admin = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    expect(admin).toContain("/delivery");
-    expect(admin).toContain("/market");
-    expect(admin).toContain("/board");
-    expect(admin).toContain("/catalog");
+    expect(admin).toContain("/admin/store");
+    expect(admin).toContain("/admin/used");
+    expect(admin).toContain("/admin/posts");
+    expect(admin).toContain("/admin/catalog");
     for (const sections of [BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS, MARKET_SECTIONS]) {
       expect(sections.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/admin");
     }
@@ -125,15 +125,15 @@ describe("실제 섹션 정의", () => {
     expect(visibleSections(MARKET_SECTIONS, viewer(false, ["catalog", "delivery"]))).toEqual([]);
     // 모든 항목이 used 역할 — 신고·매물·차단.
     const hrefs = MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    expect(hrefs).toContain("/market/reports");
-    expect(hrefs).toContain("/market/listings");
-    expect(hrefs).toContain("/market/blocked");
+    expect(hrefs).toContain("/admin/used/reports");
+    expect(hrefs).toContain("/admin/used/listings");
+    expect(hrefs).toContain("/admin/used/blocked");
   });
 
   it("회원·등급은 메인 관리자(site admin 전용)에 있고 게시판 공간엔 없다", () => {
     // 회원·등급(권한 부여·제재)은 게시판 공간에서 메인 관리자(/admin/users)로 이동했다.
     const boardHrefs = BOARD_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    expect(boardHrefs).not.toContain("/board/users");
+    expect(boardHrefs).not.toContain("/admin/posts/users");
     expect(boardHrefs).not.toContain("/admin/users");
     const adminUsers = ADMIN_SECTIONS.flatMap((s) => s.items).find((i) => i.href === "/admin/users");
     expect(adminUsers?.role).toBe("siteAdmin");
@@ -143,18 +143,18 @@ describe("실제 섹션 정의", () => {
 
   it("스토어 관리 공간은 상품·주문·리뷰·배송을 담고 delivery 권한자에게 열린다", () => {
     const hrefs = DELIVERY_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    expect(hrefs).toContain("/delivery/products");
-    expect(hrefs).toContain("/delivery/orders");
-    expect(hrefs).toContain("/delivery/reviews");
-    expect(hrefs).toContain("/delivery/policy");
+    expect(hrefs).toContain("/admin/store/products");
+    expect(hrefs).toContain("/admin/store/orders");
+    expect(hrefs).toContain("/admin/store/reviews");
+    expect(hrefs).toContain("/admin/store/policy");
     // 상품·주문·리뷰는 더 이상 메인 관리자에 없다(정산 메뉴는 제거됨).
     const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
     expect(adminHrefs).not.toContain("/admin/products");
     expect(adminHrefs).not.toContain("/admin/orders");
     expect(adminHrefs).not.toContain("/admin/reviews");
-    expect(hrefs).not.toContain("/delivery/settlement");
+    expect(hrefs).not.toContain("/admin/store/settlement");
     // 중고거래 수수료 설정은 중고 관리 공간으로 옮겼다.
-    expect(MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href))).toContain("/market/settings");
+    expect(MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href))).toContain("/admin/used/settings");
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
   });
 

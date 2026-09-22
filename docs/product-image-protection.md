@@ -21,7 +21,7 @@
 | 고객 상품 상세·목록 | `/media/product-photos/{photoId}/{g\|d}/{sig}`, `/media/product-thumbnails/{productId}/{g}/{sig}` | wm | HMAC 서명(ID·변형) |
 | 고객 **소유자 컬렉션** | 같은 라우트의 `cg`·`cd` 변형 | **clean** | 서명 + 세션 + `ownsProduct`(활성 보유). 응답 `Cache-Control: private` |
 | 고객 카드 이미지(제보·매물·게시글) | `CATALOG_PUBLIC_BASE/cards/wm/…` 직접 | wm | 버킷 정책 public read(`cards/wm/*`만) |
-| 카탈로그 관리(/catalog) | `/media/catalog-clean/{key}` | **clean** | site admin(`isAdmin`) — 라우트가 직접 검증, `private` 캐시 |
+| 카탈로그 관리(/admin/catalog) | `/media/catalog-clean/{key}` | **clean** | site admin(`isAdmin`) — 라우트가 직접 검증, `private` 캐시 |
 | 관리자 상품 사진 다운로드 | `/admin/products/{id}/photos/…/download` | clean(없으면 wm) | `requireAdmin` |
 | AI 임베딩 입력 | 서버 내부 | clean(없으면 wm) | — |
 

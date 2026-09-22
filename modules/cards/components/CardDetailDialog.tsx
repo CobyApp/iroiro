@@ -68,7 +68,7 @@ export function CardDetailDialog({
 
   const listHref =
     card.seriesId !== null
-      ? `/catalog/cards?${[
+      ? `/admin/catalog/cards?${[
           card.teamId !== null ? `team=${card.teamId}` : null,
           card.memberId !== null ? `member=${card.memberId}` : null,
           `series=${card.seriesId}`,

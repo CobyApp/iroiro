@@ -22,7 +22,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-// 관리자(/admin)·카탈로그(/catalog) 공용 셸의 메뉴 정의 — 데이터로 두고 사이드바가 렌더한다.
+// 관리자(/admin)·카탈로그(/admin/catalog) 공용 셸의 메뉴 정의 — 데이터로 두고 사이드바가 렌더한다.
 // 권한 필터(visibleSections)·활성 판정(isNavItemActive)은 순수 함수라 단위 테스트가 붙는다.
 
 /**
@@ -85,7 +85,7 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
 }
 
 // 운영 관리자 — 홈 / 콘텐츠 / 회원 / 스토어 / 바로가기.
-// 스토어 상품·주문·정산·배송은 스토어·배송 공간(/delivery)으로 분리됐다(바로가기로 진입).
+// 스토어 상품·주문·정산·배송은 스토어·배송 공간(/admin/store)으로 분리됐다(바로가기로 진입).
 // 계정(로그아웃)은 헤더 우측 AdminAccountMenu로.
 export const ADMIN_SECTIONS: NavSection[] = [
   {
@@ -134,28 +134,28 @@ export const ADMIN_SECTIONS: NavSection[] = [
       {
         key: "to-delivery",
         label: "스토어 관리 →",
-        href: "/delivery",
+        href: "/admin/store",
         icon: Truck,
         role: "siteAdmin",
       },
       {
         key: "to-market",
         label: "중고거래 관리 →",
-        href: "/market",
+        href: "/admin/used",
         icon: Store,
         role: "siteAdmin",
       },
       {
         key: "to-board",
         label: "커뮤니티 관리 →",
-        href: "/board",
+        href: "/admin/posts",
         icon: MessageSquare,
         role: "siteAdmin",
       },
       {
         key: "to-catalog",
         label: "토레카 카탈로그 →",
-        href: "/catalog",
+        href: "/admin/catalog",
         icon: ArrowRight,
         role: "siteAdmin",
       },
@@ -163,12 +163,12 @@ export const ADMIN_SECTIONS: NavSection[] = [
   },
 ];
 
-// 중고거래 관리 — 별도 설치형 공간(/market). site admin + used 부분 권한.
+// 중고거래 관리 — 별도 설치형 공간(/admin/used). site admin + used 부분 권한.
 // 신고 처리(매물 차단·해제·기각)와 매물 모니터링을 한곳에서. 회원 제재는 메인 관리자에서.
 export const MARKET_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/market", icon: LayoutDashboard, role: "used" },
+      { key: "home", label: "홈", href: "/admin/used", icon: LayoutDashboard, role: "used" },
     ],
   },
   {
@@ -177,41 +177,41 @@ export const MARKET_SECTIONS: NavSection[] = [
       {
         key: "reports",
         label: "매물 신고",
-        href: "/market/reports",
+        href: "/admin/used/reports",
         icon: Flag,
-        matchPrefix: "/market/reports",
+        matchPrefix: "/admin/used/reports",
         role: "used",
       },
       {
         key: "review-reports",
         label: "후기 신고",
-        href: "/market/review-reports",
+        href: "/admin/used/review-reports",
         icon: Star,
-        matchPrefix: "/market/review-reports",
+        matchPrefix: "/admin/used/review-reports",
         role: "used",
       },
       {
         key: "listings",
         label: "매물",
-        href: "/market/listings",
+        href: "/admin/used/listings",
         icon: Store,
-        matchPrefix: "/market/listings",
+        matchPrefix: "/admin/used/listings",
         role: "used",
       },
       {
         key: "blocked",
         label: "차단 매물",
-        href: "/market/blocked",
+        href: "/admin/used/blocked",
         icon: Ban,
-        matchPrefix: "/market/blocked",
+        matchPrefix: "/admin/used/blocked",
         role: "used",
       },
       {
         key: "fee",
         label: "판매 수수료",
-        href: "/market/settings",
+        href: "/admin/used/settings",
         icon: Coins,
-        matchPrefix: "/market/settings",
+        matchPrefix: "/admin/used/settings",
         role: "used",
       },
     ],
@@ -222,7 +222,7 @@ export const MARKET_SECTIONS: NavSection[] = [
 export const DELIVERY_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/delivery", icon: LayoutDashboard, role: "delivery" },
+      { key: "home", label: "홈", href: "/admin/store", icon: LayoutDashboard, role: "delivery" },
     ],
   },
   {
@@ -231,25 +231,25 @@ export const DELIVERY_SECTIONS: NavSection[] = [
       {
         key: "products",
         label: "상품",
-        href: "/delivery/products",
+        href: "/admin/store/products",
         icon: Package,
-        matchPrefix: "/delivery/products",
+        matchPrefix: "/admin/store/products",
         role: "delivery",
       },
       {
         key: "orders",
         label: "주문",
-        href: "/delivery/orders",
+        href: "/admin/store/orders",
         icon: ShoppingBag,
-        matchPrefix: "/delivery/orders",
+        matchPrefix: "/admin/store/orders",
         role: "delivery",
       },
       {
         key: "reviews",
         label: "리뷰",
-        href: "/delivery/reviews",
+        href: "/admin/store/reviews",
         icon: Star,
-        matchPrefix: "/delivery/reviews",
+        matchPrefix: "/admin/store/reviews",
         role: "delivery",
       },
     ],
@@ -260,9 +260,9 @@ export const DELIVERY_SECTIONS: NavSection[] = [
       {
         key: "policy",
         label: "배송 정책",
-        href: "/delivery/policy",
+        href: "/admin/store/policy",
         icon: Truck,
-        matchPrefix: "/delivery/policy",
+        matchPrefix: "/admin/store/policy",
         role: "delivery",
       },
     ],
@@ -274,7 +274,7 @@ export const DELIVERY_SECTIONS: NavSection[] = [
 export const BOARD_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/board", icon: LayoutDashboard, role: "community" },
+      { key: "home", label: "홈", href: "/admin/posts", icon: LayoutDashboard, role: "community" },
     ],
   },
   {
@@ -283,29 +283,29 @@ export const BOARD_SECTIONS: NavSection[] = [
       {
         key: "posts",
         label: "게시판 · 신고",
-        href: "/board/posts",
+        href: "/admin/posts/posts",
         icon: MessageSquare,
-        matchPrefix: "/board/posts",
+        matchPrefix: "/admin/posts/posts",
         role: "community",
       },
       {
         key: "notices",
         label: "공지",
-        href: "/board/notices",
+        href: "/admin/posts/notices",
         icon: Megaphone,
-        matchPrefix: "/board/notices",
+        matchPrefix: "/admin/posts/notices",
         role: "community",
       },
     ],
   },
 ];
 
-// 카탈로그 — 홈은 정확히 /catalog 일 때만 활성, 나머지는 하위 경로까지.
-// 검수는 /catalog/cards 안의 탭이라 별도 항목을 두지 않는다.
+// 카탈로그 — 홈은 정확히 /admin/catalog 일 때만 활성, 나머지는 하위 경로까지.
+// 검수는 /admin/catalog/cards 안의 탭이라 별도 항목을 두지 않는다.
 export const CATALOG_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/catalog", icon: LayoutDashboard, role: "catalog" },
+      { key: "home", label: "홈", href: "/admin/catalog", icon: LayoutDashboard, role: "catalog" },
     ],
   },
   {
@@ -314,41 +314,41 @@ export const CATALOG_SECTIONS: NavSection[] = [
       {
         key: "cards",
         label: "토레카",
-        href: "/catalog/cards",
+        href: "/admin/catalog/cards",
         icon: WalletCards,
-        matchPrefix: "/catalog/cards",
+        matchPrefix: "/admin/catalog/cards",
         role: "catalog",
       },
       {
         key: "series",
         label: "시리즈",
-        href: "/catalog/series",
+        href: "/admin/catalog/series",
         icon: Layers,
-        matchPrefix: "/catalog/series",
+        matchPrefix: "/admin/catalog/series",
         role: "catalog",
       },
       {
         key: "kinds",
         label: "종류",
-        href: "/catalog/kinds",
+        href: "/admin/catalog/kinds",
         icon: Tag,
-        matchPrefix: "/catalog/kinds",
+        matchPrefix: "/admin/catalog/kinds",
         role: "catalog",
       },
       {
         key: "teams",
         label: "그룹",
-        href: "/catalog/teams",
+        href: "/admin/catalog/teams",
         icon: Users,
-        matchPrefix: "/catalog/teams",
+        matchPrefix: "/admin/catalog/teams",
         role: "catalog",
       },
       {
         key: "members",
         label: "멤버",
-        href: "/catalog/members",
+        href: "/admin/catalog/members",
         icon: User,
-        matchPrefix: "/catalog/members",
+        matchPrefix: "/admin/catalog/members",
         role: "catalog",
       },
     ],

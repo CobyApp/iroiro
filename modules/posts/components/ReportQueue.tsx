@@ -243,7 +243,7 @@ export function ReportQueue({ items, total, page, pageSize }: Props) {
           <PaginationContent>
             {page > 1 && (
               <PaginationItem>
-                <PaginationPrevious href={`/board/posts?tab=queue&page=${page - 1}`} />
+                <PaginationPrevious href={`/admin/posts/posts?tab=queue&page=${page - 1}`} />
               </PaginationItem>
             )}
             <PaginationItem>
@@ -253,7 +253,7 @@ export function ReportQueue({ items, total, page, pageSize }: Props) {
             </PaginationItem>
             {page < totalPages && (
               <PaginationItem>
-                <PaginationNext href={`/board/posts?tab=queue&page=${page + 1}`} />
+                <PaginationNext href={`/admin/posts/posts?tab=queue&page=${page + 1}`} />
               </PaginationItem>
             )}
           </PaginationContent>

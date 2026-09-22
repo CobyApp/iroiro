@@ -119,7 +119,7 @@ function parse(input: CardInput) {
 }
 
 function revalidateCards() {
-  revalidatePath("/catalog/cards");
+  revalidatePath("/admin/catalog/cards");
   revalidatePath("/cards/new");
   // 토레카=상품이라 카드 변경(생성·수정·삭제)은 상품 목록·스토어에도 즉시 반영돼야 한다.
   // 상세(이름·이미지)는 overlayCardDisplay 가 card 를 실시간 조회하므로, 여기선 목록 캐시를 무효화한다.
@@ -564,7 +564,7 @@ export async function createSeriesInline(
     const row = await catalogDb.series.create({
       data: { sku, teamId: BigInt(teamId), label: cleanLabel, kind: cleanKind },
     });
-    revalidatePath("/catalog");
+    revalidatePath("/admin/catalog");
     revalidateCards();
     return { id: Number(row.id), label: row.label, kind: row.kind };
   });

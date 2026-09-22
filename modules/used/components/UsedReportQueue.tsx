@@ -106,7 +106,7 @@ export function UsedReportQueue({ items, total, page, pageSize, publicBaseUrl }:
           <PaginationContent>
             {page > 1 && (
               <PaginationItem>
-                <PaginationPrevious href={`/market/reports?page=${page - 1}`} />
+                <PaginationPrevious href={`/admin/used/reports?page=${page - 1}`} />
               </PaginationItem>
             )}
             <PaginationItem>
@@ -116,7 +116,7 @@ export function UsedReportQueue({ items, total, page, pageSize, publicBaseUrl }:
             </PaginationItem>
             {page < totalPages && (
               <PaginationItem>
-                <PaginationNext href={`/market/reports?page=${page + 1}`} />
+                <PaginationNext href={`/admin/used/reports?page=${page + 1}`} />
               </PaginationItem>
             )}
           </PaginationContent>
