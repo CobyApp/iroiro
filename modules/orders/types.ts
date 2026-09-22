@@ -116,6 +116,8 @@ export type Order = {
   discountAmount: number;
   deliveryAmount: number;
   totalAmount: number;
+  trackingCode: string | null;
+  shippedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

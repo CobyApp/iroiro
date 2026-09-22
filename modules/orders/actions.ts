@@ -15,6 +15,7 @@ import { notify } from "@/modules/notifications/lib/notify";
 import { materializeItems } from "@/modules/collection/lib/materialize";
 import { calculateOrderAmounts } from "./lib/amounts";
 import { rememberAddress } from "@/modules/addresses/lib/remember";
+import { issueTracking } from "@/lib/korea-post";
 import { formatOrderNo } from "./lib/order-no";
 import { decrementStock, restoreStock, SoldOutError } from "./lib/stock";
 import {
@@ -588,17 +589,31 @@ export async function advanceOrderStatus(input: {
     const next = ADMIN_ORDER_TRANSITIONS[order.status];
     if (!next) throw new DomainError("전이할 수 없는 주문 상태입니다");
 
+    // 발송 전이 시 우체국 등기번호를 발급(더미/실키)해 함께 저장한다 — 중고와 동일한 자동화.
+    const now = new Date();
+    const trackingCode =
+      next === "shipped"
+        ? (order.trackingCode ??
+          issueTracking({ seed: Number(order.id) * 7919 }).trackingCode)
+        : null;
+
     // 조건부 updateMany — 동시 클릭·다른 전이와 경합 시 0행이면 거부(중복 전이 방지).
     await db.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { id: order.id, status: order.status },
-        data: { status: next, updatedAt: new Date() },
+        data: {
+          status: next,
+          updatedAt: now,
+          ...(next === "shipped"
+            ? { trackingCode, shippedAt: order.shippedAt ?? now }
+            : {}),
+        },
       });
       if (updated.count === 0) {
         throw new DomainError("주문 상태가 이미 변경되었습니다. 새로고침해주세요");
       }
       await tx.orderStatusHistory.create({
-        data: { orderId: order.id, status: next, statusChangedAt: new Date() },
+        data: { orderId: order.id, status: next, statusChangedAt: now },
       });
     });
 

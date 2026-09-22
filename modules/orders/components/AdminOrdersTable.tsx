@@ -140,6 +140,11 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                 </TableCell>
                 <TableCell className="py-2.5">
                   <OrderStatusBadge status={order.status} />
+                  {order.trackingCode && (
+                    <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">
+                      등기 {order.trackingCode}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
                   {formatKstDateTime(order.createdAt)}
@@ -164,7 +169,14 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                 <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                   {order.orderNo}
                 </span>
-                <OrderStatusBadge status={order.status} />
+                <div className="flex flex-col items-end gap-0.5">
+                  <OrderStatusBadge status={order.status} />
+                  {order.trackingCode && (
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      등기 {order.trackingCode}
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="line-clamp-2 text-sm font-medium leading-snug">{itemLabel(order)}</p>
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">

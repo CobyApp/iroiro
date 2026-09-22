@@ -2800,3 +2800,17 @@ COMMENT ON COLUMN message.image_r2_key IS '첨부 이미지 R2 키(비공개 UGC
 COMMENT ON COLUMN message.body IS '내용(이미지만 보낼 땐 NULL 가능)';
 
 -- ============================================================================
+-- [20261002000000_order_tracking]
+-- ============================================================================
+
+-- 스토어 주문도 중고처럼 우체국 배송추적을 자동화 — 발송(shipped) 전이 시 등기번호(더미/실키)를
+-- 발급해 tracking_code 에 저장하고 shipped_at 을 남긴다. 고객·관리자 화면이 종적조회 링크를 띄운다.
+-- GRANT 는 이미 "order" 에 부여돼 새 컬럼도 커버된다.
+ALTER TABLE "order"
+    ADD COLUMN IF NOT EXISTS tracking_code TEXT,
+    ADD COLUMN IF NOT EXISTS shipped_at    TIMESTAMPTZ;
+
+COMMENT ON COLUMN "order".tracking_code IS '우체국 등기 송장번호(발송 시 발급) — 없으면 NULL';
+COMMENT ON COLUMN "order".shipped_at IS '발송 처리 시각';
+
+-- ============================================================================
