@@ -23,6 +23,11 @@ const pointAggregate = vi.fn();
 const pointCreate = vi.fn();
 const couponFindFirst = vi.fn();
 const couponUpdateMany = vi.fn();
+const addrFindFirst = vi.fn();
+const addrUpdateMany = vi.fn();
+const addrCount = vi.fn();
+const addrCreate = vi.fn();
+const addrDelete = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -42,6 +47,13 @@ vi.mock("@/lib/db", () => ({
         accountCoupon: {
           findFirst: couponFindFirst,
           updateMany: couponUpdateMany,
+        },
+        accountAddress: {
+          findFirst: addrFindFirst,
+          updateMany: addrUpdateMany,
+          count: addrCount,
+          create: addrCreate,
+          delete: addrDelete,
         },
         $queryRaw: txQueryRaw,
       }),
@@ -107,6 +119,11 @@ beforeEach(() => {
   pointCreate.mockReset().mockResolvedValue({});
   couponFindFirst.mockReset().mockResolvedValue({ id: 7n });
   couponUpdateMany.mockReset().mockResolvedValue({ count: 1 });
+  addrFindFirst.mockReset().mockResolvedValue(null);
+  addrUpdateMany.mockReset().mockResolvedValue({ count: 0 });
+  addrCount.mockReset().mockResolvedValue(0);
+  addrCreate.mockReset().mockResolvedValue({});
+  addrDelete.mockReset().mockResolvedValue({});
 });
 
 describe("placeOrder", () => {
