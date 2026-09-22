@@ -23,8 +23,11 @@ import { createUsedListing } from "../actions";
 import {
   PRODUCT_CONDITIONS,
   PRODUCT_CONDITION_LABEL,
+  USED_ITEM_TYPE_LABEL,
+  USED_ITEM_TYPES,
   USED_SHIPPING_LABEL,
   USED_SHIPPING_METHODS,
+  type UsedItemType,
   type UsedShippingMethod,
 } from "../types";
 import { UsedPhotoUpload, type UploadedUsedPhoto } from "./UsedPhotoUpload";
@@ -60,6 +63,11 @@ export function UsedListingForm({
 
   const [photos, setPhotos] = useState<UploadedUsedPhoto[]>([]);
   const [description, setDescription] = useState("");
+  // 굿즈 종류 — 토레카(photocard)만 카탈로그 카드 흐름, 나머지는 제목·그룹·멤버 직접 입력.
+  const [itemType, setItemType] = useState<UsedItemType>("photocard");
+  const isToreca = itemType === "photocard";
+  // 비-토레카 굿즈의 제목(토레카는 카드 이름 자동).
+  const [title, setTitle] = useState("");
   // 토레카 마스터에서 고른 카드 — 제목·계층은 서버가 여기서 파생한다.
   const [cards, setCards] = useState<Card[]>([]);
   const [cardsChecked, setCardsChecked] = useState(false);
@@ -130,9 +138,15 @@ export function UsedListingForm({
   function submit() {
     const endsAtIso = endsAtLocal ? new Date(endsAtLocal).toISOString() : null;
     startTransition(async () => {
-      if (!selectedCard) return;
+      if (isToreca && !selectedCard) return;
+      if (!isToreca && title.trim() === "") return;
       const result = await createUsedListing({
-        cardId: selectedCard.id,
+        itemType,
+        cardId: isToreca ? selectedCard!.id : null,
+        title: isToreca ? null : title.trim(),
+        teamId: isToreca ? null : teamId,
+        memberId: isToreca ? null : memberId,
+        seriesId: null,
         description: description || null,
         condition: condition as (typeof PRODUCT_CONDITIONS)[number],
         saleMode,
@@ -166,6 +180,28 @@ export function UsedListingForm({
         <UsedPhotoUpload photos={photos} onChange={setPhotos} />
       </section>
 
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">굿즈 종류</h2>
+        <Select value={itemType} onValueChange={(v) => setItemType(v as UsedItemType)}>
+          <SelectTrigger className={selectCls}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {USED_ITEM_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {USED_ITEM_TYPE_LABEL[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!isToreca && (
+          <p className="text-xs text-muted-foreground">
+            토레카 외 굿즈는 카탈로그 카드가 없어요 — 제목과 그룹·멤버를 직접 입력해주세요.
+          </p>
+        )}
+      </section>
+
+      {isToreca ? (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">어떤 카드인가요?</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -332,6 +368,56 @@ export function UsedListingForm({
           </div>
         )}
       </section>
+      ) : (
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">굿즈 정보</h2>
+        <label className="block text-sm">
+          <span className="mb-1 block text-muted-foreground">제목</span>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={`예: ${USED_ITEM_TYPE_LABEL[itemType]} — 멤버명 / 시리즈`}
+            maxLength={80}
+          />
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Select
+            value={teamId !== null ? String(teamId) : ""}
+            onValueChange={(v) => {
+              setTeamId(v ? Number(v) : null);
+              setMemberId(null);
+            }}
+          >
+            <SelectTrigger className={selectCls}>
+              <SelectValue placeholder="그룹 (선택)" />
+            </SelectTrigger>
+            <SelectContent>
+              {teams.map((t) => (
+                <SelectItem key={t.id} value={String(t.id)}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={memberId !== null ? String(memberId) : ""}
+            onValueChange={(v) => setMemberId(v ? Number(v) : null)}
+            disabled={teamId === null}
+          >
+            <SelectTrigger className={selectCls}>
+              <SelectValue placeholder="멤버 (선택)" />
+            </SelectTrigger>
+            <SelectContent>
+              {membersOfTeam.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">실물 상태</h2>
@@ -453,7 +539,11 @@ export function UsedListingForm({
         size="lg"
         className="w-full"
         onClick={submit}
-        disabled={pending || photos.length === 0 || selectedCard === null}
+        disabled={
+          pending ||
+          photos.length === 0 ||
+          (isToreca ? selectedCard === null : title.trim() === "")
+        }
       >
         {pending ? "등록 중…" : "매물 등록하기"}
       </Button>

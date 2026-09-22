@@ -19,6 +19,31 @@ export const USED_STATUS_LABEL = {
 } as const satisfies Record<string, string>;
 export type UsedStatus = keyof typeof USED_STATUS_LABEL;
 
+// 중고 굿즈 종류 — 스토어(토레카 전용)와 달리 중고는 다양한 아이돌 굿즈를 다룬다.
+// photocard(토레카)만 카탈로그 카드와 연결되고, 나머지는 그룹·멤버·제목을 직접 입력한다.
+// 값 photocard 는 스토어와 동일 어휘(레거시 호환) — used_listing.item_type 에 저장.
+export const USED_ITEM_TYPE_LABEL = {
+  photocard: "토레카",
+  cheki: "체키",
+  can_badge: "캔뱃지",
+  acrylic_stand: "아크릴 스탠드",
+  plush: "인형",
+  keyring: "키링",
+  strap: "스트랩",
+  penlight: "펜라이트",
+  poster: "포스터",
+  clearfile: "클리어파일",
+  apparel: "의류",
+  other: "기타",
+} as const satisfies Record<string, string>;
+export type UsedItemType = keyof typeof USED_ITEM_TYPE_LABEL;
+export const USED_ITEM_TYPES = Object.keys(USED_ITEM_TYPE_LABEL) as [
+  UsedItemType,
+  ...UsedItemType[],
+];
+// 카탈로그 카드와 연결되는 종류 — 이것만 카드 선택 흐름을 쓴다.
+export const USED_CARD_ITEM_TYPE: UsedItemType = "photocard";
+
 export const USED_SHIPPING_LABEL = {
   post: "우체국 준등기",
   parcel: "택배",
