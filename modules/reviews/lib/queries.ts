@@ -23,15 +23,17 @@ export async function listProductReviews(
   viewerAccountId: string | null,
   limit = 30,
 ): Promise<{ reviews: ReviewRow[]; summary: ReviewSummary }> {
+  // 숨김(관리자 신고 처리) 리뷰는 고객 화면·집계에서 제외한다.
+  const visible = { productId: BigInt(productId), hiddenAt: null };
   const rows = await db.productReview.findMany({
-    where: { productId: BigInt(productId) },
+    where: visible,
     orderBy: { createdAt: "desc" },
     take: limit,
   });
   const [count, ratingRows] = await Promise.all([
-    db.productReview.count({ where: { productId: BigInt(productId) } }),
+    db.productReview.count({ where: visible }),
     db.productReview.findMany({
-      where: { productId: BigInt(productId) },
+      where: visible,
       select: { rating: true },
     }),
   ]);

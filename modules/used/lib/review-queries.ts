@@ -8,8 +8,9 @@ const maskAcct = (id: string) => `#${id.slice(-4)}`;
 export async function getSellerReviewSummary(
   sellerAccountId: string,
 ): Promise<SellerReviewSummary> {
+  // 숨김(관리자 신고 처리) 후기는 요약에서 제외.
   const agg = await db.usedReview.aggregate({
-    where: { sellerAccountId },
+    where: { sellerAccountId, hiddenAt: null },
     _avg: { rating: true },
     _count: { _all: true },
   });
@@ -25,7 +26,7 @@ export async function listSellerReviews(
   limit = 20,
 ): Promise<UsedReview[]> {
   const rows = await db.usedReview.findMany({
-    where: { sellerAccountId },
+    where: { sellerAccountId, hiddenAt: null },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
