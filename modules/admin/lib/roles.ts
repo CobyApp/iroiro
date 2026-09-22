@@ -1,10 +1,11 @@
 import type { Account } from "@prisma/client";
-import { isAdmin } from "./isAdmin";
+import { hasAdminSpace } from "./adminRoles";
 
-// 게시판 관리자 판정 — site admin(is_admin)은 상위 권한으로 moderator를 포함한다.
-// 남의 글 관리(숨김·삭제)·공지 등록·신고 처리 권한의 단일 진실.
+// 게시판(커뮤니티) 관리자 판정 — site admin 또는 community 부분 권한 보유.
+// 남의 글 관리(숨김·삭제)·공지 등록·신고 처리 권한의 단일 진실. (예전 board_role='moderator'는
+// admin_roles 의 'community' 로 이관됨 — adminRoles.ts)
 export function isBoardManager(account: Account | null): boolean {
-  return !!account && (isAdmin(account) || account.boardRole === "moderator");
+  return hasAdminSpace(account, "community");
 }
 
 // 작성 제재 상태 — 신고 등으로 글·댓글 작성이 막힌 계정.

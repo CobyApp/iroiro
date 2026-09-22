@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ db: mocks }));
 vi.mock("@/lib/catalog-db", () => ({ catalogDb: mocks }));
 vi.mock("@/modules/auth/dal", () => ({ getCurrentAccount: vi.fn() }));
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({ requireCatalogManager: vi.fn() }));
 vi.mock("@/modules/cards/lib/analysis", () => ({
   analyzeCardFrontByKey: vi.fn(),
   rankSimilarCards: vi.fn(() => []),
@@ -36,7 +36,7 @@ import {
   rankSimilarCards,
 } from "@/modules/cards/lib/analysis";
 import { getRegistrationHint, listAnalyzedCandidates } from "@/modules/cards/lib/queries";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   approveCards,
   fetchRegistrationHint,
@@ -249,7 +249,7 @@ describe("findSimilarCards", () => {
 
 describe("fetchRegistrationHint — 연속 등록 힌트", () => {
   it("관리자가 아니면 requireAdmin 오류를 그대로 던진다", async () => {
-    vi.mocked(requireAdmin).mockRejectedValueOnce(new Error("관리자 권한이 필요합니다"));
+    vi.mocked(requireCatalogManager).mockRejectedValueOnce(new Error("관리자 권한이 필요합니다"));
     await expect(fetchRegistrationHint({ memberId: 1, seriesId: 2 })).rejects.toThrow("관리자 권한");
     expect(getRegistrationHint).not.toHaveBeenCalled();
   });

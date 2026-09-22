@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
-import { isBoardManager } from "@/modules/admin/lib/roles";
+import { adminRolesOf, hasAdminSpace } from "@/modules/admin/lib/adminRoles";
 import { APP_NAMES, appDisplayName, isDevDeploy } from "@/lib/app-name";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -42,7 +42,7 @@ export default async function BoardLayout({
   // Server Action은 requireBoardManager/requireAdmin에서 재검증.
   const account = await getCurrentAccount();
   if (!account) redirect("/login?returnTo=/board");
-  if (!isBoardManager(account)) redirect("/");
+  if (!hasAdminSpace(account, "community")) redirect("/");
 
   return (
     <AdminShell
@@ -50,7 +50,7 @@ export default async function BoardLayout({
       appName={appDisplayName(APP_NAMES.board)}
       isDev={isDevDeploy()}
       isSiteAdmin={isAdmin(account)}
-      isBoardManager
+      spaces={[...adminRolesOf(account)]}
     >
       <PageTransition>{children}</PageTransition>
     </AdminShell>

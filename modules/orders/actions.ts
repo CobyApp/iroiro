@@ -8,6 +8,7 @@ import { todayKstYmd } from "@/lib/datetime";
 import { getPaymentGateway } from "@/lib/payments";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import { notify } from "@/modules/notifications/lib/notify";
 // 교차 도메인: 주문 생성은 재고 스냅샷·장바구니 비우기를 한 트랜잭션에서 해야 하므로
 // actions 레이어가 product/cart 테이블을 직접 다룬다(conventions 예외).
@@ -608,7 +609,7 @@ export async function updateDeliveryPolicy(
 async function updateDeliveryPolicyImpl(
   input: DeliveryPolicyUpdateInput,
 ): Promise<void> {
-  await requireAdmin();
+  await requireDeliveryManager();
   const data = parseActionInput(deliveryPolicyUpdateSchema, input);
 
   await db.deliveryPolicy.update({

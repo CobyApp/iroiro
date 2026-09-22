@@ -1,13 +1,15 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { type AdminSpace, isAdminSpace } from "./adminRoles";
 
 export type AdminUserRow = {
   id: string;
   displayName: string;
   publicCode: string;
   isAdmin: boolean;
-  boardRole: "member" | "moderator";
+  /** 보유한 부분 관리 권한 — 배송·중고·커뮤니티·토레카. */
+  adminRoles: AdminSpace[];
   postingBanned: boolean;
   postingBanReason: string | null;
   createdAt: string;
@@ -35,7 +37,7 @@ export async function listAdminUsers(q?: string): Promise<AdminUserRow[]> {
       displayName: true,
       publicCode: true,
       isAdmin: true,
-      boardRole: true,
+      adminRoles: true,
       postingBannedAt: true,
       postingBanReason: true,
       createdAt: true,
@@ -46,7 +48,7 @@ export async function listAdminUsers(q?: string): Promise<AdminUserRow[]> {
     displayName: r.displayName,
     publicCode: r.publicCode,
     isAdmin: r.isAdmin,
-    boardRole: r.boardRole === "moderator" ? "moderator" : "member",
+    adminRoles: (r.adminRoles as string[]).filter(isAdminSpace),
     postingBanned: r.postingBannedAt !== null,
     postingBanReason: r.postingBanReason,
     createdAt: r.createdAt.toISOString(),

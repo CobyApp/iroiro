@@ -5,9 +5,9 @@ const m = vi.hoisted(() => ({
   series: { count: vi.fn() },
 }));
 vi.mock("@/lib/catalog-db", () => ({ catalogDb: m }));
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({ requireCatalogManager: vi.fn() }));
 
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   createSeriesKind,
   deleteSeriesKind,
@@ -16,12 +16,12 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireAdmin).mockResolvedValue({ id: "admin" } as never);
+  vi.mocked(requireCatalogManager).mockResolvedValue({ id: "admin" } as never);
 });
 
 describe("createSeriesKind", () => {
   it("관리자가 아니면 requireAdmin 오류를 그대로 던진다", async () => {
-    vi.mocked(requireAdmin).mockRejectedValue(new Error("관리자 권한이 필요합니다"));
+    vi.mocked(requireCatalogManager).mockRejectedValue(new Error("관리자 권한이 필요합니다"));
     await expect(createSeriesKind({ key: "kuji", label: "쿠지", displayOrder: 7 })).rejects.toThrow(
       "관리자 권한",
     );

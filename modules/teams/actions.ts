@@ -10,7 +10,7 @@ import {
 import { db } from "@/lib/db";
 import { catalogDb } from "@/lib/catalog-db";
 import { isNotFoundError } from "@/lib/prisma-errors";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   teamCreateSchema,
   teamUpdateSchema,
@@ -35,7 +35,7 @@ export async function createTeam(
   input: TeamCreateInput,
 ): Promise<ActionResult<Team>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(teamCreateSchema, input);
 
     const row = await catalogDb.team.create({
@@ -57,7 +57,7 @@ export async function updateTeam(
   input: TeamUpdateInput,
 ): Promise<ActionResult<Team>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(teamUpdateSchema, input);
 
     const patch: Prisma.TeamUpdateInput = {
@@ -97,7 +97,7 @@ function buildTeamRefBlockMessage(
 
 export async function deleteTeam(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     if (!Number.isInteger(id) || id <= 0) {
       throw new DomainError("유효하지 않은 그룹 ID 입니다");
     }
