@@ -14,7 +14,7 @@ export function LegalDoc({
   children: ReactNode;
 }) {
   return (
-    <article className="mx-auto max-w-2xl py-8">
+    <article className="mx-auto max-w-2xl px-5 py-8 sm:px-6">
       <h1 className="font-display text-2xl text-foreground sm:text-3xl">{title}</h1>
       <p className="mt-2 text-sm text-muted-foreground">시행일: {effectiveDate}</p>
       <div className="legal-body mt-6 space-y-6 text-sm leading-relaxed text-foreground">

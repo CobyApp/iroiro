@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Gavel } from "lucide-react";
-import { PageBack } from "@/components/PageBack";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -55,7 +54,6 @@ export default async function MyBidsPage() {
 
   return (
     <div className="shop-page-frame mx-auto max-w-2xl space-y-4">
-      <PageBack fallbackHref="/mypage" />
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">입찰 내역</h1>
         <span className="text-sm text-muted-foreground">

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
@@ -41,7 +40,6 @@ export default async function MessageThreadPage({
         eyebrow="MESSAGES"
         title={thread.otherName}
         description="1:1 쪽지 대화"
-        action={<PageBack fallbackHref="/messages" />}
       />
       <MessageThreadClient
         threadId={thread.id}

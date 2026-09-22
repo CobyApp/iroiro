@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { env } from "@/lib/env";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getUsedBundleById } from "@/modules/used/lib/queries";
 import { BundleProgress } from "@/modules/used/components/BundleProgress";
@@ -36,7 +35,6 @@ export default async function UsedBundlePage({
 
   return (
     <div className="shop-page-frame space-y-5">
-      <PageBack fallbackHref="/used" />
       <h1 className="text-xl font-bold text-foreground">
         묶음 구매 {data.items.length}개
       </h1>

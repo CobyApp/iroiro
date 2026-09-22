@@ -6,13 +6,11 @@ import {
   Gavel,
   ArrowRight,
   ChevronRight,
-  Heart,
   LogOut,
   LibraryBig,
   PackageCheck,
   UserRound,
   UserCog,
-  Repeat,
   MapPin,
   IdCard,
   Mail,
@@ -28,10 +26,11 @@ import { ProfileAvatar } from "./_components/ProfileAvatar";
 import { DeleteAccountItem } from "./_components/DeleteAccountItem";
 import { PushToggle } from "@/modules/notifications/components/PushToggle";
 
-// 메뉴를 성격별 섹션으로 — 쇼핑(사고 파는 일), 활동(내 취향·참여), 계정(관리).
+// 메뉴는 두 갈래로만 — 쇼핑·거래(사고 파는 일)와 내 정보(취향·계정).
+// 찜·중고거래는 하단 탭에 이미 있어 여기서는 빼 중복을 없앤다. 포인트는 위 요약 타일에서도 진입한다.
 const MY_LINK_SECTIONS = [
   {
-    title: "쇼핑",
+    title: "쇼핑 · 거래",
     links: [
       {
         href: "/orders",
@@ -42,32 +41,26 @@ const MY_LINK_SECTIONS = [
       {
         href: "/mypage/bids",
         label: "입찰 내역",
-        description: "진행중 경매 · 낙찰 확인",
+        description: "진행중 경매 · 낙찰",
         icon: Gavel,
-      },
-      {
-        href: "/used",
-        label: "중고거래",
-        description: "내 매물 · 판매/구매 진행",
-        icon: Repeat,
       },
       {
         href: "/mypage/points",
         label: "포인트 · 쿠폰",
-        description: "잔액 · 적립 내역 · 보유 쿠폰",
+        description: "잔액 · 적립 · 쿠폰",
         icon: Coins,
+      },
+      {
+        href: "/cards/new",
+        label: "토레카 등록",
+        description: "카드 제보 · 승인 시 100P",
+        icon: IdCard,
       },
     ],
   },
   {
-    title: "내 취향 · 참여",
+    title: "내 정보",
     links: [
-      {
-        href: "/wishlist",
-        label: "찜 목록",
-        description: "저장한 상품 · 중고 매물",
-        icon: Heart,
-      },
       {
         href: "/mypage/favorites",
         label: "최애 설정",
@@ -75,32 +68,21 @@ const MY_LINK_SECTIONS = [
         icon: Sparkles,
       },
       {
-        href: "/cards/new",
-        label: "토레카 등록",
-        description: "없는 카드 제보 · 승인 시 100P",
-        icon: IdCard,
-      },
-      {
         href: "/messages",
         label: "쪽지함",
-        description: "판매자 · 회원과 1:1 대화",
+        description: "1:1 대화",
         icon: Mail,
       },
-    ],
-  },
-  {
-    title: "계정",
-    links: [
       {
         href: "/mypage/edit",
         label: "회원정보 변경",
-        description: "닉네임 · 프로필 사진",
+        description: "닉네임 · 프로필",
         icon: UserCog,
       },
       {
         href: "/mypage/addresses",
         label: "주소록",
-        description: "배송지 저장 · 기본 지정",
+        description: "배송지 관리",
         icon: MapPin,
       },
     ],
@@ -116,11 +98,7 @@ export default async function MyPage() {
   if (!account) {
     return (
       <div className="shop-page-frame space-y-6">
-        <ShopPageHeader
-          eyebrow="MY IROIRO"
-          title="마이페이지"
-          description="찜한 상품, 주문 내역, 나만의 포토카드 컬렉션을 한곳에서 관리하세요."
-        />
+        <ShopPageHeader title="마이페이지" />
         <GuestFeatureGate
           icon={UserRound}
           title="이로이로를 나만의 공간으로 만들어보세요"
@@ -144,11 +122,7 @@ export default async function MyPage() {
 
   return (
     <div className="shop-page-frame space-y-6">
-      <ShopPageHeader
-        eyebrow="MY IROIRO"
-        title={`${displayName}님의 공간`}
-        description="소장 카드와 쇼핑 활동을 한곳에서 관리하세요."
-      />
+      <ShopPageHeader title={`${displayName}님의 공간`} />
 
       {/* 프로필 + 요약 — 소장 카드·포인트를 숫자로, 컬렉션 진입은 여기 한 곳에서만. */}
       <section
@@ -217,7 +191,7 @@ export default async function MyPage() {
                 <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
                   {section.title}
                 </p>
-                <ul className="grid gap-2 sm:grid-cols-3">
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {links.map(({ href, label, description, icon: Icon }) => (
                     <li key={href}>
                       <Link href={href} className="mypage-quick-link group">

@@ -5,12 +5,14 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartButton } from "@/modules/cart/components/CartButton";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
-import { MessagesNavButton } from "@/modules/messages/components/MessagesNavButton";
 import { AccountNav } from "@/modules/auth/components/AccountNav";
+import { BrandLockup } from "@/modules/ui/components/BrandMark";
+import Link from "next/link";
+import { listTeams } from "@/modules/teams/lib/queries";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
-import { HeaderSearch } from "./_components/HeaderSearch";
+import { HeaderLeading } from "./_components/HeaderLeading";
 import { NavigationFeedback } from "./_components/NavigationFeedback";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -19,6 +21,10 @@ export default async function ShopLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // 검색 패널의 그룹 필터 태그 — 그룹 표는 작아(수 개) 레이아웃에서 가볍게 읽는다.
+  const teams = await listTeams();
+  const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
+
   return (
     <TooltipProvider>
       <div className="relative flex min-h-screen flex-col">
@@ -29,8 +35,16 @@ export default async function ShopLayout({
         <header className="shop-header sticky top-0 z-30 border-b border-border/50 bg-cream/82 backdrop-blur-xl">
           {/* 로고 좌 / 탐색과 구매·계정 기능 우. */}
           <div className="shop-page-frame flex h-16 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-0">
-            {/* 로고 없이 검색바를 넓게 — 어느 화면에서든 상품 검색을 시작한다. */}
-            <HeaderSearch />
+            {/* 데스크톱은 좌측 로고를 상시 노출하고 그 오른쪽에 검색바를 둔다(공간 충분). */}
+            <Link
+              href="/"
+              aria-label="이로이로 홈"
+              className="hidden shrink-0 sm:block"
+            >
+              <BrandLockup markClassName="h-8 w-8" wordmarkClassName="h-5" />
+            </Link>
+            {/* 탭에 따라 검색(스토어·중고·커뮤니티)·뒤로가기(상세)·로고로 바뀐다. */}
+            <HeaderLeading teams={teamOptions} />
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
             <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-2">
               <div className="hidden sm:block">
@@ -56,10 +70,7 @@ export default async function ShopLayout({
               >
                 <CartButton />
               </Suspense>
-              {/* 쪽지 — 로그인 시에만 렌더(내부에서 판단). */}
-              <Suspense fallback={null}>
-                <MessagesNavButton />
-              </Suspense>
+              {/* 쪽지는 커뮤니티(/posts) 안 메뉴로 옮겼다 — 헤더에서 제거. */}
               {/* 알림 벨 — 장바구니 오른쪽. 로그인 시에만 렌더(내부에서 판단). */}
               <Suspense fallback={null}>
                 <NotificationBell />

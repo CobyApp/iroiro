@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowUpRight, Clock, Plus, Search } from "lucide-react";
+import { ArrowUpRight, Clock, Plus } from "lucide-react";
 import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 import { getCurrentAccount } from "@/modules/auth/dal";
@@ -132,12 +132,7 @@ export default async function UsedHomePage({
   return (
     <div className="shop-page-frame space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">중고거래</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            팬들이 직접 올린 매물 — 안전거래 수수료로 운영돼요.
-          </p>
-        </div>
+        <h1 className="text-xl font-bold text-foreground">중고거래</h1>
         <Button asChild size="sm" className="gap-1.5">
           <Link href="/used/new">
             <Plus className="h-4 w-4" />
@@ -146,21 +141,7 @@ export default async function UsedHomePage({
         </Button>
       </div>
 
-      {/* 검색 — 서버 렌더 GET 폼(제출 시 다른 필터는 초기화, 둘러보기와 동일 정책). */}
-      <form action="/used" className="relative">
-        <Search
-          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <input
-          type="search"
-          name="q"
-          defaultValue={q ?? ""}
-          placeholder="매물 이름으로 검색"
-          className="h-11 w-full rounded-full border border-border bg-card pl-11 pr-4 text-base text-foreground sm:text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
-        />
-      </form>
-
+      {/* 검색은 상단 헤더 검색바가 담당한다(중고 매물 검색). 여기선 필터 칩만. */}
       {/* 판매 방식 + 그룹 → 멤버 필터 칩 — 링크 기반이라 뒤로가기·공유에 안전. */}
       <div className="space-y-2">
         <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
