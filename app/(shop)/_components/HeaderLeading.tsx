@@ -208,7 +208,7 @@ export function InPageSearchBar({ className }: { className?: string }) {
   const leading = resolveLeading(pathname);
   if (leading.kind !== "search") return null;
   return (
-    <div className={`hidden w-full max-w-xl sm:block ${className ?? ""}`}>
+    <div className={`hidden w-full sm:block ${className ?? ""}`}>
       <SearchField mode={leading} teams={teams} members={members} tagFacets={tagFacets} />
     </div>
   );
