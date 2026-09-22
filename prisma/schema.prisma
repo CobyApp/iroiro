@@ -318,6 +318,16 @@ model AccountSession {
   @@map("account_session")
 }
 
+model LoginPairing {
+  code      String   @id
+  accountId String   @map("account_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt], map: "login_pairing_expires_idx")
+  @@map("login_pairing")
+}
+
 model PendingAccount {
   tokenHash      String   @id @map("token_hash") // 가입 토큰 해시
   provider       String
