@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductImage } from "@/modules/products/components/ProductImage";
 import { listProducts } from "@/modules/products/lib/queries";
-import { productGridPhotoUrl } from "@/modules/products/lib/customer-media";
+import { productGridPhotoSrc } from "@/modules/products/lib/customer-media";
 import {
   AlbumIcon,
   BellIcon,
@@ -36,7 +36,7 @@ export default async function WelcomePage() {
   const imgs = items
     .map((p) => {
       const t = p.photos.find((ph) => ph.isThumbnail) ?? p.photos[0];
-      return t ? { src: productGridPhotoUrl(t.id), alt: p.name } : null;
+      return t ? { src: productGridPhotoSrc(t), alt: p.name } : null;
     })
     .filter((x): x is { src: string; alt: string } => x !== null);
   const rowA = imgs.filter((_, i) => i % 2 === 0);

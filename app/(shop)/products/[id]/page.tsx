@@ -21,7 +21,7 @@ import { RecentPriceInfo } from "@/modules/products/components/RecentPriceInfo";
 import { ProductRow } from "@/modules/products/components/ProductRow";
 import { fetchJpyKrwRate, jpyToKrwPrice } from "@/modules/products/lib/fx";
 import { todayKstYmd } from "@/lib/datetime";
-import { productDetailPhotoUrl } from "@/modules/products/lib/customer-media";
+import { productDetailPhotoSrc } from "@/modules/products/lib/customer-media";
 import { getWishlistProductIds } from "@/modules/wishlist/lib/queries";
 import { ProductReviewsSection } from "@/modules/reviews/components/ProductReviewsSection";
 
@@ -54,7 +54,7 @@ export async function generateMetadata({
       title: product.name,
       description: product.description ?? undefined,
       images: product.photos.length
-        ? [productDetailPhotoUrl(product.photos[0].id)]
+        ? [productDetailPhotoSrc(product.photos[0])]
         : [],
     },
   };

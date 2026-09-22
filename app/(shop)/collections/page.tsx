@@ -13,7 +13,7 @@ import { OwnedCardsExplorer } from "@/modules/collection/components/OwnedCardsEx
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import {
-  collectionPhotoUrl,
+  collectionPhotoSrc,
   collectionThumbnailUrl,
 } from "@/modules/products/lib/customer-media";
 
@@ -71,7 +71,7 @@ export default async function CollectionsPage() {
   for (const p of products) {
     const thumb = p.photos.find((ph) => ph.isThumbnail) ?? p.photos[0];
     imagesByProduct[Number(p.id)] = {
-      front: thumb ? collectionPhotoUrl(thumb.id) : null,
+      front: thumb ? collectionPhotoSrc(thumb) : null,
     };
   }
 
