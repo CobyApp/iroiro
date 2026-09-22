@@ -86,6 +86,7 @@ export type UsedBundle = {
   recipientPhone: string | null;
   recipientAddress: string | null;
   postTrackingCode: string | null;
+  shippedAt: string | null;
   createdAt: string;
 };
 
@@ -149,6 +150,7 @@ export type UsedTrade = {
   recipientAddress: string | null;
   postTrackingCode: string | null;
   postQrIssuedAt: string | null;
+  shippedAt: string | null;
   completedAt: string | null;
   createdAt: string;
 };

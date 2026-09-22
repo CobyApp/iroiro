@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
@@ -20,4 +21,19 @@ export function publicOrigin(request: NextRequest): string {
 // `new URL(path, publicOrigin(request))` shorthand for redirects.
 export function publicUrl(request: NextRequest, path: string): URL {
   return new URL(path, publicOrigin(request));
+}
+
+// Server Action 등 NextRequest 가 없는 곳에서 쓰는 공개 origin 해석.
+// Route Handler 의 publicOrigin 과 같은 우선순위(APP_URL → X-Forwarded-* → Host).
+export async function publicOriginFromHeaders(): Promise<string> {
+  if (env.APP_URL) return env.APP_URL.replace(/\/+$/, "");
+  const h = await headers();
+  const forwardedHost = h.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost ?? h.get("host")?.trim();
+  if (host) {
+    const proto =
+      h.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "https";
+    return `${proto}://${host}`;
+  }
+  return "http://localhost:3000";
 }

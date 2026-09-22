@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { env } from "@/lib/env";
+import { formatKstDate } from "@/lib/datetime";
 import { getCurrentAccount } from "@/modules/auth/dal";
+import {
+  autoConfirmDueUsedTrades,
+  AUTO_CONFIRM_MS,
+} from "@/modules/used/lib/settle-trade";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
 import { UserRound } from "lucide-react";
@@ -34,6 +39,9 @@ export default async function MyUsedTradesPage() {
       </div>
     );
   }
+
+  // 진입 시 기한 지난 발송 건을 자동 수령확정(lazy 스윕) — cron 이 없어도 확정이 진행된다.
+  await autoConfirmDueUsedTrades();
 
   const [sales, purchases, wishedIds] = await Promise.all([
     listMyUsedListings(account.id),
@@ -102,6 +110,16 @@ export default async function MyUsedTradesPage() {
                       <span className="text-xs text-muted-foreground">
                         ₩{trade.price.toLocaleString()} · {USED_TRADE_STATUS_LABEL[trade.status]}
                       </span>
+                      {trade.status === "shipped" && trade.shippedAt && (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {formatKstDate(
+                            new Date(
+                              new Date(trade.shippedAt).getTime() + AUTO_CONFIRM_MS,
+                            ),
+                          )}{" "}
+                          자동 구매확정
+                        </span>
+                      )}
                     </span>
                   </Link>
                   {trade.status === "completed" &&

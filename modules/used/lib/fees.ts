@@ -65,9 +65,6 @@ export function calcUsedBundleFees(input: {
   };
 }
 
-// 우체국 등기번호 목업 — 실제 API 연동 전 화면 흐름 확인용.
-// 13자리 국제등기 형식(EB + 9자리 + KR)을 흉내낸다.
-export function mockPostTrackingCode(seed: number): string {
-  const digits = String(Math.abs(seed) % 1_000_000_000).padStart(9, "0");
-  return `EB${digits}KR`;
-}
+// 우체국 등기번호 목업 — 포맷 정의는 lib/korea-post 로 이관(배송추적 어댑터와 단일 소스).
+// 기존 import 경로 호환을 위해 재노출한다.
+export { mockPostTrackingCode } from "@/lib/korea-post/format";

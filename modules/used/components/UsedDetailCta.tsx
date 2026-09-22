@@ -44,6 +44,8 @@ export function UsedDetailCta({
   isLoggedIn,
   wished = false,
   pointBalance = 0,
+  tracking = null,
+  autoConfirmNote = null,
 }: {
   listing: UsedListingWithPhotos;
   trade: UsedTrade | null;
@@ -52,6 +54,10 @@ export function UsedDetailCta({
   wished?: boolean;
   /** 보유 포인트 — 구매 다이얼로그 포인트 사용 UI용. */
   pointBalance?: number;
+  /** 배송추적 현재 상태(발송 후) — 우체국 어댑터 조회 결과. */
+  tracking?: { stateLabel: string; isMock: boolean } | null;
+  /** 발송됨일 때 "N일 후 자동 구매확정" 안내(서버 계산). */
+  autoConfirmNote?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -104,6 +110,11 @@ export function UsedDetailCta({
       });
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      // 리다이렉트 결제(카카오페이 등) — 결제창으로 이동. 승인 후 상세로 되돌아온다.
+      if (result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
         return;
       }
       toast.success("구매 완료! 판매자가 발송을 준비해요 (결제 체험판)");
@@ -229,17 +240,24 @@ export function UsedDetailCta({
         )}
 
         {role === "buyer" && trade.status === "shipped" && (
-          <Button
-            size="sm"
-            className="w-full gap-1.5"
-            disabled={pending}
-            onClick={() =>
-              run(() => confirmUsedReceived(trade.id), "거래가 완료됐어요!")
-            }
-          >
-            <PackageCheck className="h-4 w-4" />
-            수령 확정
-          </Button>
+          <div className="space-y-2">
+            <Button
+              size="sm"
+              className="w-full gap-1.5"
+              disabled={pending}
+              onClick={() =>
+                run(() => confirmUsedReceived(trade.id), "거래가 완료됐어요!")
+              }
+            >
+              <PackageCheck className="h-4 w-4" />
+              수령 확정
+            </Button>
+            {autoConfirmNote && (
+              <p className="text-center text-xs text-muted-foreground">
+                {autoConfirmNote}
+              </p>
+            )}
+          </div>
         )}
         {role === "buyer" && trade.status === "paid" && (
           <p className="text-xs text-muted-foreground">
@@ -247,9 +265,17 @@ export function UsedDetailCta({
           </p>
         )}
         {trade.status === "shipped" && trade.postTrackingCode && (
-          <p className="text-center text-xs text-muted-foreground">
-            등기번호 <span className="font-mono">{trade.postTrackingCode}</span>
-          </p>
+          <div className="space-y-0.5 border-t border-border pt-2 text-center text-xs text-muted-foreground">
+            {tracking && (
+              <p className="font-medium text-foreground">
+                배송 상태: {tracking.stateLabel}
+                {tracking.isMock && " (체험판)"}
+              </p>
+            )}
+            <p>
+              등기번호 <span className="font-mono">{trade.postTrackingCode}</span>
+            </p>
+          </div>
         )}
       </div>
     );
