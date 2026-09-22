@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
@@ -169,22 +169,46 @@ export function HeaderLeading({
   );
 }
 
-// 데스크톱 전용 — 상단 네비바 아래 페이지 상단에 두는 검색바.
-// 검색 대상 탭(스토어·중고·커뮤니티)에서만 렌더하고, 상세·기타 페이지에선 감춘다.
-export function HeaderSearchBar({
+// 검색 데이터(그룹·멤버·facet)를 레이아웃에서 한 번 읽어 페이지 안 검색바로 내려주는 컨텍스트.
+// 페이지마다 다시 서버 조회하지 않고, 각 페이지가 타이틀 아래에 <InPageSearchBar/> 만 두면 된다.
+type SearchData = {
+  teams: TeamOption[];
+  members: MemberOption[];
+  tagFacets: SearchTagFacets;
+};
+const SearchDataContext = createContext<SearchData>({
+  teams: [],
+  members: [],
+  tagFacets: EMPTY_FACETS,
+});
+
+export function SearchDataProvider({
   teams = [],
   members = [],
   tagFacets = EMPTY_FACETS,
+  children,
 }: {
   teams?: TeamOption[];
   members?: MemberOption[];
   tagFacets?: SearchTagFacets;
+  children: React.ReactNode;
 }) {
+  return (
+    <SearchDataContext.Provider value={{ teams, members, tagFacets }}>
+      {children}
+    </SearchDataContext.Provider>
+  );
+}
+
+// 데스크톱 전용 — 각 목록 페이지가 자신의 타이틀 아래에 두는 검색바(모바일은 상단 헤더 검색 유지).
+// 검색 대상 탭(스토어·중고·커뮤니티)에서만 렌더하고, 그 외에선 스스로 감춘다.
+export function InPageSearchBar({ className }: { className?: string }) {
+  const { teams, members, tagFacets } = useContext(SearchDataContext);
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
   if (leading.kind !== "search") return null;
   return (
-    <div className="w-full max-w-xl">
+    <div className={`hidden w-full max-w-xl sm:block ${className ?? ""}`}>
       <SearchField mode={leading} teams={teams} members={members} tagFacets={tagFacets} />
     </div>
   );

@@ -16,7 +16,7 @@ import { getPublicUrl } from "@/lib/r2/presign";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
-import { HeaderLeading, HeaderSearchBar } from "./_components/HeaderLeading";
+import { HeaderLeading, SearchDataProvider } from "./_components/HeaderLeading";
 import { NavigationFeedback } from "./_components/NavigationFeedback";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -111,21 +111,17 @@ export default async function ShopLayout({
           </div>
         </header>
 
-        {/* 데스크톱 검색바 — 상단 네비바 아래, 페이지 상단에 둔다(모바일은 상단바 검색 유지).
-           검색 대상 탭에서만 렌더되고, 상세·기타 페이지에선 스스로 감춘다. */}
-        <div className="hidden border-b border-border/50 bg-cream/82 backdrop-blur-xl sm:block">
-          <div className="shop-page-frame flex items-center px-3 py-2.5 sm:px-0">
-            <HeaderSearchBar
-              teams={teamOptions}
-              members={memberOptions}
-              tagFacets={tagFacets}
-            />
-          </div>
-        </div>
-
-        <main className="shop-main relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-          <PageTransition>{children}</PageTransition>
-        </main>
+        {/* 데스크톱 검색바는 각 목록 페이지가 자신의 타이틀 아래에 <InPageSearchBar/> 로 둔다.
+           레이아웃은 검색 데이터(그룹·멤버·facet)만 컨텍스트로 내려준다(모바일은 상단바 검색 유지). */}
+        <SearchDataProvider
+          teams={teamOptions}
+          members={memberOptions}
+          tagFacets={tagFacets}
+        >
+          <main className="shop-main relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+            <PageTransition>{children}</PageTransition>
+          </main>
+        </SearchDataProvider>
 
         <SiteFooter />
         <Suspense fallback={null}>

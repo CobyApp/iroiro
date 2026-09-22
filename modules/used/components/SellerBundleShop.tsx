@@ -79,7 +79,12 @@ export function SellerBundleShop({
         toast.error(result.message);
         return;
       }
-      toast.success("묶음 구매 완료! 판매자가 함께 발송해요 (결제 체험판)");
+      // 리다이렉트결제(카카오페이) — 결제창으로 이동. 승인 후 콜백이 묶음을 결제완료로 전이.
+      if (result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
+        return;
+      }
+      toast.success("묶음 구매 완료! 판매자가 함께 발송해요");
       setOpen(false);
       router.push(`/used/bundle/${result.data.bundleId}`);
     });

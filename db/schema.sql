@@ -2770,3 +2770,18 @@ COMMENT ON COLUMN used_bundle.shipped_at  IS '발송 처리 시각 — 자동 �
 COMMENT ON COLUMN used_bundle.payment_tid IS '결제 게이트웨이 거래번호(카카오페이 tid 등)';
 
 -- ============================================================================
+-- [20260930000000_used_bundle_pending]
+-- ============================================================================
+
+-- 묶음(bundle)도 단건 거래처럼 리다이렉트 결제(카카오페이) 를 지원한다 — 결제창으로 보내기 전
+-- 결제대기(pending) 상태로 만들고, 승인 콜백에서 paid 로 전이한다. 기존 status CHECK 에는
+-- pending 이 없어 제약을 교체한다(재실행 안전 — DROP IF EXISTS 후 재생성).
+ALTER TABLE used_bundle
+    DROP CONSTRAINT IF EXISTS used_bundle_status_chk;
+ALTER TABLE used_bundle
+    ADD CONSTRAINT used_bundle_status_chk
+        CHECK (status IN ('pending', 'paid', 'shipped', 'completed', 'canceled'));
+
+COMMENT ON COLUMN used_bundle.status IS '상태 — pending(결제대기)/paid/shipped/completed/canceled';
+
+-- ============================================================================

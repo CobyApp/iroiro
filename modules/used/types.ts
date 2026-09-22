@@ -65,6 +65,7 @@ export const USED_TRADE_STATUS_LABEL = {
 export type UsedTradeStatus = keyof typeof USED_TRADE_STATUS_LABEL;
 
 export const USED_BUNDLE_STATUS_LABEL = {
+  pending: "결제 대기",
   paid: "결제 완료",
   shipped: "발송됨",
   completed: "거래 완료",

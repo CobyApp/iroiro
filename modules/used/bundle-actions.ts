@@ -9,10 +9,13 @@ import {
 } from "@/lib/action-result";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
+import { getCheckoutProvider } from "@/lib/payments/checkout";
+import { publicOriginFromHeaders } from "@/lib/public-origin";
 import { issueTracking } from "@/lib/korea-post";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedBundleFees } from "./lib/fees";
 import { AUTO_CONFIRM_DAYS } from "./lib/settle-trade";
+import { failUsedBundlePayment } from "./lib/bundle-checkout";
 import { usedBundleBuySchema, type UsedBundleBuyInput } from "./lib/schema";
 
 async function requireLogin() {
@@ -26,16 +29,22 @@ function revalidateBundle(id?: number) {
 }
 
 // 묶음 구매 — 같은 판매자의 고정가 매물 2개 이상을 한 번에, 배송비 1회.
+// 단건 거래와 동일하게 provider.kind 로 흐름이 갈린다:
+//  - immediate(mock): 즉시 결제완료(paid)로 묶음·거래 생성.
+//  - redirect(카카오페이): 결제대기(pending)로 만들고 결제창 redirectUrl 을 반환.
+//    승인은 app/api/payment/kakao/approve?bundle= 가 pending→paid 로 마무리한다.
 export async function buyUsedBundle(
   input: UsedBundleBuyInput,
-): Promise<ActionResult<{ bundleId: number }>> {
+): Promise<ActionResult<{ bundleId: number; redirectUrl?: string }>> {
   return runAction(async () => {
     const account = await requireLogin();
     const settings = await getSiteSettings();
     const data = usedBundleBuySchema.parse(input);
     const ids = data.listingIds.map((n) => BigInt(n));
+    const provider = getCheckoutProvider();
+    const immediate = provider.kind === "immediate";
 
-    const bundle = await db.$transaction(async (tx) => {
+    const created = await db.$transaction(async (tx) => {
       // 대상 매물을 먼저 확인 — 같은 판매자·고정가·판매중·내 것 아님.
       const listings = await tx.usedListing.findMany({
         where: { id: { in: ids } },
@@ -95,14 +104,16 @@ export async function buyUsedBundle(
           feeAmount: fees.feeAmount,
           // 판매자 정산은 포인트(구매자 할인)와 무관 — 상품가+배송비−수수료 그대로.
           sellerPayout: fees.sellerPayout,
-          status: "paid",
+          status: immediate ? "paid" : "pending",
           recipientName: data.recipientName,
           recipientPhone: data.recipientPhone,
           recipientAddress: data.recipientAddress,
         },
       });
 
-      if (data.usePoints > 0) {
+      // 포인트는 즉시결제만 지금 차감한다. 리다이렉트결제는 대기 중 잡아두지 않고
+      // 승인 시점(approveUsedBundlePayment)에 points_used 를 근거로 차감한다.
+      if (data.usePoints > 0 && immediate) {
         await tx.pointTransaction.create({
           data: {
             accountId: account.id,
@@ -128,18 +139,55 @@ export async function buyUsedBundle(
             feeBp: settings.usedTradeFeeBp,
             feeAmount,
             sellerPayout: price - feeAmount,
-            status: "paid",
+            status: immediate ? "paid" : "pending",
             recipientName: data.recipientName,
             recipientPhone: data.recipientPhone,
             recipientAddress: data.recipientAddress,
           };
         }),
       });
-      return created;
+      return {
+        bundle: created,
+        buyerTotal: fees.buyerTotal,
+        itemName: listings[0]?.title ?? "중고 묶음",
+        itemCount: listings.length,
+      };
     });
 
-    revalidateBundle(Number(bundle.id));
-    return { bundleId: Number(bundle.id) };
+    const bundleId = Number(created.bundle.id);
+
+    // 즉시결제 — 바로 완료.
+    if (immediate) {
+      revalidateBundle(bundleId);
+      return { bundleId };
+    }
+
+    // 리다이렉트결제 — 결제 준비(ready) 후 결제창 URL 반환. HTTP 호출은 트랜잭션 밖.
+    const origin = await publicOriginFromHeaders();
+    const ready = await provider.ready({
+      orderNo: `bundle-${bundleId}`,
+      userId: account.id,
+      itemName:
+        created.itemCount > 1
+          ? `${created.itemName} 외 ${created.itemCount - 1}건`
+          : created.itemName,
+      quantity: 1,
+      totalAmount: created.buyerTotal - data.usePoints,
+      approvalUrl: `${origin}/api/payment/kakao/approve?bundle=${bundleId}`,
+      cancelUrl: `${origin}/api/payment/kakao/cancel?bundle=${bundleId}`,
+      failUrl: `${origin}/api/payment/kakao/fail?bundle=${bundleId}`,
+    });
+    if (!ready.ok) {
+      // 준비 실패 — pending 묶음·거래를 취소하고 매물을 다시 판매중으로 되돌린다.
+      await failUsedBundlePayment(bundleId, account.id);
+      throw new DomainError(ready.failMessage || "결제 준비에 실패했어요");
+    }
+    await db.usedBundle.update({
+      where: { id: created.bundle.id },
+      data: { paymentTid: ready.tid, updatedAt: new Date() },
+    });
+    revalidateBundle(bundleId);
+    return { bundleId, redirectUrl: ready.redirectUrl };
   });
 }
 
