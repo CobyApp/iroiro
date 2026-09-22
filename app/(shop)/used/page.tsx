@@ -10,9 +10,11 @@ import { listMembers } from "@/modules/members/lib/queries";
 import {
   listEndingSoonUsedAuctions,
   listNewestUsedListings,
+  listUsedItemTypesInUse,
   listUsedListingFacets,
   listUsedListings,
 } from "@/modules/used/lib/queries";
+import { USED_ITEM_TYPE_LABEL, type UsedItemType } from "@/modules/used/types";
 import {
   pickSaleModesWithListings,
   pickWithListings,
@@ -30,6 +32,7 @@ type UsedSearchParams = {
   mode?: string;
   team?: string;
   member?: string;
+  item?: string;
   q?: string;
   page?: string;
 };
@@ -46,17 +49,20 @@ export default async function UsedHomePage({
     sp.mode === "fixed" || sp.mode === "auction" ? sp.mode : undefined;
   const teamId = Number(sp.team) > 0 ? Number(sp.team) : undefined;
   const memberId = Number(sp.member) > 0 ? Number(sp.member) : undefined;
+  const itemType =
+    sp.item && sp.item in USED_ITEM_TYPE_LABEL ? sp.item : undefined;
   const q = sp.q?.trim() || undefined;
   const page = Math.max(1, Number(sp.page) || 1);
   // 검색·필터가 없는 기본 화면에서만 큐레이션 섹션(최애·마감 임박)을 보여준다.
-  const isDefaultBrowse = !mode && !teamId && !memberId && !q && page === 1;
+  const isDefaultBrowse = !mode && !teamId && !memberId && !itemType && !q && page === 1;
 
-  // facets: 노출 중인 매물(판매중·거래중) 기준 — 매물이 있는 그룹·멤버·판매방식만 칩으로.
-  const [account, teams, members, facets] = await Promise.all([
+  // facets: 노출 중인 매물(판매중·거래중) 기준 — 매물이 있는 그룹·멤버·판매방식·종류만 칩으로.
+  const [account, teams, members, facets, itemTypesInUse] = await Promise.all([
     getCurrentAccount(),
     listTeams(),
     listMembers(),
     listUsedListingFacets(),
+    listUsedItemTypesInUse(),
   ]);
   const [{ items, total }, endingSoon, usedWishedIds] = await Promise.all([
     isDefaultBrowse
@@ -68,6 +74,7 @@ export default async function UsedHomePage({
           saleMode: mode,
           teamId,
           memberId,
+          itemType,
           q,
           page,
           pageSize: PAGE_SIZE,
@@ -83,16 +90,19 @@ export default async function UsedHomePage({
     mode?: string;
     team?: number;
     member?: number;
+    item?: string;
     page?: number;
   }) => {
     const params = new URLSearchParams();
     const m = "mode" in patch ? patch.mode : mode;
     const t = "team" in patch ? patch.team : teamId;
     const mb = "member" in patch ? patch.member : memberId;
+    const it = "item" in patch ? patch.item : itemType;
     const p = patch.page ?? 1;
     if (m) params.set("mode", m);
     if (t) params.set("team", String(t));
     if (mb) params.set("member", String(mb));
+    if (it) params.set("item", it);
     if (q) params.set("q", q);
     if (p > 1) params.set("page", String(p));
     const s = params.toString();
@@ -121,6 +131,11 @@ export default async function UsedHomePage({
       label: value === "fixed" ? "바로 판매" : "입찰 경매",
     })),
   ];
+
+  // 노출 중인 굿즈 종류 칩(선택값은 0이어도 유지). 종류가 1개뿐이면 굳이 안 보여준다.
+  const orderedItemTypes = (Object.keys(USED_ITEM_TYPE_LABEL) as UsedItemType[]).filter(
+    (t) => itemTypesInUse.includes(t) || t === itemType,
+  );
 
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
@@ -175,6 +190,18 @@ export default async function UsedHomePage({
             </Link>
           ))}
         </div>
+        {orderedItemTypes.length > 1 && (
+          <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
+            <Link href={qs({ item: undefined, page: 1 })} className={chip(itemType === undefined)}>
+              모든 종류
+            </Link>
+            {orderedItemTypes.map((t) => (
+              <Link key={t} href={qs({ item: t, page: 1 })} className={chip(itemType === t)}>
+                {USED_ITEM_TYPE_LABEL[t]}
+              </Link>
+            ))}
+          </div>
+        )}
         {teamId !== undefined && teamMembers.length > 0 && (
           <div
             className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1"

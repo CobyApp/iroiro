@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import { SALE_MODE_LABEL } from "@/modules/products/types";
+import { USED_ITEM_TYPE_LABEL } from "@/modules/used/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
 import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
@@ -94,6 +95,7 @@ const EMPTY_FACETS: SearchTagFacets = {
   storeItemTypes: [],
   usedTeamIds: [],
   usedSaleModes: [],
+  usedItemTypes: [],
 };
 
 export function HeaderLeading({
@@ -191,8 +193,11 @@ function SearchField({
     .filter((t) => (teamAllowed ? teamAllowed.has(t.id) : true))
     .filter((t) => (typed ? t.name.toLowerCase().includes(typed) : true))
     .slice(0, 10);
-  // 결과가 있는 판매방식만(중고).
+  // 결과가 있는 판매방식·종류만(중고).
   const usedModes = new Set(tagFacets.usedSaleModes);
+  const usedTypeKeys = (Object.keys(USED_ITEM_TYPE_LABEL) as (keyof typeof USED_ITEM_TYPE_LABEL)[]).filter(
+    (t) => tagFacets.usedItemTypes.includes(t),
+  );
 
   return (
     <div ref={rootRef} className="relative min-w-0 flex-1">
@@ -265,6 +270,17 @@ function SearchField({
                 .map((m) => (
                 <Chip key={m} onClick={() => goFilter(`/used?mode=${m}`)}>
                   {SALE_MODE_LABEL[m]}
+                </Chip>
+              ))}
+            </ChipGroup>
+          )}
+
+          {/* 중고 — 굿즈 종류 태그(매물이 있는 종류만) */}
+          {mode.key === "used" && !typed && usedTypeKeys.length > 0 && (
+            <ChipGroup label="종류">
+              {usedTypeKeys.map((t) => (
+                <Chip key={t} onClick={() => goFilter(`/used?item=${t}`)}>
+                  {USED_ITEM_TYPE_LABEL[t]}
                 </Chip>
               ))}
             </ChipGroup>
