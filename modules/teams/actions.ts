@@ -47,8 +47,8 @@ export async function createTeam(
         themeColor: data.themeColor ?? null,
       },
     });
-    revalidatePath("/catalog/teams");
-    revalidatePath("/catalog");
+    revalidatePath("/admin/catalog/teams");
+    revalidatePath("/admin/catalog");
     return toTeam(row);
   });
 }
@@ -78,9 +78,9 @@ export async function updateTeam(
         data: patch,
       }),
     );
-    revalidatePath("/catalog/teams");
-    revalidatePath(`/catalog/teams/${data.id}/edit`);
-    revalidatePath("/catalog");
+    revalidatePath("/admin/catalog/teams");
+    revalidatePath(`/admin/catalog/teams/${data.id}/edit`);
+    revalidatePath("/admin/catalog");
     return toTeam(row);
   });
 }
@@ -116,6 +116,6 @@ export async function deleteTeam(id: number): Promise<ActionResult> {
 
     // 사전 조회~delete 사이 TOCTOU 삭제 시 P2025 → not-found로 결과화.
     await mapTeamWriteError(() => catalogDb.team.delete({ where: { id: teamIdBig } }));
-    revalidatePath("/catalog/teams");
+    revalidatePath("/admin/catalog/teams");
   });
 }

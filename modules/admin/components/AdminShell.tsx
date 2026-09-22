@@ -35,7 +35,7 @@ const SCOPE: Record<
     title: "토레카 카탈로그",
     badge: "TRADING CARD ARCHIVE",
     badgeClassName: "bg-accent/15 tracking-[0.09em] text-accent",
-    homeHref: "/catalog",
+    homeHref: "/admin/catalog",
     sections: CATALOG_SECTIONS,
     navLabel: "카탈로그 메뉴",
   },
@@ -43,7 +43,7 @@ const SCOPE: Record<
     title: "커뮤니티 관리",
     badge: "COMMUNITY",
     badgeClassName: "bg-mint/40 text-ink",
-    homeHref: "/board",
+    homeHref: "/admin/posts",
     sections: BOARD_SECTIONS,
     navLabel: "커뮤니티 관리 메뉴",
   },
@@ -51,7 +51,7 @@ const SCOPE: Record<
     title: "스토어 관리",
     badge: "STORE",
     badgeClassName: "bg-cyan/25 text-ink",
-    homeHref: "/delivery",
+    homeHref: "/admin/store",
     sections: DELIVERY_SECTIONS,
     navLabel: "스토어 관리 메뉴",
   },
@@ -59,13 +59,13 @@ const SCOPE: Record<
     title: "중고거래 관리",
     badge: "MARKETPLACE",
     badgeClassName: "bg-lemon/50 text-ink",
-    homeHref: "/market",
+    homeHref: "/admin/used",
     sections: MARKET_SECTIONS,
     navLabel: "중고거래 관리 메뉴",
   },
 };
 
-// 관리자(/admin)·카탈로그(/catalog) 공용 셸 — 상단 고정 헤더 + 사이드바(데스크톱 접기 / 모바일 드로어) + 본문.
+// 관리자(/admin)·카탈로그(/admin/catalog) 공용 셸 — 상단 고정 헤더 + 사이드바(데스크톱 접기 / 모바일 드로어) + 본문.
 // 스크롤은 문서 스크롤(min-h-dvh) 하나만 쓴다 — 내부 overflow 컨테이너를 두지 않아 모바일에서
 // 주소창 축소·safe-area·키보드가 자연스럽게 동작한다. 토스트는 여기서 한 번만 마운트한다.
 export function AdminShell({

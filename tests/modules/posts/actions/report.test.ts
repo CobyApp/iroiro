@@ -80,7 +80,7 @@ describe("reportPost 액션", () => {
 
     expect(txPostReportCreate).toHaveBeenCalledTimes(1);
     expect(txPostReportCreate.mock.calls[0][0].data.reporterAccountId).toBe(ACCOUNT.id);
-    expect(revalidatePath).toHaveBeenCalledWith("/board/posts");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/posts/posts");
   });
 
   it("비로그인 — /login으로 리다이렉트하고 mutation은 호출되지 않는다", async () => {
@@ -114,7 +114,7 @@ describe("reportComment 액션", () => {
 
     expect(txCommentReportCreate).toHaveBeenCalledTimes(1);
     expect(txCommentReportCreate.mock.calls[0][0].data.reporterAccountId).toBe(ACCOUNT.id);
-    expect(revalidatePath).toHaveBeenCalledWith("/board/posts");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/posts/posts");
   });
 
   it("비로그인 — /login으로 리다이렉트하고 mutation은 호출되지 않는다", async () => {

@@ -185,7 +185,7 @@ export function MemberForm(props: Props) {
         toast.error(result.message);
         return;
       }
-      router.push("/catalog/members");
+      router.push("/admin/catalog/members");
     });
   }
 
@@ -208,7 +208,7 @@ export function MemberForm(props: Props) {
       }
       toast.success(`멤버 "${target.name}" 삭제 완료`);
       setConfirmOpen(false);
-      router.push("/catalog/members");
+      router.push("/admin/catalog/members");
     });
   }
 
@@ -402,7 +402,7 @@ export function MemberForm(props: Props) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/catalog/members")}
+              onClick={() => router.push("/admin/catalog/members")}
               disabled={pending || deleting}
             >
               취소

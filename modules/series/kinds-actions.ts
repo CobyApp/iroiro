@@ -38,9 +38,9 @@ export type SeriesKindCreateInput = z.infer<typeof kindCreateSchema>;
 export type SeriesKindUpdateInput = z.infer<typeof kindUpdateSchema>;
 
 function revalidateKinds() {
-  revalidatePath("/catalog/kinds");
-  revalidatePath("/catalog/series");
-  revalidatePath("/catalog");
+  revalidatePath("/admin/catalog/kinds");
+  revalidatePath("/admin/catalog/series");
+  revalidatePath("/admin/catalog");
 }
 
 export async function createSeriesKind(

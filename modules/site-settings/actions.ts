@@ -23,6 +23,6 @@ export async function updateUsedTradeSetting(input: { feeBp: number }): Promise<
     update: { usedTradeFeeBp: data.feeBp, updatedAt: new Date() },
   });
 
-  revalidatePath("/market/settings");
+  revalidatePath("/admin/used/settings");
   revalidatePath("/used");
 }

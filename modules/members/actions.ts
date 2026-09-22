@@ -98,10 +98,10 @@ async function insertMember(data: MemberCreateInput): Promise<MemberWithTeams> {
     return { memberRow, tmRows };
   });
 
-  revalidatePath("/catalog/members");
+  revalidatePath("/admin/catalog/members");
   // 카드 등록 폼·매트릭스의 멤버 선택지도 같은 데이터를 쓴다.
-  revalidatePath("/catalog/cards");
-  revalidatePath("/catalog/cards/new");
+  revalidatePath("/admin/catalog/cards");
+  revalidatePath("/admin/catalog/cards/new");
 
   const member = toMember(result.memberRow);
   const memberships: TeamMember[] = result.tmRows.map((tm) => ({
@@ -208,8 +208,8 @@ export async function updateMember(
       return memberRow;
     }));
 
-    revalidatePath("/catalog/members");
-    revalidatePath(`/catalog/members/${data.id}/edit`);
+    revalidatePath("/admin/catalog/members");
+    revalidatePath(`/admin/catalog/members/${data.id}/edit`);
     return toMember(row);
   });
 }
@@ -243,6 +243,6 @@ export async function deleteMember(id: number): Promise<ActionResult> {
       }),
     );
 
-    revalidatePath("/catalog/members");
+    revalidatePath("/admin/catalog/members");
   });
 }

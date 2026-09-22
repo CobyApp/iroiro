@@ -47,7 +47,7 @@ async function assertPinCapacity(
 function revalidateNoticePaths(publicCode?: string): void {
   revalidatePath("/");
   revalidatePath("/notices");
-  revalidatePath("/board/notices");
+  revalidatePath("/admin/posts/notices");
   if (publicCode) revalidatePath(`/notices/${publicCode}`);
 }
 

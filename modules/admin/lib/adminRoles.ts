@@ -17,10 +17,10 @@ export const ADMIN_SPACE_LABEL: Record<AdminSpace, string> = {
 
 // 각 공간의 진입 경로 — 메인 관리자 바로가기·리다이렉트에 쓴다.
 export const ADMIN_SPACE_HREF: Record<AdminSpace, string> = {
-  delivery: "/delivery",
-  used: "/market",
-  community: "/board",
-  catalog: "/catalog",
+  delivery: "/admin/store",
+  used: "/admin/used",
+  community: "/admin/posts",
+  catalog: "/admin/catalog",
 };
 
 export function isAdminSpace(value: string): value is AdminSpace {

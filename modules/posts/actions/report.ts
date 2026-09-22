@@ -16,7 +16,7 @@ async function requireAccount() {
 // 신고 자체는 대상 글/댓글의 공개 노출을 바꾸지 않는다(mutation이 postPublicCode를
 // 반환하지 않는 이유와 동일) — 유일하게 달라지는 화면은 admin 신고 큐뿐이라 그것만 revalidate한다.
 function revalidateReportQueue(): void {
-  revalidatePath("/board/posts");
+  revalidatePath("/admin/posts/posts");
 }
 
 export async function reportPost(input: unknown): Promise<ActionResult> {

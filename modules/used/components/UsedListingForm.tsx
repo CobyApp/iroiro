@@ -39,7 +39,7 @@ type MemberOpt = { id: number; name: string; teamIds: number[] };
 
 // 중고 매물 등록 — 사진 → 카탈로그(그룹→멤버→종류→시리즈) → 상태·가격 → 배송.
 // 시리즈를 고르면 일본 시세·중고 최근 거래가를 보여줘 가격 결정을 돕는다.
-// 종류 라벨·순서는 DB(series_kind)에서 내려온 kinds 로 그린다 — /catalog/kinds 편집이 그대로 반영.
+// 종류 라벨·순서는 DB(series_kind)에서 내려온 kinds 로 그린다 — /admin/catalog/kinds 편집이 그대로 반영.
 export function UsedListingForm({
   teams,
   members,
