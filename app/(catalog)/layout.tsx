@@ -42,7 +42,7 @@ export default async function CatalogLayout({
   // 권한 가드 (룰 3) — 카탈로그는 site admin 전용. 게시판 moderator는 들어올 수 없다.
   // 비로그인은 로그인으로, 권한 없으면 홈으로. Server Action은 requireAdmin에서 재검증.
   const account = await getCurrentAccount();
-  if (!account) redirect("/login");
+  if (!account) redirect("/login?returnTo=/catalog");
   if (!isAdmin(account)) redirect("/");
 
   return (

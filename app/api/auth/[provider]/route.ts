@@ -44,6 +44,7 @@ export async function GET(
   });
 
   const response = NextResponse.redirect(authorizationUrl);
-  setOAuthCookies(response, { state, codeVerifier });
+  const returnTo = request.nextUrl.searchParams.get("returnTo");
+  setOAuthCookies(response, { state, codeVerifier, returnTo });
   return response;
 }

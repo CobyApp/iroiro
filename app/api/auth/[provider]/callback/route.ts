@@ -18,6 +18,7 @@ import {
 import {
   clearOAuthCookies,
   readOAuthCookies,
+  readOAuthReturn,
 } from "@/modules/auth/lib/oauth/state";
 import { createSession } from "@/modules/auth/lib/session";
 
@@ -80,7 +81,8 @@ export async function GET(
       // 기존 사용자 → 로그인.
       // TODO(온보딩): 전화 인증 미완료(phone_number_verified_at NULL)면 /onboarding/phone로.
       const { token, expiresAt } = await createSession(existing.id);
-      const response = NextResponse.redirect(publicUrl(request, "/"));
+      const returnTo = readOAuthReturn(request) ?? "/";
+      const response = NextResponse.redirect(publicUrl(request, returnTo));
       response.cookies.set(
         SESSION_COOKIE_NAME,
         token,

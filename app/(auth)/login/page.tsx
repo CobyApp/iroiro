@@ -15,9 +15,15 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; returnTo?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, returnTo } = await searchParams;
+  // 오픈 리다이렉트 방지 — 같은 사이트 절대경로만.
+  const safeReturn =
+    returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : null;
+  const q = safeReturn ? `?returnTo=${encodeURIComponent(safeReturn)}` : "";
   const message = error
     ? (ERROR_MESSAGES[error] ?? "로그인에 실패했습니다.")
     : null;
@@ -52,7 +58,7 @@ export default async function LoginPage({
       <div className="flex flex-col gap-3">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- OAuth 시작 라우트(Route Handler)로의 전체 이동. 외부 제공자로 302라 Link 부적합. */}
         <a
-          href="/api/auth/kakao"
+          href={`/api/auth/kakao${q}`}
           className="flex h-11 items-center justify-center gap-2 rounded-full border border-[#e3ce00] bg-[#FEE500] text-sm font-medium text-[#191600] transition-[transform,background-color] hover:bg-[#f8e200] active:scale-[.98]"
         >
           <KakaoMark />
@@ -60,7 +66,7 @@ export default async function LoginPage({
         </a>
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- OAuth 시작 라우트(Route Handler)로의 전체 이동. 외부 제공자로 302라 Link 부적합. */}
         <a
-          href="/api/auth/naver"
+          href={`/api/auth/naver${q}`}
           className="flex h-11 items-center justify-center gap-2 rounded-full border border-[#03aa4d] bg-[#03C75A] text-sm font-medium text-white transition-[transform,background-color] hover:bg-[#02b551] active:scale-[.98]"
         >
           <NaverMark />
