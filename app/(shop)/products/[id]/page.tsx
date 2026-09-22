@@ -101,6 +101,7 @@ export default async function ProductPage({ params }: { params: Params }) {
     isAuction ? listRecentBids(product.id, account?.id ?? null, 50) : [],
     listRecentTradePrices({
       id: product.id,
+      catalogCardId: product.catalogCardId,
       itemCode: product.itemCode,
       name: product.name,
     }),
