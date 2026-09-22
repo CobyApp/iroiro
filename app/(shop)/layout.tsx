@@ -10,6 +10,8 @@ import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import Link from "next/link";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { getSearchTagFacets } from "@/modules/search/lib/tag-facets";
+import { getCurrentAccount } from "@/modules/auth/dal";
+import { getPublicUrl } from "@/lib/r2/presign";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
@@ -24,8 +26,19 @@ export default async function ShopLayout({
 }) {
   // 검색 패널의 그룹 필터 태그 — 그룹 표는 작아(수 개) 레이아웃에서 가볍게 읽는다.
   // 태그 facet — 상품/매물이 없는 그룹·종류·판매방식 태그는 감춘다(빈 결과 방지).
-  const [teams, tagFacets] = await Promise.all([listTeams(), getSearchTagFacets()]);
+  const [teams, tagFacets, account] = await Promise.all([
+    listTeams(),
+    getSearchTagFacets(),
+    getCurrentAccount().catch(() => null),
+  ]);
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
+  // 마이 탭 헤더에 보여줄 최소 계정 정보(모바일). 비로그인은 null → 로고 폴백.
+  const headerAccount = account
+    ? {
+        displayName: account.displayName ?? "회원",
+        avatarUrl: account.avatarKey ? getPublicUrl(account.avatarKey) : null,
+      }
+    : null;
 
   return (
     <TooltipProvider>
@@ -46,7 +59,7 @@ export default async function ShopLayout({
               <BrandLockup markClassName="h-8 w-8" wordmarkClassName="h-5" />
             </Link>
             {/* 탭에 따라 검색(스토어·중고·커뮤니티)·뒤로가기(상세)·로고로 바뀐다. */}
-            <HeaderLeading teams={teamOptions} tagFacets={tagFacets} />
+            <HeaderLeading teams={teamOptions} tagFacets={tagFacets} account={headerAccount} />
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
             <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-2">
               <div className="hidden sm:block">
