@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import type { Team } from "@/modules/teams/types";
 import type { MemberWithTeams } from "@/modules/members/types";
 import { ProductCard } from "./ProductCard";
@@ -32,33 +31,25 @@ export function ProductGrid({
   if (products.length === 0) {
     if (searchQuery || hasFilters) {
       return (
-        <div className="rounded-md border border-border bg-card p-12 text-center shadow-card">
-          <p className="mb-2 text-4xl">🔍</p>
-          <p className="font-display text-foreground">
-            {searchQuery
+        <EmptyState
+          emoji="🔍"
+          title={
+            searchQuery
               ? `"${searchQuery}" 검색 결과가 없어요`
-              : "조건에 맞는 상품이 없어요"}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            다른 그룹·멤버로 찾아보세요
-          </p>
-          <Button asChild variant="secondary" className="mt-5">
-            <Link href="/products">필터 초기화</Link>
-          </Button>
-        </div>
+              : "조건에 맞는 상품이 없어요"
+          }
+          description="다른 그룹·멤버로 찾아보세요"
+          action={{ href: "/products", label: "필터 초기화", variant: "secondary" }}
+        />
       );
     }
 
     return (
-      <div className="rounded-md border border-border bg-card p-12 text-center shadow-card">
-        <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
-          <Sparkles className="h-6 w-6" aria-hidden />
-        </span>
-        <p className="font-display text-foreground">상품 준비 중이에요</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          곧 예쁜 토레카로 채워질 거예요
-        </p>
-      </div>
+      <EmptyState
+        icon={Sparkles}
+        title="상품 준비 중이에요"
+        description="곧 예쁜 토레카로 채워질 거예요"
+      />
     );
   }
 

@@ -18,6 +18,7 @@ import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
 // 검색 패널은 최근 검색어 + 그 탭의 필터(그룹·종류·판매방식·토픽)를 커서 올리면 바로 고르게 한다.
 
 export type TeamOption = { id: number; name: string };
+export type MemberOption = { id: number; name: string };
 
 type SearchMode = {
   kind: "search";
@@ -99,17 +100,21 @@ function resolveLeading(pathname: string): Leading {
 const EMPTY_FACETS: SearchTagFacets = {
   storeTeamIds: [],
   storeItemTypes: [],
+  storeMembersByTeam: {},
   usedTeamIds: [],
   usedSaleModes: [],
   usedItemTypes: [],
+  usedMembersByTeam: {},
 };
 
 export function HeaderLeading({
   teams = [],
+  members = [],
   tagFacets = EMPTY_FACETS,
   account = null,
 }: {
   teams?: TeamOption[];
+  members?: MemberOption[];
   tagFacets?: SearchTagFacets;
   account?: HeaderAccount | null;
 }) {
@@ -156,7 +161,33 @@ export function HeaderLeading({
       </div>
     );
   }
-  return <SearchField mode={leading} teams={teams} tagFacets={tagFacets} />;
+  // 검색바 — 데스크톱은 네비바 아래(HeaderSearchBar)로 내렸으므로 상단 헤더에선 모바일만.
+  return (
+    <div className="min-w-0 flex-1 sm:hidden">
+      <SearchField mode={leading} teams={teams} members={members} tagFacets={tagFacets} />
+    </div>
+  );
+}
+
+// 데스크톱 전용 — 상단 네비바 아래 페이지 상단에 두는 검색바.
+// 검색 대상 탭(스토어·중고·커뮤니티)에서만 렌더하고, 상세·기타 페이지에선 감춘다.
+export function HeaderSearchBar({
+  teams = [],
+  members = [],
+  tagFacets = EMPTY_FACETS,
+}: {
+  teams?: TeamOption[];
+  members?: MemberOption[];
+  tagFacets?: SearchTagFacets;
+}) {
+  const pathname = usePathname();
+  const leading = resolveLeading(pathname);
+  if (leading.kind !== "search") return null;
+  return (
+    <div className="w-full max-w-xl">
+      <SearchField mode={leading} teams={teams} members={members} tagFacets={tagFacets} />
+    </div>
+  );
 }
 
 function BackButton({ fallback }: { fallback: string }) {
@@ -183,22 +214,32 @@ function BackButton({ fallback }: { fallback: string }) {
 function SearchField({
   mode,
   teams,
+  members,
   tagFacets,
 }: {
   mode: SearchMode;
   teams: TeamOption[];
+  members: MemberOption[];
   tagFacets: SearchTagFacets;
 }) {
   const router = useRouter();
   const { recent, push, remove, clear } = useRecentSearches(mode.recentKey);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  // 그룹 칩을 누르면 그 그룹의 멤버 칩을 펼친다(바로 이동 대신). 다시 누르면 접힌다.
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // 패널을 닫을 때 멤버 펼침 상태도 함께 초기화한다.
+  function closePanel() {
+    setOpen(false);
+    setSelectedTeamId(null);
+  }
 
   useEffect(() => {
     if (!open) return;
     function onDown(e: PointerEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) closePanel();
     }
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
@@ -208,12 +249,12 @@ function SearchField({
     const t = term.trim();
     push(t);
     setQ(t);
-    setOpen(false);
+    closePanel();
     router.push(t ? `${mode.action}?q=${encodeURIComponent(t)}` : mode.action);
   }
 
   function goFilter(href: string) {
-    setOpen(false);
+    closePanel();
     router.push(href);
   }
 
@@ -230,6 +271,22 @@ function SearchField({
     .filter((t) => (teamAllowed ? teamAllowed.has(t.id) : true))
     .filter((t) => (typed ? t.name.toLowerCase().includes(typed) : true))
     .slice(0, 10);
+  // 그룹 선택 시 그 그룹의 멤버 칩 — 상품/매물이 있는 멤버만(커뮤니티는 멤버 필터 없음).
+  const membersByTeam =
+    mode.key === "product"
+      ? tagFacets.storeMembersByTeam
+      : mode.key === "used"
+        ? tagFacets.usedMembersByTeam
+        : null;
+  const memberNameById = new Map(members.map((m) => [m.id, m.name]));
+  const selectedTeam =
+    selectedTeamId !== null ? (teams.find((t) => t.id === selectedTeamId) ?? null) : null;
+  const teamMembers =
+    membersByTeam && selectedTeamId !== null
+      ? (membersByTeam[String(selectedTeamId)] ?? [])
+          .map((id) => ({ id, name: memberNameById.get(id) }))
+          .filter((m): m is MemberOption => typeof m.name === "string")
+      : [];
   // 결과가 있는 판매방식·종류만(중고).
   const usedModes = new Set(tagFacets.usedSaleModes);
   const usedTypeKeys = (Object.keys(USED_ITEM_TYPE_LABEL) as (keyof typeof USED_ITEM_TYPE_LABEL)[]).filter(
@@ -254,7 +311,7 @@ function SearchField({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => setOpen(true)}
-          onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && closePanel()}
           placeholder={mode.placeholder}
           aria-label={mode.label}
           className="h-10 w-full rounded-full border border-border bg-card/80 pl-9 pr-4 text-base outline-none transition-colors placeholder:text-muted-foreground focus:border-primary sm:text-sm"
@@ -279,19 +336,40 @@ function SearchField({
             </ChipGroup>
           )}
 
-          {/* 그룹 태그 — 모든 검색 탭 공통(스토어·중고는 ?team, 커뮤니티는 글 검색어로) */}
+          {/* 그룹 태그 — 모든 검색 탭 공통. 커뮤니티는 글 검색어로 바로 이동,
+             스토어·중고는 그룹을 눌러 멤버 칩을 펼친다(멤버로도 필터). */}
           {matchTeams.length > 0 && (
             <ChipGroup label="그룹">
               {matchTeams.map((t) => (
                 <Chip
                   key={t.id}
+                  active={selectedTeamId === t.id}
                   onClick={() =>
                     mode.key === "community"
                       ? goSearch(t.name)
-                      : goFilter(`${mode.action}?team=${t.id}`)
+                      : setSelectedTeamId((prev) => (prev === t.id ? null : t.id))
                   }
                 >
                   {t.name}
+                </Chip>
+              ))}
+            </ChipGroup>
+          )}
+
+          {/* 그룹 선택 시 멤버 칩 — "그룹 전체"로 팀만 필터하거나 멤버까지 좁힌다. */}
+          {selectedTeam && (mode.key === "product" || mode.key === "used") && (
+            <ChipGroup label={`${selectedTeam.name} 멤버`}>
+              <Chip onClick={() => goFilter(`${mode.action}?team=${selectedTeam.id}`)}>
+                그룹 전체
+              </Chip>
+              {teamMembers.map((m) => (
+                <Chip
+                  key={m.id}
+                  onClick={() =>
+                    goFilter(`${mode.action}?team=${selectedTeam.id}&member=${m.id}`)
+                  }
+                >
+                  {m.name}
                 </Chip>
               ))}
             </ChipGroup>
@@ -367,12 +445,25 @@ function ChipGroup({
   );
 }
 
-function Chip({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  onClick,
+  active = false,
+  children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+      aria-pressed={active}
+      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+        active
+          ? "border-primary bg-primary/10 font-medium text-primary"
+          : "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5"
+      }`}
     >
       {children}
     </button>
