@@ -3,15 +3,15 @@ import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { UsedTradeSettingForm } from "@/modules/site-settings/components/UsedTradeSettingForm";
 
-// 관리자 — 사이트 전역 설정 (중고거래 수수료).
-export default async function AdminSettingsPage() {
+// 중고거래 관리 — 판매 수수료 설정.
+export default async function MarketFeeSettingPage() {
   const settings = await getSiteSettings();
 
   return (
     <AdminPage>
       <AdminPageHeader
-        title="설정"
-        description="사이트 전체에 즉시 반영되는 전역 설정이에요."
+        title="판매 수수료"
+        description="중고거래 판매 수수료율이에요. 거래 시점에 스냅샷되어 이후 변경해도 진행 중 거래엔 영향 없어요."
       />
       <UsedTradeSettingForm initialFeeBp={settings.usedTradeFeeBp} />
     </AdminPage>

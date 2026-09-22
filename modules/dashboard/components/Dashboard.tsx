@@ -139,7 +139,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
               ? "아직 없음"
               : `${business.reviewCount}건 · 평균 ${business.reviewAverage ?? "-"}점`
           }
-          href="/admin/reviews"
+          href="/delivery/reviews"
         />
         <MiniStat
           icon={<Coins className="h-4 w-4" />}
