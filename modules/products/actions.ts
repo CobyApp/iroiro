@@ -135,6 +135,16 @@ export async function uploadProductPhotoFile(
 async function persistNewProduct(input: ProductCreateInput) {
   const data = parseActionInput(productCreateSchema, input);
 
+  // 같은 카탈로그 카드로 이미 등록된 상품이 있으면 중복 등록 차단(카드당 상품 1개).
+  // 일괄 등록은 사전에 등록된 카드를 건너뛰지만, 단건·경쟁 상황의 백스톱.
+  if (data.catalogCardId != null) {
+    const dup = await db.product.findFirst({
+      where: { catalogCardId: BigInt(data.catalogCardId) },
+      select: { id: true },
+    });
+    if (dup) throw new DomainError("이미 이 카드로 등록된 상품이 있어요");
+  }
+
   // 경매 상품 파생 필드 — 재고 1 고정, 정가/판매가 = 시작가, 상태 live.
   let auctionFields: AuctionPatch = {};
   if (data.saleMode === "auction") {
