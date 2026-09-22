@@ -10,13 +10,14 @@ import {
   BOARD_SECTIONS,
   CATALOG_SECTIONS,
   DELIVERY_SECTIONS,
+  MARKET_SECTIONS,
   type NavSection,
 } from "../lib/nav";
 import type { AdminSpace } from "../lib/adminRoles";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-export type AdminShellScope = "admin" | "catalog" | "board" | "delivery";
+export type AdminShellScope = "admin" | "catalog" | "board" | "delivery" | "market";
 
 const SCOPE: Record<
   AdminShellScope,
@@ -53,6 +54,14 @@ const SCOPE: Record<
     homeHref: "/delivery",
     sections: DELIVERY_SECTIONS,
     navLabel: "배송 관리 메뉴",
+  },
+  market: {
+    title: "중고거래 관리",
+    badge: "MARKETPLACE",
+    badgeClassName: "bg-lemon/50 text-ink",
+    homeHref: "/market",
+    sections: MARKET_SECTIONS,
+    navLabel: "중고거래 관리 메뉴",
   },
 };
 

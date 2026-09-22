@@ -6,10 +6,13 @@ import {
   Coins,
   ImageIcon,
   Layers,
+  Ban,
+  Flag,
   LayoutDashboard,
   Megaphone,
   MessageSquare,
   Package,
+  Store,
   Settings,
   ShoppingBag,
   Star,
@@ -179,6 +182,13 @@ export const ADMIN_SECTIONS: NavSection[] = [
         role: "siteAdmin",
       },
       {
+        key: "to-market",
+        label: "중고거래 관리 →",
+        href: "/market",
+        icon: Store,
+        role: "siteAdmin",
+      },
+      {
         key: "to-board",
         label: "게시판 관리 →",
         href: "/board",
@@ -191,6 +201,45 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/catalog",
         icon: ArrowRight,
         role: "siteAdmin",
+      },
+    ],
+  },
+];
+
+// 중고거래 관리 — 별도 설치형 공간(/market). site admin + used 부분 권한.
+// 신고 처리(매물 차단·해제·기각)와 매물 모니터링을 한곳에서. 회원 제재는 메인 관리자에서.
+export const MARKET_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { key: "home", label: "홈", href: "/market", icon: LayoutDashboard, role: "used" },
+    ],
+  },
+  {
+    title: "중고거래",
+    items: [
+      {
+        key: "reports",
+        label: "신고",
+        href: "/market/reports",
+        icon: Flag,
+        matchPrefix: "/market/reports",
+        role: "used",
+      },
+      {
+        key: "listings",
+        label: "매물",
+        href: "/market/listings",
+        icon: Store,
+        matchPrefix: "/market/listings",
+        role: "used",
+      },
+      {
+        key: "blocked",
+        label: "차단 매물",
+        href: "/market/blocked",
+        icon: Ban,
+        matchPrefix: "/market/blocked",
+        role: "used",
       },
     ],
   },

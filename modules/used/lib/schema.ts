@@ -1,6 +1,44 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS } from "@/modules/products/types";
-import { USED_SHIPPING_METHODS } from "../types";
+import { USED_REPORT_REASONS, USED_SHIPPING_METHODS } from "../types";
+
+// 신고·차단·처리 입력 길이 상한(글 신고와 동일 어휘·값).
+export const USED_REPORT_DETAIL_MAX = 500;
+export const USED_BLOCK_REASON_MAX = 500;
+export const USED_RESOLUTION_NOTE_MAX = 1_000;
+
+const positiveId = z.number().int().positive();
+const optionalText = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() || undefined : (v ?? undefined)),
+    z.string().max(max).optional(),
+  );
+
+// 고객 신고 입력 — 대상 매물 + 사유(+ 상세 선택).
+export const usedReportCreateSchema = z.object({
+  listingId: positiveId,
+  reason: z.enum(USED_REPORT_REASONS),
+  detail: optionalText(USED_REPORT_DETAIL_MAX),
+});
+export type UsedReportCreateInput = z.input<typeof usedReportCreateSchema>;
+
+// 관리자 매물 차단 입력 — 사유 필수(판매자에게 노출).
+export const usedBlockSchema = z.object({
+  listingId: positiveId,
+  reason: z.string().trim().min(1, "차단 사유를 입력해주세요").max(USED_BLOCK_REASON_MAX),
+});
+export type UsedBlockInput = z.input<typeof usedBlockSchema>;
+
+// 관리자 신고 기각 입력 — 메모 선택.
+export const usedDismissReportSchema = z.object({
+  reportId: positiveId,
+  note: optionalText(USED_RESOLUTION_NOTE_MAX),
+});
+export type UsedDismissReportInput = z.input<typeof usedDismissReportSchema>;
+
+// 단일 매물 ID 입력(차단 해제 등).
+export const usedListingIdSchema = z.object({ listingId: positiveId });
+export type UsedListingIdInput = z.input<typeof usedListingIdSchema>;
 
 export const usedPhotoInputSchema = z.object({
   r2Key: z.string().min(1),

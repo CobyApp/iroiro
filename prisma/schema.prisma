@@ -780,6 +780,9 @@ model UsedListing {
   auctionWinnerAccountId String?   @map("auction_winner_account_id") @db.Uuid
   auctionPayDueAt        DateTime? @map("auction_pay_due_at") @db.Timestamptz(6)
   viewCount              Int       @default(0) @map("view_count")
+  blockedAt              DateTime? @map("blocked_at") @db.Timestamptz(6)
+  blockedReason          String?   @map("blocked_reason")
+  blockedBy              String?   @map("blocked_by")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   photos                 UsedListingPhoto[]
@@ -791,6 +794,28 @@ model UsedListing {
   @@index([auctionStatus, auctionEndsAt], map: "used_listing_auction_due_idx")
   @@index([cardId], map: "used_listing_card_idx")
   @@map("used_listing")
+}
+
+model UsedReport {
+  id                BigInt    @id @default(autoincrement())
+  listingId         BigInt    @map("listing_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([listingId, reporterAccountId], map: "used_report_listing_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "used_report_reporter_created_at_idx")
+  @@index([createdAt], map: "used_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([createdAt], map: "used_report_created_at_idx")
+  @@index([updatedAt], map: "used_report_updated_at_idx")
+  @@map("used_report")
 }
 
 model UsedListingPhoto {
