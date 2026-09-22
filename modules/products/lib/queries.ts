@@ -15,6 +15,47 @@ export type ProductListResult = {
   pageSize: number;
 };
 
+// 카드 연결 상품의 표시 정보(이름·그룹·멤버·시리즈·구분)를 card 에서 실시간으로 덮어쓴다.
+// 상품은 가격·재고·상태만 소유하고 토레카 정보는 card 가 단일 소스 — 카탈로그 수정이 즉시 반영된다.
+// card_id 가 없는(향후 비카탈로그) 상품은 product 자신의 값을 그대로 쓴다.
+async function overlayCardDisplay<T extends ProductWithPhotos>(
+  products: T[],
+): Promise<T[]> {
+  const cardIds = [
+    ...new Set(
+      products
+        .map((p) => p.catalogCardId)
+        .filter((id): id is number => id != null && Number.isFinite(id)),
+    ),
+  ];
+  if (cardIds.length === 0) return products;
+  const cards = await catalogDb.card.findMany({
+    where: { id: { in: cardIds.map((id) => BigInt(id)) } },
+    select: {
+      id: true,
+      name: true,
+      itemType: true,
+      teamId: true,
+      memberId: true,
+      seriesId: true,
+    },
+  });
+  const byId = new Map(cards.map((c) => [Number(c.id), c]));
+  return products.map((p) => {
+    if (p.catalogCardId == null) return p;
+    const card = byId.get(p.catalogCardId);
+    if (!card) return p;
+    return {
+      ...p,
+      name: card.name,
+      itemType: card.itemType,
+      teamId: card.teamId !== null ? Number(card.teamId) : null,
+      memberId: card.memberId !== null ? Number(card.memberId) : null,
+      seriesId: card.seriesId !== null ? Number(card.seriesId) : null,
+    };
+  });
+}
+
 export async function listProducts(
   filter?: ProductFilter,
 ): Promise<ProductListResult> {
@@ -167,7 +208,7 @@ export async function listProducts(
     return { ...product, photos };
   });
 
-  return { items, total, page, pageSize };
+  return { items: await overlayCardDisplay(items), total, page, pageSize };
 }
 
 // 공개 둘러보기 필터 칩용 facet — 목록(/products)과 같은 노출 규칙을 그대로 쓴다:
@@ -219,13 +260,15 @@ export async function listLiveAuctions(
     arr.push(toProductPhoto(ph));
     photosByProduct.set(pid, arr);
   }
-  return rows.map((row) => {
-    const product = toProduct(row);
-    const photos = (photosByProduct.get(product.id) ?? []).sort(
-      (a, b) => a.displayOrder - b.displayOrder,
-    );
-    return { ...product, photos };
-  });
+  return overlayCardDisplay(
+    rows.map((row) => {
+      const product = toProduct(row);
+      const photos = (photosByProduct.get(product.id) ?? []).sort(
+        (a, b) => a.displayOrder - b.displayOrder,
+      );
+      return { ...product, photos };
+    }),
+  );
 }
 
 // 최애(그룹·멤버) 맞춤 상품 — 홈 추천 행. 최애 멤버 or 최애 그룹 소속, 판매중, 최신순.
@@ -257,13 +300,15 @@ export async function listProductsForFavorites(
     arr.push(toProductPhoto(ph));
     photosByProduct.set(pid, arr);
   }
-  return rows.map((row) => {
-    const product = toProduct(row);
-    const photos = (photosByProduct.get(product.id) ?? []).sort(
-      (a, b) => a.displayOrder - b.displayOrder,
-    );
-    return { ...product, photos };
-  });
+  return overlayCardDisplay(
+    rows.map((row) => {
+      const product = toProduct(row);
+      const photos = (photosByProduct.get(product.id) ?? []).sort(
+        (a, b) => a.displayOrder - b.displayOrder,
+      );
+      return { ...product, photos };
+    }),
+  );
 }
 
 // 여러 상품을 id 목록으로 조회 — 장바구니·주문 페이지가 cart/orders 도메인과 합성할 때 사용.
@@ -287,13 +332,15 @@ export async function getProductsByIds(
     photosByProduct.set(pid, arr);
   }
 
-  return rows.map((row) => {
-    const product = toProduct(row);
-    const photos = (photosByProduct.get(product.id) ?? []).sort(
-      (a, b) => a.displayOrder - b.displayOrder,
-    );
-    return { ...product, photos };
-  });
+  return overlayCardDisplay(
+    rows.map((row) => {
+      const product = toProduct(row);
+      const photos = (photosByProduct.get(product.id) ?? []).sort(
+        (a, b) => a.displayOrder - b.displayOrder,
+      );
+      return { ...product, photos };
+    }),
+  );
 }
 
 // 카탈로그 카드 id → 포즈 번호 맵. 관리자 상품 목록에서 "포즈 N" 표시에 쓴다(카탈로그 DB 조회).
@@ -321,7 +368,8 @@ export async function getProductById(
   const photos = photoRows
     .map(toProductPhoto)
     .sort((a, b) => a.displayOrder - b.displayOrder);
-  return { ...product, photos };
+  const [overlaid] = await overlayCardDisplay([{ ...product, photos }]);
+  return overlaid;
 }
 
 export type DownloadPhoto = {
@@ -530,13 +578,15 @@ export async function listRelatedProducts(
     arr.push(toProductPhoto(ph));
     photosByProduct.set(pid, arr);
   }
-  return picked.map((row) => {
-    const p = toProduct(row);
-    const photos = (photosByProduct.get(p.id) ?? []).sort(
-      (a, b) => a.displayOrder - b.displayOrder,
-    );
-    return { ...p, photos };
-  });
+  return overlayCardDisplay(
+    picked.map((row) => {
+      const p = toProduct(row);
+      const photos = (photosByProduct.get(p.id) ?? []).sort(
+        (a, b) => a.displayOrder - b.displayOrder,
+      );
+      return { ...p, photos };
+    }),
+  );
 }
 
 // ── 시리즈 옵션 (중고 등록·필터용) ──────────────────────────────────────────
