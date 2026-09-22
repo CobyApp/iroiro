@@ -12,7 +12,6 @@ import {
   MessageSquare,
   Package,
   Store,
-  Settings,
   ShoppingBag,
   Star,
   Tag,
@@ -105,14 +104,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
         matchPrefix: "/admin/banners",
         role: "siteAdmin",
       },
-      {
-        key: "reviews",
-        label: "리뷰",
-        href: "/admin/reviews",
-        icon: Star,
-        matchPrefix: "/admin/reviews",
-        role: "siteAdmin",
-      },
     ],
   },
   {
@@ -137,25 +128,12 @@ export const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "스토어",
-    items: [
-      {
-        key: "settings",
-        label: "설정",
-        href: "/admin/settings",
-        icon: Settings,
-        matchPrefix: "/admin/settings",
-        role: "siteAdmin",
-      },
-    ],
-  },
-  {
     title: "바로가기",
     items: [
-      // 스토어·배송·중고·게시판·토레카는 각각 별도 공간에서 — 메인에서는 진입 링크만(역방향은 없음).
+      // 스토어·중고·커뮤니티·토레카는 각각 별도 공간에서 — 메인에서는 진입 링크만(역방향은 없음).
       {
         key: "to-delivery",
-        label: "스토어 · 배송 관리 →",
+        label: "스토어 관리 →",
         href: "/delivery",
         icon: Truck,
         role: "siteAdmin",
@@ -169,7 +147,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
       },
       {
         key: "to-board",
-        label: "게시판 관리 →",
+        label: "커뮤니티 관리 →",
         href: "/board",
         icon: MessageSquare,
         role: "siteAdmin",
@@ -220,6 +198,14 @@ export const MARKET_SECTIONS: NavSection[] = [
         matchPrefix: "/market/blocked",
         role: "used",
       },
+      {
+        key: "fee",
+        label: "판매 수수료",
+        href: "/market/settings",
+        icon: Coins,
+        matchPrefix: "/market/settings",
+        role: "used",
+      },
     ],
   },
 ];
@@ -248,6 +234,14 @@ export const DELIVERY_SECTIONS: NavSection[] = [
         href: "/delivery/orders",
         icon: ShoppingBag,
         matchPrefix: "/delivery/orders",
+        role: "delivery",
+      },
+      {
+        key: "reviews",
+        label: "리뷰",
+        href: "/delivery/reviews",
+        icon: Star,
+        matchPrefix: "/delivery/reviews",
         role: "delivery",
       },
     ],

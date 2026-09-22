@@ -141,16 +141,20 @@ describe("실제 섹션 정의", () => {
     expect(visibleSections(ADMIN_SECTIONS, viewer(false, ["community"]))).toEqual([]);
   });
 
-  it("스토어·배송 공간은 상품·주문·배송을 담고 delivery 권한자에게 열린다", () => {
+  it("스토어 관리 공간은 상품·주문·리뷰·배송을 담고 delivery 권한자에게 열린다", () => {
     const hrefs = DELIVERY_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
     expect(hrefs).toContain("/delivery/products");
     expect(hrefs).toContain("/delivery/orders");
+    expect(hrefs).toContain("/delivery/reviews");
     expect(hrefs).toContain("/delivery/policy");
-    // 상품·주문은 더 이상 메인 관리자에 없다(정산 메뉴는 제거됨).
+    // 상품·주문·리뷰는 더 이상 메인 관리자에 없다(정산 메뉴는 제거됨).
     const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
     expect(adminHrefs).not.toContain("/admin/products");
     expect(adminHrefs).not.toContain("/admin/orders");
+    expect(adminHrefs).not.toContain("/admin/reviews");
     expect(hrefs).not.toContain("/delivery/settlement");
+    // 중고거래 수수료 설정은 중고 관리 공간으로 옮겼다.
+    expect(MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href))).toContain("/market/settings");
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
   });
 
