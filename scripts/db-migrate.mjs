@@ -82,7 +82,13 @@ const checksum = (sql) => createHash("sha256").update(sql).digest("hex").slice(0
 
 async function runTarget(name) {
   const target = TARGETS[name];
-  if (!target) throw new Error(`알 수 없는 대상: ${name} (commerce)`);
+  // 알 수 없는 대상은 던지지 않고 건너뛴다 — 토레카 카탈로그가 커머스 DB로 병합되며 'catalog'
+  // 대상이 사라졌으나, 배포된 ECS 마이그레이트 태스크 정의에 MIGRATE_TARGETS=commerce,catalog 가
+  // 남아 있을 수 있다(다음 setup.sh migrate 재등록 전까지). 그 잔재로 배포가 깨지지 않게 방어.
+  if (!target) {
+    console.warn(`▸ ${name}: 알 수 없는 대상 — 건너뜀(구 태스크 정의 잔재일 수 있음)`);
+    return;
+  }
   const url = process.env[target.urlEnv];
   if (!url) throw new Error(`${target.urlEnv} 가 비어 있어요`);
   const sections = splitSections(readFileSync(path.join(ROOT, target.file), "utf8"));
