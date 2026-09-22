@@ -100,6 +100,8 @@ export function ProductForm({
     product?.seriesId ?? null,
   );
   const [catalogImporting, setCatalogImporting] = useState(false);
+  // 단건 폼에서 카탈로그 카드를 골랐을 때의 출처 카드 id — 신규 등록에서만 전송(수정은 건드리지 않음).
+  const [catalogCardId, setCatalogCardId] = useState<number | null>(null);
   const [name, setName] = useState(product?.name ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [purchasePriceJpy, setPurchasePriceJpy] = useState(
@@ -255,6 +257,8 @@ export function ProductForm({
       teamId,
       memberId,
       seriesId,
+      // 신규 등록만 출처 카드를 심는다. 수정에서는 undefined 로 두어 기존 값을 보존한다.
+      catalogCardId: mode === "new" ? catalogCardId : undefined,
       name,
       description: description || null,
       purchasePriceJpy: Number(purchasePriceJpy),
@@ -335,6 +339,7 @@ export function ProductForm({
                   series={series}
                   catalogPublicBase={catalogPublicBase}
                   onPick={(card) => {
+                    setCatalogCardId(card.id);
                     setTeamId(card.teamId);
                     setMemberId(card.memberId);
                     setSeriesId(card.seriesId);

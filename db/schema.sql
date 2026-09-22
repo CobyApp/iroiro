@@ -2302,3 +2302,17 @@ DROP TABLE IF EXISTS member;
 DROP TABLE IF EXISTS team;
 
 -- ============================================================================
+
+-- [20260922040000_product_catalog_card_id]
+-- ============================================================================
+
+-- product_catalog_card_id: 상품이 어느 카탈로그 카드에서 등록됐는지 값으로 참조(FK 없음 — team_id/member_id/series_id 규약과 동일).
+-- 일괄 등록 화면의 "미등록만 보기"(이미 상품이 된 카드 숨기기) 판별 키. 수기 등록 상품은 NULL.
+-- 과거 제거한 source_id(외부 분석기 카드 id)와는 개념이 다르다 — 이건 우리 공유 카탈로그(iroiro_catalog)의 card.id.
+-- 고객용 "같은 카드 매물 묶기"는 그대로 item_code 기준을 쓴다(이 컬럼은 관리자 일괄 등록 중복 방지 전용).
+ALTER TABLE product
+    ADD COLUMN IF NOT EXISTS catalog_card_id BIGINT;
+COMMENT ON COLUMN product.catalog_card_id IS '등록 출처 카탈로그 카드 id(값 참조, FK 없음). 수기 등록은 NULL';
+CREATE INDEX IF NOT EXISTS product_catalog_card_idx ON product (catalog_card_id);
+
+-- ============================================================================

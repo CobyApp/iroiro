@@ -34,6 +34,9 @@ model Product {
   condition            String?
   stockQuantity        Int      @default(0) @map("stock_quantity")
   saleStatus           String   @map("sale_status")
+  // 이 상품이 어느 카탈로그 카드에서 등록됐는지(값 참조, FK 없음 — team_id/member_id/series_id와 동일 규약).
+  // 일괄 등록의 "미등록만 보기" 판별 키. 수기 등록은 NULL.
+  catalogCardId        BigInt?  @map("catalog_card_id")
   // ── 카탈로그 계층·외부 시세 (임포트 시 스냅샷) ──
   seriesId             BigInt?  @map("series_id")
   marketAvgJpy         Int      @default(0) @map("market_avg_jpy")
@@ -64,6 +67,7 @@ model Product {
   @@index([updatedAt], map: "product_updated_at_idx")
   @@index([salePrice], map: "product_sale_price_idx")
   @@index([seriesId], map: "product_series_idx")
+  @@index([catalogCardId], map: "product_catalog_card_idx")
   @@map("product")
 }
 

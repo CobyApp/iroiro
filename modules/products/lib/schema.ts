@@ -25,10 +25,11 @@ const productInputBase = z.object({
     .nullable()
     .optional()
     .transform((value) => (value === "" ? null : value)),
-  // 외부 분석기 카드 고유 id — 일괄 가져오기 중복 판별/보유 체크 키. 외부 임포트만 채움.
   itemType: z.enum(ITEM_TYPES),
   teamId: z.number().int().positive().nullable().optional(),
   memberId: z.number().int().positive().nullable().optional(),
+  // 등록 출처 카탈로그 카드 id — 일괄 등록의 "미등록만 보기" 판별 키. 수기 등록은 비움(NULL).
+  catalogCardId: z.number().int().positive().nullable().optional(),
   name: z.string().min(1, "상품명 필수").max(200),
   description: z.string().nullable().optional(),
   purchasePriceJpy: z.number().int().nonnegative(),

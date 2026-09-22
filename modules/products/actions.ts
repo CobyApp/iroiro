@@ -26,6 +26,8 @@ import {
 } from "./lib/schema";
 import { toProduct } from "./lib/transform";
 import { fetchJpyKrwRate, type ExchangeRateResult } from "./lib/fx";
+import { buildDraftProductFromCard } from "./lib/build-draft-from-card";
+import { todayKstYmd } from "@/lib/datetime";
 import {
   planAuctionCreate,
   planAuctionUpdate,
@@ -140,22 +142,20 @@ export async function uploadProductPhotoFile(
   });
 }
 
-export async function createProduct(
-  input: ProductCreateInput,
-): Promise<ActionResult<Product>> {
-  return runAction(async () => {
-    await requireAdmin();
-    const data = parseActionInput(productCreateSchema, input);
+// 상품 1건을 검증·삽입하고 Prisma 행을 반환한다(requireAdmin·revalidate 없음).
+// createProduct(단건)와 bulkCreateProductsFromCards(일괄)가 공유한다.
+async function persistNewProduct(input: ProductCreateInput) {
+  const data = parseActionInput(productCreateSchema, input);
 
-    // 경매 상품 파생 필드 — 재고 1 고정, 정가/판매가 = 시작가, 상태 live.
-    let auctionFields: AuctionPatch = {};
-    if (data.saleMode === "auction") {
-      const plan = planAuctionCreate(data, new Date());
-      if (!plan.ok) throw new DomainError(plan.error);
-      auctionFields = plan.patch;
-    }
+  // 경매 상품 파생 필드 — 재고 1 고정, 정가/판매가 = 시작가, 상태 live.
+  let auctionFields: AuctionPatch = {};
+  if (data.saleMode === "auction") {
+    const plan = planAuctionCreate(data, new Date());
+    if (!plan.ok) throw new DomainError(plan.error);
+    auctionFields = plan.patch;
+  }
 
-    const result = await mapProductWriteError(() => db.$transaction(async (tx) => {
+  return mapProductWriteError(() => db.$transaction(async (tx) => {
       const baseCreateData = {
           itemCode: data.itemCode ?? null,
           itemType: data.itemType,
@@ -185,6 +185,9 @@ export async function createProduct(
           seriesId: data.seriesId !== undefined && data.seriesId !== null
             ? BigInt(data.seriesId)
             : null,
+          catalogCardId: data.catalogCardId !== undefined && data.catalogCardId !== null
+            ? BigInt(data.catalogCardId)
+            : null,
           marketAvgJpy: data.marketAvgJpy ?? 0,
           marketMinJpy: data.marketMinJpy ?? 0,
           marketMaxJpy: data.marketMaxJpy ?? 0,
@@ -208,8 +211,15 @@ export async function createProduct(
       }
 
       return productRow;
-    }));
+  }));
+}
 
+export async function createProduct(
+  input: ProductCreateInput,
+): Promise<ActionResult<Product>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const result = await persistNewProduct(input);
     revalidatePath("/admin/products");
     revalidatePath("/");
     return toProduct(result);
@@ -270,6 +280,8 @@ export async function updateProduct(
     if (data.stockQuantity !== undefined)
       patch.stockQuantity = data.stockQuantity;
     if (data.saleStatus !== undefined) patch.saleStatus = data.saleStatus;
+    if (data.catalogCardId !== undefined)
+      patch.catalogCardId = data.catalogCardId !== null ? BigInt(data.catalogCardId) : null;
 
     // 경매 필드 전이 — 기존 상태 기반 검증(시작가 잠금·재경매 초기화 등)은
     // planAuctionUpdate가 담당. 반환 패치가 stockQuantity/가격을 덮을 수 있다.
@@ -499,70 +511,182 @@ export type CatalogCardPick = {
   pose: number;
   retailPriceJpy: number;
   frontR2Key: string | null;
+  /** 이미 상품으로 등록된 카드인지 — product.catalog_card_id 존재 여부. 일괄 등록의 "미등록만 보기"용. */
+  registered: boolean;
 };
 
-// 상품 등록용 카드 검색 — 관리자 전용. 검수 완료(active) 카드만.
+const CATALOG_SEARCH_PAGE_SIZE = 60;
+
+// 주어진 카탈로그 카드 id 중 이미 상품이 된 것들의 집합 — product.catalog_card_id 로 판별(커머스 DB).
+async function registeredCardIds(cardIds: number[]): Promise<Set<number>> {
+  if (cardIds.length === 0) return new Set();
+  const rows = await db.product.findMany({
+    where: { catalogCardId: { in: cardIds.map((id) => BigInt(id)) } },
+    select: { catalogCardId: true },
+  });
+  return new Set(
+    rows.map((r) => Number(r.catalogCardId)).filter((n) => Number.isFinite(n)),
+  );
+}
+
+// 상품 등록용 카드 검색 — 관리자 전용. 검수 완료(active) 카드만. page 로 "더 보기", 각 카드에 등록 여부를 실어 준다.
 export async function searchCatalogCardsForProduct(input: {
   q?: string;
   teamId?: number | null;
   memberId?: number | null;
   seriesId?: number | null;
-}): Promise<ActionResult<CatalogCardPick[]>> {
+  page?: number;
+}): Promise<ActionResult<{ items: CatalogCardPick[]; total: number }>> {
   return runAction(async () => {
     await requireAdmin();
     const { listCards } = await import("@/modules/cards/lib/queries");
-    const { items } = await listCards({
+    const page = input.page && input.page > 0 ? Math.floor(input.page) : 1;
+    const { items, total } = await listCards({
       q: input.q?.trim() || undefined,
       teamId: input.teamId ?? undefined,
       memberId: input.memberId ?? undefined,
       seriesId: input.seriesId ?? undefined,
       status: "active",
-      page: 1,
-      pageSize: 60,
+      page,
+      pageSize: CATALOG_SEARCH_PAGE_SIZE,
     });
-    return items.map((c) => ({
-      id: c.id,
-      itemCode: c.itemCode,
-      itemType: c.itemType,
-      teamId: c.teamId,
-      memberId: c.memberId,
-      seriesId: c.seriesId,
-      name: c.name,
-      pose: c.pose,
-      retailPriceJpy: c.retailPriceJpy,
-      frontR2Key: c.frontR2Key,
-    }));
+    const registered = await registeredCardIds(items.map((c) => c.id));
+    return {
+      total,
+      items: items.map((c) => ({
+        id: c.id,
+        itemCode: c.itemCode,
+        itemType: c.itemType,
+        teamId: c.teamId,
+        memberId: c.memberId,
+        seriesId: c.seriesId,
+        name: c.name,
+        pose: c.pose,
+        retailPriceJpy: c.retailPriceJpy,
+        frontR2Key: c.frontR2Key,
+        registered: registered.has(c.id),
+      })),
+    };
   });
 }
 
-// 선택한 카드의 앞면(clean) 이미지를 상품 버킷으로 복사 — 상품 사진 1장으로 채운다.
+// 카드 앞면(clean) 이미지를 상품 버킷으로 복사하고 R2 키를 돌려준다 — 단건/일괄이 공유하는 내부 코어.
+async function copyCatalogCardPhotoToProduct(cardId: number): Promise<string> {
+  const { getCardById } = await import("@/modules/cards/lib/queries");
+  const { fetchCatalogObject, readObjectBytes } = await import("@/lib/r2/catalog");
+  const { cardCleanKey } = await import("@/modules/cards/lib/image-keys");
+  const card = await getCardById(cardId);
+  if (!card?.frontR2Key) throw new DomainError("카드에 이미지가 없습니다");
+  const cleanKey = cardCleanKey(card.frontR2Key) ?? card.frontR2Key;
+  let source: Buffer;
+  try {
+    source = await readObjectBytes(await fetchCatalogObject(cleanKey));
+  } catch {
+    throw new DomainError("카드 이미지를 불러오지 못했습니다");
+  }
+  const variants = await compressImageVariants(source, {
+    maxDim: PRODUCT_PHOTO_MAX_DIM,
+    quality: PRODUCT_PHOTO_QUALITY,
+  });
+  const r2Key = buildR2Key("catalog-card.jpg");
+  const cleanDest = productCleanKey(r2Key)!;
+  await Promise.all([
+    relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
+    relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanDest),
+  ]);
+  return r2Key;
+}
+
+// 선택한 카드의 앞면(clean) 이미지를 상품 버킷으로 복사 — 단건 폼에서 상품 사진 1장으로 채운다.
 export async function importCatalogCardPhoto(input: {
   cardId: number;
 }): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
     await requireAdmin();
-    const { getCardById } = await import("@/modules/cards/lib/queries");
-    const { fetchCatalogObject, readObjectBytes } = await import("@/lib/r2/catalog");
-    const { cardCleanKey } = await import("@/modules/cards/lib/image-keys");
-    const card = await getCardById(input.cardId);
-    if (!card?.frontR2Key) throw new DomainError("카드에 이미지가 없습니다");
-    const cleanKey = cardCleanKey(card.frontR2Key) ?? card.frontR2Key;
-    let source: Buffer;
-    try {
-      source = await readObjectBytes(await fetchCatalogObject(cleanKey));
-    } catch {
-      throw new DomainError("카드 이미지를 불러오지 못했습니다");
-    }
-    const variants = await compressImageVariants(source, {
-      maxDim: PRODUCT_PHOTO_MAX_DIM,
-      quality: PRODUCT_PHOTO_QUALITY,
-    });
-    const r2Key = buildR2Key("catalog-card.jpg");
-    const cleanDest = productCleanKey(r2Key)!;
-    await Promise.all([
-      relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
-      relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanDest),
-    ]);
+    const r2Key = await copyCatalogCardPhotoToProduct(input.cardId);
     return { r2Key, previewUrl: getPublicUrl(r2Key) };
+  });
+}
+
+const BULK_IMPORT_MAX = 50;
+
+export type BulkImportResult = {
+  created: number;
+  skipped: { cardId: number; reason: string }[];
+};
+
+// 선택한 카탈로그 카드들을 카드당 초안 상품으로 일괄 생성 — 관리자 전용.
+// 사진이 없거나 이미 등록된 카드는 건너뛰고, 카드당 성공/실패를 모아 요약을 돌려준다.
+// 판매가는 useRateForSalePrice 면 오늘 환율×정가로 제안, 아니면 0(미정). 매입 정보는 관리자가 나중에 채운다.
+export async function bulkCreateProductsFromCards(input: {
+  cardIds: number[];
+  useRateForSalePrice: boolean;
+}): Promise<ActionResult<BulkImportResult>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const ids = Array.from(new Set((input.cardIds ?? []).filter((n) => Number.isInteger(n) && n > 0)));
+    if (ids.length === 0) throw new DomainError("선택한 카드가 없습니다");
+    if (ids.length > BULK_IMPORT_MAX)
+      throw new DomainError(`한 번에 최대 ${BULK_IMPORT_MAX}장까지 등록할 수 있어요`);
+
+    const today = todayKstYmd();
+    let rate100 = 0;
+    if (input.useRateForSalePrice) {
+      try {
+        rate100 = (await fetchJpyKrwRate(today)).rate;
+      } catch {
+        rate100 = 0; // 환율 조회 실패 시 가격 0(미정)으로 진행 — 등록 자체는 막지 않는다.
+      }
+    }
+
+    const { getCardById } = await import("@/modules/cards/lib/queries");
+    const alreadyRegistered = await registeredCardIds(ids);
+
+    const skipped: { cardId: number; reason: string }[] = [];
+    let created = 0;
+    for (const cardId of ids) {
+      try {
+        if (alreadyRegistered.has(cardId)) {
+          skipped.push({ cardId, reason: "이미 등록됨" });
+          continue;
+        }
+        const card = await getCardById(cardId);
+        if (!card) {
+          skipped.push({ cardId, reason: "카드를 찾을 수 없음" });
+          continue;
+        }
+        if (!card.frontR2Key) {
+          skipped.push({ cardId, reason: "사진 없음" });
+          continue;
+        }
+        const photoR2Key = await copyCatalogCardPhotoToProduct(cardId);
+        const draft = buildDraftProductFromCard(
+          {
+            id: card.id,
+            itemCode: card.itemCode,
+            itemType: card.itemType,
+            teamId: card.teamId,
+            memberId: card.memberId,
+            seriesId: card.seriesId,
+            name: card.name,
+            retailPriceJpy: card.retailPriceJpy,
+          },
+          { rate100, useRateForSalePrice: input.useRateForSalePrice, photoR2Key, today },
+        );
+        await persistNewProduct(draft);
+        created += 1;
+      } catch (error) {
+        skipped.push({
+          cardId,
+          reason: error instanceof DomainError ? error.message : "등록 실패",
+        });
+      }
+    }
+
+    if (created > 0) {
+      revalidatePath("/admin/products");
+      revalidatePath("/");
+    }
+    return { created, skipped };
   });
 }

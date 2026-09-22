@@ -29,6 +29,7 @@ const productRow: PrismaProduct = {
   stockQuantity: 3,
   saleStatus: "active",
   seriesId: null,
+  catalogCardId: null,
   marketAvgJpy: 0,
   marketMinJpy: 0,
   marketMaxJpy: 0,
