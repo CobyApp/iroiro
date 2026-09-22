@@ -5,6 +5,7 @@ import { catalogDb } from "@/lib/catalog-db";
 import { toProduct, toProductPhoto } from "./transform";
 import type { SettlementInput } from "./settlement";
 import type { ProductFilter } from "./filters";
+import { buildListingFacets, type ListingFacets } from "./facets";
 import type { Product, ProductPhoto, ProductWithPhotos } from "../types";
 import type { Prisma, Product as PrismaProductRow } from "@prisma/client";
 
@@ -168,6 +169,30 @@ export async function listProducts(
   });
 
   return { items, total, page, pageSize };
+}
+
+// 공개 둘러보기 필터 칩용 facet — 목록(/products)과 같은 노출 규칙을 그대로 쓴다:
+// sale_status='active' 만(draft·archived 제외). 품절·종료 경매도 목록에 남으므로
+// 집계에 포함하고, 재고있음 토글 노출 판단만 stock_quantity > 0 으로 따로 센다.
+export async function listProductFacets(): Promise<ListingFacets> {
+  const where: Prisma.ProductWhereInput = { saleStatus: "active" };
+  const [rows, inStock] = await Promise.all([
+    db.product.groupBy({
+      by: ["teamId", "memberId", "saleMode"],
+      where,
+      _count: { _all: true },
+    }),
+    db.product.count({ where: { ...where, stockQuantity: { gt: 0 } } }),
+  ]);
+  return buildListingFacets(
+    rows.map((r) => ({
+      teamId: r.teamId,
+      memberId: r.memberId,
+      saleMode: r.saleMode,
+      count: r._count._all,
+    })),
+    inStock,
+  );
 }
 
 // 진행중인 입찰 경매 목록 — 둘러보기 상단 전용 행. 마감 임박순.
