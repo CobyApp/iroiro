@@ -592,6 +592,8 @@ model Order {
   discountAmount Int                  @map("discount_amount")
   deliveryAmount Int                  @map("delivery_amount")
   totalAmount    Int                  @map("total_amount")
+  trackingCode   String?              @map("tracking_code")
+  shippedAt      DateTime?            @map("shipped_at") @db.Timestamptz(6)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
   items          OrderItem[]
