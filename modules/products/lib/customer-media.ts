@@ -58,6 +58,17 @@ function thumbnailUrl(productId: number, variant: MediaVariant): string {
   return `/media/product-thumbnails/${productId}/${variant}/${signature("thumbnail", productId, variant)}`;
 }
 
+// 카탈로그 카드 오버레이 사진(id<=0) — 실시간 카드 앞면(cards/wm)이라 실제 product_photo 행이
+// 없다. 서명 라우트(변형·소유확인) 대상이 아니라 이미 워터마크된 공개 이미지이므로 공개 베이스로
+// 직접 렌더한다. r2Key 가 비면 빈 문자열(<img> fallback 처리).
+type PhotoRef = { id: number; r2Key: string };
+function overlayPublicUrl(r2Key: string): string {
+  return r2Key ? `${env.R2_PUBLIC_BASE}/${r2Key}` : "";
+}
+function isOverlayPhoto(photo: PhotoRef): boolean {
+  return !isPositiveInteger(photo.id);
+}
+
 // ── 공개 ────────────────────────────────────────────────────────
 /** 상품 상세 갤러리·3D·OG — 크게 */
 export function productDetailPhotoUrl(photoId: number): string {
@@ -66,6 +77,18 @@ export function productDetailPhotoUrl(photoId: number): string {
 /** 그리드/목록/마키의 개별 사진 — 작게 */
 export function productGridPhotoUrl(photoId: number): string {
   return photoUrl(photoId, "g");
+}
+/** 그리드 사진 src — 카드 오버레이 사진(id<=0)이면 공개 베이스로, 아니면 서명 라우트로. */
+export function productGridPhotoSrc(photo: PhotoRef): string {
+  return isOverlayPhoto(photo) ? overlayPublicUrl(photo.r2Key) : photoUrl(photo.id, "g");
+}
+/** 상세 사진 src — 카드 오버레이 사진(id<=0)이면 공개 베이스로, 아니면 서명 라우트로. */
+export function productDetailPhotoSrc(photo: PhotoRef): string {
+  return isOverlayPhoto(photo) ? overlayPublicUrl(photo.r2Key) : photoUrl(photo.id, "d");
+}
+/** 컬렉션(소유자) 사진 src — 카드 오버레이 사진(id<=0)이면 공개 베이스로, 아니면 서명 라우트로. */
+export function collectionPhotoSrc(photo: PhotoRef): string {
+  return isOverlayPhoto(photo) ? overlayPublicUrl(photo.r2Key) : photoUrl(photo.id, "cd");
 }
 /** 그리드/목록/장바구니 썸네일(상품 대표) — 작게 */
 export function productGridThumbnailUrl(productId: number): string {

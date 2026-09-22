@@ -6,7 +6,7 @@ import type { Team } from "@/modules/teams/types";
 import type { Member } from "@/modules/members/types";
 import { ProductImage } from "./ProductImage";
 import { WishlistButton } from "./WishlistButton";
-import { productGridPhotoUrl } from "../lib/customer-media";
+import { productGridPhotoSrc } from "../lib/customer-media";
 import { remainingLabel } from "@/modules/auction/lib/rules";
 import {
   ITEM_TYPES,
@@ -98,7 +98,7 @@ export function ProductCard({
         />
         {thumbnail ? (
           <ProductImage
-            src={productGridPhotoUrl(thumbnail.id)}
+            src={productGridPhotoSrc(thumbnail)}
             alt={thumbnail.altText ?? product.name}
             className={cn(
               "h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-105",

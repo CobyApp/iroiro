@@ -4,7 +4,7 @@ import type { Team } from "@/modules/teams/types";
 import type { Member } from "@/modules/members/types";
 import { formatKstDate } from "@/lib/datetime";
 import { ProductGallery } from "./ProductGallery";
-import { productDetailPhotoUrl } from "../lib/customer-media";
+import { productDetailPhotoSrc } from "../lib/customer-media";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABEL,
@@ -40,7 +40,7 @@ export function ProductDetail({
           photos={product.photos.map((photo) => ({
             id: photo.id,
             altText: photo.altText,
-            url: productDetailPhotoUrl(photo.id),
+            url: productDetailPhotoSrc(photo),
           }))}
           altFallback={product.name}
         />
