@@ -5,6 +5,7 @@ import { catalogDb } from "@/lib/catalog-db";
 import { toProduct, toProductPhoto } from "./transform";
 import type { ProductFilter } from "./filters";
 import { buildListingFacets, type ListingFacets } from "./facets";
+import { compareSeriesLabel } from "@/modules/series/lib/kind-options";
 import type { Product, ProductPhoto, ProductWithPhotos } from "../types";
 import type { Prisma, Product as PrismaProductRow } from "@prisma/client";
 
@@ -638,13 +639,20 @@ export async function listSeriesOptions(): Promise<SeriesOption[]> {
   const avgBy = new Map(
     avgRows.map((r) => [Number(r.seriesId), Math.round(r._avg.marketAvgJpy ?? 0)]),
   );
-  return seriesRows.map((s) => ({
-    id: Number(s.id),
-    sku: s.sku,
-    kind: s.kind,
-    label: s.label,
-    labelKo: seriesKoLabel(s.labelI18n),
-    teamId: s.teamId !== null ? Number(s.teamId) : null,
-    marketAvgJpy: avgBy.get(Number(s.id)) ?? 0,
-  }));
+  return seriesRows
+    .map((s) => {
+      const ko = seriesKoLabel(s.labelI18n);
+      return {
+        id: Number(s.id),
+        sku: s.sku,
+        kind: s.kind,
+        // 고객·선택 화면은 한국어 병기(label_i18n.ko)를 우선 노출 — 없으면 원문(대개 일본어).
+        label: ko ?? s.label,
+        labelKo: ko,
+        teamId: s.teamId !== null ? Number(s.teamId) : null,
+        marketAvgJpy: avgBy.get(Number(s.id)) ?? 0,
+      };
+    })
+    // ver.1·ver.2·…·ver.10 자연 정렬(문자열순 아님).
+    .sort((a, b) => a.kind.localeCompare(b.kind) || compareSeriesLabel(a.label, b.label));
 }
