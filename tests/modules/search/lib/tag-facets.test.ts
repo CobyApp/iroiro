@@ -23,7 +23,11 @@ beforeEach(() => {
       : [{ itemType: "photocard" }, { itemType: "sticker" }],
   );
   usedGroupBy.mockImplementation(async ({ by }: { by: string[] }) =>
-    by.includes("teamId") ? [{ teamId: 5n }, { teamId: 9n }] : [{ saleMode: "fixed" }],
+    by.includes("teamId")
+      ? [{ teamId: 5n }, { teamId: 9n }]
+      : by.includes("itemType")
+        ? [{ itemType: "photocard" }, { itemType: "cheki" }]
+        : [{ saleMode: "fixed" }],
   );
 });
 
@@ -34,6 +38,7 @@ describe("getSearchTagFacets", () => {
     expect(facets.storeItemTypes).toEqual(["photocard", "sticker"]);
     expect(facets.usedTeamIds).toEqual([5, 9]);
     expect(facets.usedSaleModes).toEqual(["fixed"]);
+    expect(facets.usedItemTypes).toEqual(["photocard", "cheki"]);
   });
 
   it("중고 그룹/판매방식은 판매중(active)만 집계한다", async () => {

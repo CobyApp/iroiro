@@ -14,6 +14,8 @@ export type SearchTagFacets = {
   usedTeamIds: number[];
   /** 중고: 판매중 매물이 있는 판매 방식(fixed·auction) */
   usedSaleModes: string[];
+  /** 중고: 판매중 매물이 있는 굿즈 종류(item_type) */
+  usedItemTypes: string[];
 };
 
 export const EMPTY_SEARCH_TAG_FACETS: SearchTagFacets = {
@@ -21,10 +23,11 @@ export const EMPTY_SEARCH_TAG_FACETS: SearchTagFacets = {
   storeItemTypes: [],
   usedTeamIds: [],
   usedSaleModes: [],
+  usedItemTypes: [],
 };
 
 export async function getSearchTagFacets(): Promise<SearchTagFacets> {
-  const [storeTeams, storeTypes, usedTeams, usedModes] = await Promise.all([
+  const [storeTeams, storeTypes, usedTeams, usedModes, usedTypes] = await Promise.all([
     // 스토어 상품은 존재 자체를 기준으로(팀 태그는 /products?team= 로 이동 — 상태 무관 노출).
     db.product.groupBy({
       by: ["teamId"],
@@ -43,6 +46,11 @@ export async function getSearchTagFacets(): Promise<SearchTagFacets> {
       where: { status: "active" },
       _count: { _all: true },
     }),
+    db.usedListing.groupBy({
+      by: ["itemType"],
+      where: { status: "active" },
+      _count: { _all: true },
+    }),
   ]);
 
   return {
@@ -50,5 +58,6 @@ export async function getSearchTagFacets(): Promise<SearchTagFacets> {
     storeItemTypes: storeTypes.map((r) => r.itemType),
     usedTeamIds: usedTeams.map((r) => Number(r.teamId)),
     usedSaleModes: usedModes.map((r) => r.saleMode),
+    usedItemTypes: usedTypes.map((r) => r.itemType),
   };
 }
