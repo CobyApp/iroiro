@@ -17,6 +17,7 @@ import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { getPointBalance } from "@/modules/points/lib/queries";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { SellerBundleShop } from "@/modules/used/components/SellerBundleShop";
+import { ReportUsedReviewDialog } from "@/modules/used/components/ReportUsedReviewDialog";
 
 export const metadata: Metadata = { title: "판매자 상점" };
 
@@ -133,8 +134,9 @@ export default async function UsedSellerPage({
                     ))}
                   </span>
                   <span className="text-xs text-muted-foreground">{r.reviewerMasked}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
                     {formatKstDate(r.createdAt)}
+                    {isLoggedIn && <ReportUsedReviewDialog reviewId={r.id} />}
                   </span>
                 </div>
                 {r.comment && (

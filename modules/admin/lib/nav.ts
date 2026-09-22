@@ -176,10 +176,18 @@ export const MARKET_SECTIONS: NavSection[] = [
     items: [
       {
         key: "reports",
-        label: "신고",
+        label: "매물 신고",
         href: "/market/reports",
         icon: Flag,
         matchPrefix: "/market/reports",
+        role: "used",
+      },
+      {
+        key: "review-reports",
+        label: "후기 신고",
+        href: "/market/review-reports",
+        icon: Star,
+        matchPrefix: "/market/review-reports",
         role: "used",
       },
       {

@@ -1,6 +1,7 @@
 import { BadgeCheck } from "lucide-react";
 import { listProductReviews } from "../lib/queries";
 import { ReviewStars } from "./ReviewStars";
+import { ReportReviewDialog } from "./ReportReviewDialog";
 
 function agoLabel(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -59,8 +60,11 @@ export async function ProductReviewsSection({
                   구매 확인
                 </span>
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
                 {agoLabel(review.createdAt)}
+                {viewerAccountId !== null && !review.isMine && (
+                  <ReportReviewDialog reviewId={review.id} />
+                )}
               </span>
             </div>
             {review.body && (

@@ -156,13 +156,39 @@ model ProductReview {
   accountId String   @map("account_id") @db.Uuid
   rating    Int      @db.SmallInt
   body      String   @default("")
+  hiddenAt     DateTime? @map("hidden_at") @db.Timestamptz(6)
+  hiddenReason String?   @map("hidden_reason")
+  hiddenBy     String?   @map("hidden_by")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   @@unique([orderId, productId, accountId], map: "product_review_once_per_order")
   @@index([productId, createdAt(sort: Desc)], map: "product_review_product_idx")
   @@index([accountId], map: "product_review_account_idx")
+  @@index([productId, createdAt(sort: Desc)], map: "product_review_visible_idx", where: raw("(hidden_at IS NULL)"))
   @@map("product_review")
+}
+
+// 스토어 상품 리뷰 신고 — used_report 패턴(스냅샷 동결 + 처리 3필드 원자성).
+model ProductReviewReport {
+  id                BigInt    @id @default(autoincrement())
+  reviewId          BigInt    @map("review_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([reviewId, reporterAccountId], map: "product_review_report_review_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "product_review_report_reporter_created_at_idx")
+  @@index([createdAt], map: "product_review_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([reviewId], map: "product_review_report_review_idx")
+  @@map("product_review_report")
 }
 
 // 친구 초대 — 초대 코드는 account.public_code 재사용, 피초대자당 1건. FK 없음(정책).
@@ -828,13 +854,39 @@ model UsedReview {
   sellerAccountId   String   @map("seller_account_id") @db.Uuid
   rating            Int
   comment           String?
+  hiddenAt          DateTime? @map("hidden_at") @db.Timestamptz(6)
+  hiddenReason      String?   @map("hidden_reason")
+  hiddenBy          String?   @map("hidden_by")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   @@unique([tradeId], map: "used_review_trade_unique")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_created_idx")
   @@index([listingId], map: "used_review_listing_idx")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_visible_idx", where: raw("(hidden_at IS NULL)"))
   @@map("used_review")
+}
+
+// 중고 거래 후기 신고 — used_report 패턴.
+model UsedReviewReport {
+  id                BigInt    @id @default(autoincrement())
+  reviewId          BigInt    @map("review_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([reviewId, reporterAccountId], map: "used_review_report_review_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "used_review_report_reporter_created_at_idx")
+  @@index([createdAt], map: "used_review_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([reviewId], map: "used_review_report_review_idx")
+  @@map("used_review_report")
 }
 
 model UsedListingPhoto {

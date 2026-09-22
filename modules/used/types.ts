@@ -234,3 +234,47 @@ export type SellerReviewSummary = {
   count: number;
   avg: number;
 };
+
+// ── 중고 거래 후기 신고 ────────────────────────────────────────────────────
+// 신고 사유 — 리뷰 성격(내용 문제 위주). 스토어 리뷰 신고와 같은 어휘(도메인 결합 회피 위해 독립 정의).
+export const USED_REVIEW_REPORT_REASONS = [
+  "abuse",
+  "false",
+  "spam",
+  "privacy",
+  "other",
+] as const;
+export type UsedReviewReportReason = (typeof USED_REVIEW_REPORT_REASONS)[number];
+export const USED_REVIEW_REPORT_REASON_LABELS: Record<UsedReviewReportReason, string> = {
+  abuse: "욕설·비방·혐오 표현",
+  false: "허위·사실과 다른 내용",
+  spam: "광고·스팸·도배",
+  privacy: "개인정보 노출",
+  other: "기타",
+};
+
+// 신고 큐에서 본 대상 후기의 현재 상태 — 노출/숨김/없음.
+export type UsedReviewReportTargetStatus = "visible" | "hidden" | "missing";
+
+// 신고 시점 후기 스냅샷(증거 동결).
+export type UsedReviewReportSnapshot = {
+  version: 1;
+  rating: number;
+  comment: string | null;
+  listingId: number;
+  sellerName: string;
+  reviewerName: string;
+  createdAt: string;
+};
+
+// 관리자 신고 큐 항목(미해결).
+export type UsedReviewReportQueueItem = {
+  id: number;
+  reviewId: number;
+  reason: UsedReviewReportReason;
+  detail: string | null;
+  snapshot: UsedReviewReportSnapshot;
+  reporterMasked: string;
+  createdAt: string;
+  targetStatus: UsedReviewReportTargetStatus;
+};
