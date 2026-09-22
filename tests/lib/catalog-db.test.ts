@@ -1,31 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { catalogDb, CatalogPrisma } from "@/lib/catalog-db";
+import { db } from "@/lib/db";
 
-// lib/db.ts 와 대칭 — 카탈로그 DB 클라이언트 진입점.
-describe("lib/catalog-db", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.unstubAllEnvs();
-    vi.stubEnv("CATALOG_DATABASE_URL", "postgresql://localhost:54322/iroiro_catalog");
+// 토레카 마스터가 커머스 DB(db)로 병합된 뒤 catalogDb 는 db 의 얇은 별칭이다(레거시 임포트 호환).
+describe("lib/catalog-db (커머스 DB 병합 후)", () => {
+  it("catalogDb 는 커머스 db 와 동일한 클라이언트다", () => {
+    expect(catalogDb).toBe(db);
   });
 
-  it("카탈로그 모델만 가진 Prisma 클라이언트 싱글턴을 노출한다", async () => {
-    const mod = await import("@/lib/catalog-db");
-    expect(typeof mod.catalogDb.card.findMany).toBe("function");
-    expect(typeof mod.catalogDb.team.findMany).toBe("function");
-    expect(typeof mod.catalogDb.seriesKind.findMany).toBe("function");
-    // 커머스 모델은 없다 — 두 DB 는 클라이언트 단위로 분리된다
-    expect((mod.catalogDb as unknown as Record<string, unknown>).product).toBeUndefined();
+  it("카탈로그 모델과 커머스 모델을 모두 노출한다(같은 DB)", () => {
+    expect(typeof catalogDb.card.findMany).toBe("function");
+    expect(typeof catalogDb.team.findMany).toBe("function");
+    expect(typeof catalogDb.seriesKind.findMany).toBe("function");
+    // 병합됐으므로 커머스 모델도 접근 가능
+    expect(typeof catalogDb.product.findMany).toBe("function");
   });
 
-  it("CatalogPrisma 네임스페이스(DbNull 등)를 함께 내보낸다", async () => {
-    const mod = await import("@/lib/catalog-db");
-    expect(mod.CatalogPrisma.DbNull).toBeDefined();
-  });
-
-  it("개발 모드에서는 globalThis 캐시로 singleton 재사용", async () => {
-    vi.stubEnv("NODE_ENV", "development");
-    const mod1 = await import("@/lib/catalog-db");
-    const mod2 = await import("@/lib/catalog-db");
-    expect(mod1.catalogDb).toBe(mod2.catalogDb);
+  it("CatalogPrisma 네임스페이스(DbNull 등)를 함께 내보낸다", () => {
+    expect(CatalogPrisma.DbNull).toBeDefined();
   });
 });

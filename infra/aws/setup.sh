@@ -10,7 +10,7 @@
 #   ./infra/aws/setup.sh domains   ACM cert (Tokyo) + ALB host rules → prints DNS records for Squarespace
 #   ./infra/aws/setup.sh cron      EventBridge → /api/cron/close-auctions every 10 min
 #   ./infra/aws/setup.sh catalog   Shared catalog (dev+prd): S3 bucket (cards/wm public, cards/clean private),
-#                                  app-user S3 policy, SSM placeholders for CATALOG_DATABASE_URL(_OWNER).
+#                                  app-user S3 policy (per-env catalog bucket).
 #                                  Then run `ecs` (pushes the new env/secrets) and `domains`.
 #   ./infra/aws/setup.sh migrate   Fargate task definitions iroiro-migrate-<env> (scripts/db-migrate.mjs)
 #                                  + deploy-role permissions so deploy.yml can run them.
@@ -56,9 +56,9 @@ service_trust() { echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\
 default_vpc()  { aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text; }
 express_arn()  { aws ecs list-services --cluster "$APP" --query "serviceArns[?ends_with(@, '/${APP}-$1')] | [0]" --output text 2>/dev/null || echo None; }
 
-# Shared catalog bucket (one for dev+prd — the trading-card master is shared, see docs/deployment.md §카탈로그).
-CATALOG_BUCKET="${APP}-kr-catalog"
-catalog_public_base() { echo "https://${CATALOG_BUCKET}.s3.${REGION}.amazonaws.com"; }
+# Catalog bucket — per environment (토레카 마스터가 환경별 커머스 DB로 분리되며 이미지 버킷도 분리, 2026-09-23).
+catalog_bucket()      { echo "${APP}-kr-catalog-$1"; }               # env
+catalog_public_base() { echo "https://$(catalog_bucket "$1").s3.${REGION}.amazonaws.com"; } # env
 
 # Public-read policy for the products bucket — prefix allow-list. products/clean/ (watermark-free originals)
 # stays private and is served only through owner/admin routes; cards/original/ is the legacy card location
@@ -66,16 +66,16 @@ catalog_public_base() { echo "https://${CATALOG_BUCKET}.s3.${REGION}.amazonaws.c
 products_bucket_policy() { # bucket
   echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadPrefixes\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":[\"arn:aws:s3:::$1/products/original/*\",\"arn:aws:s3:::$1/notices/*\",\"arn:aws:s3:::$1/banners/*\",\"arn:aws:s3:::$1/avatars/*\",\"arn:aws:s3:::$1/used/*\",\"arn:aws:s3:::$1/cards/original/*\"]}]}"
 }
-app_user_s3_policy() { # pub ugc
-  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\",\"arn:aws:s3:::$2\",\"arn:aws:s3:::$2/*\",\"arn:aws:s3:::${CATALOG_BUCKET}\",\"arn:aws:s3:::${CATALOG_BUCKET}/*\"]}]}"
+app_user_s3_policy() { # pub ugc catalog
+  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\",\"arn:aws:s3:::$2\",\"arn:aws:s3:::$2/*\",\"arn:aws:s3:::$3\",\"arn:aws:s3:::$3/*\"]}]}"
 }
 
 # Express primary container JSON for an environment — single source for `ecs` (create/update).
 container_json() { # env image
   local e=$1 image=$2 dom lg="/ecs/${APP}-$1"; dom=$(domain_for "$e")
-  local secrets="["; for s in DATABASE_URL CATALOG_DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
+  local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
     secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
-  local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"CATALOG_BUCKET\",\"value\":\"${CATALOG_BUCKET}\"},{\"name\":\"CATALOG_PUBLIC_BASE\",\"value\":\"$(catalog_public_base)\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
+  local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"CATALOG_BUCKET\",\"value\":\"$(catalog_bucket "$e")\"},{\"name\":\"CATALOG_PUBLIC_BASE\",\"value\":\"$(catalog_public_base "$e")\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
   echo "{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"
 }
 
@@ -358,37 +358,34 @@ phase_cron() {
 }
 
 # ───────────────────────────── catalog ─────────────────────────────
-# Shared trading-card master: one S3 bucket for both environments (wm public / clean private) and SSM
-# placeholders for the shared catalog DB URLs. The catalog database itself lives inside the prd RDS
-# instance and is created over the SSM bastion tunnel (docs/deployment.md §카탈로그 DB) — not here.
+# Trading-card master images: one S3 bucket PER environment (wm public / clean private).
+# 토레카 마스터 데이터는 환경별 커머스 DB(iroiro)로 병합됐다 — 별도 카탈로그 DB 없음(SSM 불필요).
 phase_catalog() {
-  say "S3 catalog bucket $CATALOG_BUCKET (shared)"
-  if ! aws s3api head-bucket --bucket "$CATALOG_BUCKET" 2>/dev/null; then
-    aws s3api create-bucket --bucket "$CATALOG_BUCKET" --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
-  fi
-  aws s3api put-bucket-tagging --bucket "$CATALOG_BUCKET" --tagging "TagSet=[{Key=app,Value=$APP},{Key=env,Value=shared}]"
-  aws s3api put-bucket-encryption --bucket "$CATALOG_BUCKET" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-  aws s3api put-public-access-block --bucket "$CATALOG_BUCKET" --public-access-block-configuration \
-    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-  # Only the watermarked variant is public; clean originals are proxied by /media/catalog-clean (site admin).
-  aws s3api put-bucket-policy --bucket "$CATALOG_BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadWatermarked\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${CATALOG_BUCKET}/cards/wm/*\"}]}"
-  ok "$CATALOG_BUCKET (public: cards/wm/* only) → $(catalog_public_base)"
-
   for e in $ENVS; do
+    local cat; cat="$(catalog_bucket "$e")"
+    say "S3 catalog bucket $cat ($e)"
+    if ! aws s3api head-bucket --bucket "$cat" 2>/dev/null; then
+      aws s3api create-bucket --bucket "$cat" --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
+    fi
+    aws s3api put-bucket-tagging --bucket "$cat" --tagging "TagSet=[{Key=app,Value=$APP},{Key=env,Value=$e}]"
+    aws s3api put-bucket-encryption --bucket "$cat" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+    aws s3api put-public-access-block --bucket "$cat" --public-access-block-configuration \
+      "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
+    # Only the watermarked variant is public; clean originals are proxied by /media/catalog-clean (site admin).
+    aws s3api put-bucket-policy --bucket "$cat" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadWatermarked\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${cat}/cards/wm/*\"}]}"
+    ok "$cat (public: cards/wm/* only) → $(catalog_public_base "$e")"
+
     say "App IAM user S3 policy + products bucket prefix policy ($e)"
     local pub="${APP}-kr-products-${e}" ugc="${APP}-kr-ugc-${e}"
-    aws iam put-user-policy --user-name "${APP}-app-${e}" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc")"
+    aws iam put-user-policy --user-name "${APP}-app-${e}" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc" "$cat")"
     aws s3api put-bucket-policy --bucket "$pub" --policy "$(products_bucket_policy "$pub")"
-    ok "${APP}-app-${e} may use $CATALOG_BUCKET; $pub public read limited to prefixes (products/clean private)"
-    say "SSM placeholders for the shared catalog DB ($e)"
-    ssm_put_if_missing "/${APP}/${e}/CATALOG_DATABASE_URL"       "CHANGE_ME"
-    ssm_put_if_missing "/${APP}/${e}/CATALOG_DATABASE_URL_OWNER" "CHANGE_ME"
+    ok "${APP}-app-${e} may use $cat; $pub public read limited to prefixes (products/clean private)"
   done
-  warn "next: create the catalog DB/role and fill CATALOG_DATABASE_URL(_OWNER) (docs/deployment.md §카탈로그 DB), then run 'ecs' and 'domains'"
+  warn "next: run 'ecs' and 'domains'. 토레카 데이터는 커머스 DB 마이그레이션으로 생성됨(별도 카탈로그 DB 없음)"
 }
 
 # ───────────────────────────── migrate ─────────────────────────────
-# One-off Fargate task per environment that runs scripts/db-migrate.mjs against both DBs with owner URLs.
+# One-off Fargate task per environment that runs scripts/db-migrate.mjs against the commerce DB (owner URL).
 # deploy.yml runs it before rolling the service; the task uses the freshly pushed <env>-latest image.
 phase_migrate() {
   local vpc; vpc=$(default_vpc)
@@ -396,8 +393,8 @@ phase_migrate() {
     say "migration task definition ${APP}-migrate-${e}"
     local exec_role; exec_role=$(role_arn "${APP}-ecs-execution-${e}")
     local lg="/ecs/${APP}-${e}"
-    local secrets="[{\"name\":\"DATABASE_URL_OWNER\",\"valueFrom\":\"$(ssm_arn "$e" DATABASE_URL_OWNER)\"},{\"name\":\"CATALOG_DATABASE_URL_OWNER\",\"valueFrom\":\"$(ssm_arn "$e" CATALOG_DATABASE_URL_OWNER)\"}]"
-    local container="[{\"name\":\"migrate\",\"image\":\"${ECR_URI}:${e}-latest\",\"essential\":true,\"command\":[\"node\",\"scripts/db-migrate.mjs\"],\"environment\":[{\"name\":\"MIGRATE_TARGETS\",\"value\":\"commerce,catalog\"}],\"secrets\":${secrets},\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"${lg}\",\"awslogs-region\":\"${REGION}\",\"awslogs-stream-prefix\":\"migrate\"}}}]"
+    local secrets="[{\"name\":\"DATABASE_URL_OWNER\",\"valueFrom\":\"$(ssm_arn "$e" DATABASE_URL_OWNER)\"}]"
+    local container="[{\"name\":\"migrate\",\"image\":\"${ECR_URI}:${e}-latest\",\"essential\":true,\"command\":[\"node\",\"scripts/db-migrate.mjs\"],\"environment\":[{\"name\":\"MIGRATE_TARGETS\",\"value\":\"commerce\"}],\"secrets\":${secrets},\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"${lg}\",\"awslogs-region\":\"${REGION}\",\"awslogs-stream-prefix\":\"migrate\"}}}]"
     aws ecs register-task-definition --family "${APP}-migrate-${e}" --requires-compatibilities FARGATE --network-mode awsvpc \
       --cpu 256 --memory 512 --execution-role-arn "$exec_role" --runtime-platform "cpuArchitecture=X86_64,operatingSystemFamily=LINUX" \
       --container-definitions "$container" --tags "key=app,value=$APP" "key=env,value=$e" --query 'taskDefinition.taskDefinitionArn' --output text | sed 's/^/  /'

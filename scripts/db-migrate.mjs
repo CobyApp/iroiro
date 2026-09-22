@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 // 스키마 마이그레이션 러너 — 배포 파이프라인이 ECS 원오프 태스크로 실행한다(deploy.yml → run-task).
 //
-//   대상   커머스 DB  db/schema.sql          ← DATABASE_URL_OWNER
-//          카탈로그 DB db/catalog-schema.sql  ← CATALOG_DATABASE_URL_OWNER
-//   기록   각 DB 의 schema_migration(name, applied_at, checksum) — 파일의 `-- [name]` 섹션 단위
+//   대상   커머스 DB  db/schema.sql  ← DATABASE_URL_OWNER (토레카 마스터도 여기로 병합됨)
+//   기록   DB 의 schema_migration(name, applied_at, checksum) — 파일의 `-- [name]` 섹션 단위
 //   동작   DB 에 없는 섹션을 파일 순서대로, 섹션마다 한 트랜잭션으로 적용한다.
 //
-//   node scripts/db-migrate.mjs                      # 대기 섹션 적용 (MIGRATE_TARGETS 기본 commerce,catalog)
+//   node scripts/db-migrate.mjs                      # 대기 섹션 적용 (MIGRATE_TARGETS 기본 commerce)
 //   node scripts/db-migrate.mjs --dry-run            # 적용 없이 대기 목록만
 //   node scripts/db-migrate.mjs --baseline [--except a,b] --target commerce
 //                                                     # 이미 손으로 적용된 DB 에 현재 섹션을 전부 "적용됨"으로 기록
 //                                                     # (except 는 미적용으로 남김 → 다음 실행에서 적용)
 //
-// 소유자 롤로 붙는다(DDL·GRANT). 앱 롤(app/catalog_app)로는 실행하지 않는다.
+// 소유자 롤로 붙는다(DDL·GRANT). 앱 롤(app)로는 실행하지 않는다.
 import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -23,7 +22,6 @@ import { baselineNames, pendingSections, splitSections } from "./lib/schema-sect
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TARGETS = {
   commerce: { file: "db/schema.sql", urlEnv: "DATABASE_URL_OWNER" },
-  catalog: { file: "db/catalog-schema.sql", urlEnv: "CATALOG_DATABASE_URL_OWNER" },
 };
 
 const args = process.argv.slice(2);
@@ -35,7 +33,7 @@ const opt = (name) => {
 const dryRun = flag("--dry-run");
 const baseline = flag("--baseline");
 const except = (opt("--except") ?? "").split(",").filter(Boolean);
-const targetNames = (opt("--target") ?? process.env.MIGRATE_TARGETS ?? "commerce,catalog")
+const targetNames = (opt("--target") ?? process.env.MIGRATE_TARGETS ?? "commerce")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -84,7 +82,7 @@ const checksum = (sql) => createHash("sha256").update(sql).digest("hex").slice(0
 
 async function runTarget(name) {
   const target = TARGETS[name];
-  if (!target) throw new Error(`알 수 없는 대상: ${name} (commerce|catalog)`);
+  if (!target) throw new Error(`알 수 없는 대상: ${name} (commerce)`);
   const url = process.env[target.urlEnv];
   if (!url) throw new Error(`${target.urlEnv} 가 비어 있어요`);
   const sections = splitSections(readFileSync(path.join(ROOT, target.file), "utf8"));

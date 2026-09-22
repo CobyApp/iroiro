@@ -5,9 +5,9 @@ import "server-only";
 // meta.target은 undefined). classic engine의 meta.target(string | string[])도 함께
 // 지원해 런타임 구성이 바뀌어도 판별이 유지되게 한다.
 //
-// 판별은 instanceof 가 아니라 구조(name·code)로 한다 — 커머스(@prisma/client)와 카탈로그
-// (lib/generated/catalog-client) 두 클라이언트가 각자 런타임 사본을 들고 있어 오류 클래스의
-// 동일성이 보장되지 않기 때문. 두 클라이언트의 오류 shape 은 같다.
+// 판별은 instanceof 가 아니라 구조(name·code)로 한다 — 번들·런타임 구성에 따라 오류 클래스
+// 동일성이 보장되지 않을 수 있기 때문(구조는 안정적). (과거 커머스·카탈로그 두 클라이언트를
+// 쓰던 시절의 방어책이기도 하다 — 이제 카탈로그는 커머스 DB 로 병합돼 클라이언트가 하나다.)
 type KnownRequestErrorLike = {
   name: string;
   code: string;
