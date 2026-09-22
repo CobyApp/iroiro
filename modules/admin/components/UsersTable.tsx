@@ -17,6 +17,7 @@ import {
 import { setBoardRole, setPostingBan, setSiteAdmin } from "../actions/users";
 import type { AdminUserRow } from "../lib/users";
 
+// 회원 목록 — md+ 는 표, 폰은 카드. 등급 배지·작성 상태·액션 버튼은 두 뷰가 같은 헬퍼를 쓴다.
 export function UsersTable({
   users,
   canManageRoles,
@@ -100,113 +101,148 @@ export function UsersTable({
     );
   }
 
+  function roleBadge(u: AdminUserRow) {
+    if (u.isAdmin) {
+      return (
+        <Badge className="whitespace-nowrap bg-foreground text-background hover:bg-foreground">
+          관리자
+        </Badge>
+      );
+    }
+    if (u.boardRole === "moderator") {
+      return <Badge className="whitespace-nowrap">모더레이터</Badge>;
+    }
+    return (
+      <Badge variant="outline" className="whitespace-nowrap font-normal">
+        일반
+      </Badge>
+    );
+  }
+
+  function banStatus(u: AdminUserRow) {
+    return u.postingBanned ? (
+      <span className="text-sm text-destructive">
+        제재됨{u.postingBanReason ? ` · ${u.postingBanReason}` : ""}
+      </span>
+    ) : (
+      <span className="text-sm text-muted-foreground">정상</span>
+    );
+  }
+
+  // 액션 버튼 묶음 — 폰에서 줄바꿈되도록 flex-wrap.
+  function actions(u: AdminUserRow) {
+    const isSelf = u.id === currentAccountId;
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        {isSelf ? <span className="text-xs text-muted-foreground">본인</span> : null}
+        {canManageRoles && !isSelf && (
+          <Button
+            variant={u.isAdmin ? "outline" : "default"}
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            disabled={pending}
+            onClick={() => toggleAdmin(u)}
+          >
+            {u.isAdmin ? (
+              <>
+                <ShieldMinus className="h-3.5 w-3.5" />
+                관리자 해제
+              </>
+            ) : (
+              <>
+                <ShieldPlus className="h-3.5 w-3.5" />
+                관리자 지정
+              </>
+            )}
+          </Button>
+        )}
+        {canManageRoles && !u.isAdmin && !isSelf && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            disabled={pending}
+            onClick={() => toggleRole(u)}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {u.boardRole === "moderator" ? "모더 해제" : "모더 지정"}
+          </Button>
+        )}
+        {!u.isAdmin && u.boardRole !== "moderator" && !isSelf && (
+          <Button
+            variant={u.postingBanned ? "outline" : "destructive"}
+            size="sm"
+            className="h-8 gap-1 px-2 text-xs"
+            disabled={pending}
+            onClick={() => toggleBan(u)}
+          >
+            {u.postingBanned ? (
+              <>
+                <Undo2 className="h-3.5 w-3.5" />
+                제재 해제
+              </>
+            ) : (
+              <>
+                <Ban className="h-3.5 w-3.5" />
+                작성 제재
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>회원</TableHead>
-          <TableHead>등급</TableHead>
-          <TableHead>작성 상태</TableHead>
-          <TableHead className="w-56 text-right">
-            <span className="sr-only">작업</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* 데스크톱 — 표 */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>회원</TableHead>
+              <TableHead>등급</TableHead>
+              <TableHead>작성 상태</TableHead>
+              <TableHead className="w-56 text-right">
+                <span className="sr-only">작업</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.id}>
+                <TableCell>
+                  <p className="font-medium text-foreground">{u.displayName}</p>
+                  <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
+                </TableCell>
+                <TableCell>{roleBadge(u)}</TableCell>
+                <TableCell>{banStatus(u)}</TableCell>
+                <TableCell>{actions(u)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* 모바일 — 카드 리스트 */}
+      <ul className="space-y-2 md:hidden">
         {users.map((u) => (
-          <TableRow key={u.id}>
-            <TableCell>
-              <p className="font-medium text-foreground">{u.displayName}</p>
-              <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
-            </TableCell>
-            <TableCell>
-              {u.isAdmin ? (
-                <Badge className="whitespace-nowrap bg-foreground text-background hover:bg-foreground">
-                  관리자
-                </Badge>
-              ) : u.boardRole === "moderator" ? (
-                <Badge className="whitespace-nowrap">모더레이터</Badge>
-              ) : (
-                <Badge variant="outline" className="whitespace-nowrap font-normal">
-                  일반
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell>
-              {u.postingBanned ? (
-                <span className="text-sm text-destructive">
-                  제재됨{u.postingBanReason ? ` · ${u.postingBanReason}` : ""}
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">정상</span>
-              )}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center justify-end gap-1">
-                {u.id === currentAccountId ? (
-                  <span className="text-xs text-muted-foreground">본인</span>
-                ) : null}
-                {canManageRoles && u.id !== currentAccountId && (
-                  <Button
-                    variant={u.isAdmin ? "outline" : "default"}
-                    size="sm"
-                    className="h-8 gap-1 px-2 text-xs"
-                    disabled={pending}
-                    onClick={() => toggleAdmin(u)}
-                  >
-                    {u.isAdmin ? (
-                      <>
-                        <ShieldMinus className="h-3.5 w-3.5" />
-                        관리자 해제
-                      </>
-                    ) : (
-                      <>
-                        <ShieldPlus className="h-3.5 w-3.5" />
-                        관리자 지정
-                      </>
-                    )}
-                  </Button>
-                )}
-                {canManageRoles && !u.isAdmin && u.id !== currentAccountId && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1 px-2 text-xs"
-                    disabled={pending}
-                    onClick={() => toggleRole(u)}
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {u.boardRole === "moderator" ? "모더 해제" : "모더 지정"}
-                  </Button>
-                )}
-                {!u.isAdmin &&
-                  u.boardRole !== "moderator" &&
-                  u.id !== currentAccountId && (
-                  <Button
-                    variant={u.postingBanned ? "outline" : "destructive"}
-                    size="sm"
-                    className="h-8 gap-1 px-2 text-xs"
-                    disabled={pending}
-                    onClick={() => toggleBan(u)}
-                  >
-                    {u.postingBanned ? (
-                      <>
-                        <Undo2 className="h-3.5 w-3.5" />
-                        제재 해제
-                      </>
-                    ) : (
-                      <>
-                        <Ban className="h-3.5 w-3.5" />
-                        작성 제재
-                      </>
-                    )}
-                  </Button>
-                )}
+          <li
+            key={u.id}
+            className="space-y-2 rounded-md border border-border bg-card p-3 shadow-card"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{u.displayName}</p>
+                <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
               </div>
-            </TableCell>
-          </TableRow>
+              {roleBadge(u)}
+            </div>
+            <div className="break-words">{banStatus(u)}</div>
+            {actions(u)}
+          </li>
         ))}
-      </TableBody>
-    </Table>
+      </ul>
+    </>
   );
 }

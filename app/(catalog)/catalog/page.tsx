@@ -24,7 +24,7 @@ import {
   listCards,
 } from "@/modules/cards/lib/queries";
 import { cardImageSrc } from "@/modules/cards/types";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export const metadata: Metadata = { title: "홈" };
 
@@ -72,29 +72,31 @@ export default async function CatalogHomePage() {
 
   return (
     <div className="space-y-8">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="TRADING CARD ARCHIVE"
         title="카탈로그 홈"
         description="토레카 마스터 데이터 — 검수할 제보, AI 분석 현황, 그룹별 도감을 한 화면에서 살펴요."
       />
 
-      {/* 요약 타일 */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* 요약 타일 — 폰에서는 3열 두 줄(≈110px)로 압축, lg 부터 한 줄 */}
+      <section className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
             <Link key={s.label} href={s.href} className="group">
               <Card className={cn("h-full transition-colors group-hover:border-primary/50", s.warn && "border-primary/40 bg-primary/5")}>
-                <CardHeader className="p-4 pb-1">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="font-sans text-xs font-medium text-muted-foreground">{s.label}</CardTitle>
-                    <span className={cn("text-muted-foreground", s.warn && "text-primary")}>
+                <CardHeader className="p-3 pb-0.5 sm:p-4 sm:pb-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <CardTitle className="min-w-0 truncate font-sans text-[11px] font-medium text-muted-foreground sm:text-xs">
+                      {s.label}
+                    </CardTitle>
+                    <span className={cn("shrink-0 text-muted-foreground", s.warn && "text-primary")}>
                       <Icon className="h-4 w-4" aria-hidden />
                     </span>
                   </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <p className={cn("catalog-stat font-display text-2xl", s.warn && "text-primary")}>
+                <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+                  <p className={cn("catalog-stat font-display text-xl tabular-nums sm:text-2xl", s.warn && "text-primary")}>
                     {s.value.toLocaleString()}
                   </p>
                 </CardContent>
@@ -186,7 +188,7 @@ export default async function CatalogHomePage() {
                 <div className="h-full rounded-full bg-accent" style={{ width: `${coverage}%` }} />
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
-                <span className="catalog-mono">
+                <span className="catalog-mono min-w-0 break-all">
                   {ai.byModel.map((m) => `${m.model} ${m.count.toLocaleString()}`).join(" · ") || "모델 없음"}
                 </span>
                 {unanalyzed > 0 && (
@@ -345,7 +347,7 @@ function Stat({ href, label, value }: { href: string; label: string; value: numb
   return (
     <Link href={href} className="rounded-sm bg-muted px-2 py-2 transition-colors hover:bg-lilac-100">
       <dt className="text-[10px] tracking-[0.09em] text-muted-foreground">{label}</dt>
-      <dd className="catalog-stat font-display text-lg">{value.toLocaleString()}</dd>
+      <dd className="catalog-stat font-display text-base tabular-nums sm:text-lg">{value.toLocaleString()}</dd>
     </Link>
   );
 }

@@ -11,15 +11,16 @@ const usedTradeSettingSchema = z.object({
 });
 
 // 중고거래 수수료 설정 — upsert로 싱글턴 행을 보장한다.
-// 기능 온오프는 제거됐다(상시 활성). 남아 있는 used_trade_enabled 컬럼은 항상 true로 맞춘다.
+// 기능 온오프는 제거됐다(상시 활성). used_trade_enabled 컬럼은 더 이상 읽지도 쓰지도 않는다
+// (NOT NULL DEFAULT false — db/schema.sql — 이라 create 시 기본값으로 채워진다).
 export async function updateUsedTradeSetting(input: { feeBp: number }): Promise<void> {
   await requireAdmin();
   const data = usedTradeSettingSchema.parse(input);
 
   await db.siteSetting.upsert({
     where: { id: 1 },
-    create: { id: 1, usedTradeEnabled: true, usedTradeFeeBp: data.feeBp },
-    update: { usedTradeEnabled: true, usedTradeFeeBp: data.feeBp, updatedAt: new Date() },
+    create: { id: 1, usedTradeFeeBp: data.feeBp },
+    update: { usedTradeFeeBp: data.feeBp, updatedAt: new Date() },
   });
 
   revalidatePath("/admin/settings");

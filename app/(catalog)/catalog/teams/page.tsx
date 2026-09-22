@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { TeamsTable } from "@/modules/teams/components/TeamsTable";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export const metadata: Metadata = { title: "그룹" };
 
@@ -14,7 +13,7 @@ export default async function CatalogTeamsPage() {
 
   return (
     <div className="space-y-5">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="GROUPS"
         title="그룹"
         count={teams.length}
@@ -26,11 +25,9 @@ export default async function CatalogTeamsPage() {
             신규 그룹
           </Link>
         </Button>
-      </CatalogPageHeader>
+      </AdminPageHeader>
 
-      <Card className="overflow-hidden">
-        <TeamsTable teams={teams} />
-      </Card>
+      <TeamsTable teams={teams} />
     </div>
   );
 }

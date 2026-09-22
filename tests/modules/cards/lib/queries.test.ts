@@ -13,6 +13,7 @@ vi.mock("@/lib/catalog-db", () => ({ catalogDb: mocks }));
 
 import {
   getCardAnalysisSummary,
+  getRegistrationHint,
   listAnalyzedCandidates,
 } from "@/modules/cards/lib/queries";
 
@@ -71,6 +72,30 @@ describe("getCardAnalysisSummary", () => {
       byModel: [],
       latestAnalyzedAt: null,
     });
+  });
+});
+
+describe("getRegistrationHint", () => {
+  it("공개 카드 수는 active 만, 다음 포즈는 상태 무관 최대 포즈 + 1", async () => {
+    mocks.card.count.mockResolvedValue(4);
+    mocks.card.aggregate.mockResolvedValue({ _max: { pose: 6 } });
+
+    const out = await getRegistrationHint(2, 3);
+
+    expect(out).toEqual({ count: 4, nextPose: 7 });
+    expect(mocks.card.count).toHaveBeenCalledWith({
+      where: { memberId: BigInt(2), seriesId: BigInt(3), status: "active" },
+    });
+    expect(mocks.card.aggregate).toHaveBeenCalledWith({
+      where: { memberId: BigInt(2), seriesId: BigInt(3) },
+      _max: { pose: true },
+    });
+  });
+
+  it("카드가 없으면 0장 · 다음 포즈 1", async () => {
+    mocks.card.count.mockResolvedValue(0);
+    mocks.card.aggregate.mockResolvedValue({ _max: { pose: null } });
+    expect(await getRegistrationHint(2, 3)).toEqual({ count: 0, nextPose: 1 });
   });
 });
 

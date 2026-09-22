@@ -13,8 +13,9 @@ export function GET(): Response {
     scope: "/admin",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#211B34",
-    theme_color: "#211B34",
+    // 밝은 UI(크림 배경) 기준 — app/(admin)/layout.tsx viewport.themeColor와 동일하게 유지.
+    background_color: "#fffdf9",
+    theme_color: "#fffdf9",
     icons: [
       {
         src: "/brand/admin-icon-192.png",

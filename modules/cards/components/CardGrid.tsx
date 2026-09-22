@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ImageOff, Info, Pencil, Sparkles, ZoomIn } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { kindLabelOf, type KindOption } from "@/modules/series/lib/kind-options";
+import { deleteCard } from "../actions";
 import { cardImageSrc, type Card as CardRow, type CardImageView } from "../types";
 import type { MemberOption, SeriesOption, TeamOption } from "./CardForm";
 import { CardDetailDialog } from "./CardDetailDialog";
@@ -20,33 +24,60 @@ import { CardSimilarPanel } from "./CardSimilarPanel";
 
 // 공개 카드 그리드 — 카탈로그 「토레카」 탭. 디자인 시스템의 상품 카드 패턴(Storybook › Patterns › ProductSummary)을
 // 63:88 카드에 맞춰 쓴다. 이미지를 누르면 풀스크린 확대(휠·핀치 줌), 하단 액션으로 상세(AI 분석값)·유사·수정.
+// 셀 텍스트는 멤버 / 시리즈 두 줄 + 포즈·종류 배지 한 줄 — 폰 2열에서도 읽히게 각 줄은 말줄임.
 export function CardGrid({
   items,
   teams,
   members,
   series,
+  kinds = [],
   imageView,
 }: {
   items: CardRow[];
   teams: TeamOption[];
   members: MemberOption[];
   series: SeriesOption[];
+  /** 종류 라벨(DB) — 없으면 코드 상수 폴백. */
+  kinds?: KindOption[];
   imageView: CardImageView;
 }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [detail, setDetail] = useState<CardRow | null>(null);
   const [editing, setEditing] = useState<CardRow | null>(null);
   const [similarFor, setSimilarFor] = useState<CardRow | null>(null);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t.name])), [teams]);
-  const memberById = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
-  const seriesById = useMemo(() => new Map(series.map((s) => [s.id, s.label])), [series]);
+  const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const seriesById = useMemo(() => new Map(series.map((s) => [s.id, s])), [series]);
 
-  const nameOf = (card: CardRow) => ({
-    team: card.teamId !== null ? teamById.get(card.teamId) : undefined,
-    member: card.memberId !== null ? memberById.get(card.memberId) : undefined,
-    series: card.seriesId !== null ? seriesById.get(card.seriesId) : undefined,
-  });
+  const nameOf = (card: CardRow) => {
+    const member = card.memberId !== null ? memberById.get(card.memberId) : undefined;
+    const s = card.seriesId !== null ? seriesById.get(card.seriesId) : undefined;
+    return {
+      team: card.teamId !== null ? teamById.get(card.teamId) : undefined,
+      member: member?.name,
+      memberJa: member?.nameJa ?? null,
+      series: s?.label,
+      kind: s ? kindLabelOf(kinds, s.kind) : undefined,
+      sku: s?.sku,
+    };
+  };
+
+  function remove(card: CardRow) {
+    if (!window.confirm(`「${card.name}」 카드를 삭제할까요?`)) return;
+    startTransition(async () => {
+      const result = await deleteCard(card.id);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success("삭제했어요");
+      setDetail(null);
+      router.refresh();
+    });
+  }
 
   // 뷰어 슬라이드는 이미지가 있는 카드만 — 인덱스 매핑을 따로 둔다.
   const withImage = items.filter((c) => c.frontR2Key);
@@ -68,7 +99,7 @@ export function CardGrid({
           const slide = slideIndexById.get(card.id);
           const n = nameOf(card);
           return (
-            <li key={card.id}>
+            <li key={card.id} id={`card-${card.id}`} className="scroll-mt-24">
               <Card className="group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-elevated">
                 <button
                   type="button"
@@ -109,38 +140,44 @@ export function CardGrid({
                     </span>
                   )}
                 </button>
-                <CardContent className="flex flex-1 flex-col gap-1 p-3">
-                  <p className="truncate text-xs text-muted-foreground">
-                    {n.team ?? "-"}
-                    {n.member && ` / ${n.member}`}
+                <CardContent className="flex flex-1 flex-col gap-0.5 p-3">
+                  {/* 1줄 멤버(없으면 그룹) · 2줄 시리즈 · 3줄 포즈 + 종류 배지 */}
+                  <p className="truncate text-sm font-semibold leading-tight" title={n.member ?? n.team}>
+                    {n.member ?? n.team ?? "-"}
                   </p>
-                  <p className="truncate text-sm font-semibold leading-tight" title={card.name}>
+                  <p className="truncate text-xs text-foreground/80" title={n.series ?? card.name}>
                     {n.series ?? card.name}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    포즈 {card.pose}
+                  <p className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="catalog-stat shrink-0">포즈 {card.pose}</span>
+                    {n.kind && (
+                      <span className="truncate rounded-full bg-muted px-1.5 py-px text-[10px] font-medium">
+                        {n.kind}
+                      </span>
+                    )}
                     {card.itemCode && (
-                      <>
-                        {" · "}
-                        <span className="catalog-mono">{card.itemCode}</span>
-                      </>
+                      <span className="catalog-mono truncate" title={card.itemCode}>
+                        {card.itemCode}
+                      </span>
                     )}
                   </p>
-                  <div className="mt-auto flex items-center justify-between pt-2">
+                  {/* 액션 행 — 2열 카드(폰)에서도 넘치지 않게 줄바꿈 허용, 보조 액션은 아이콘만 */}
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-1 pt-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 gap-1 px-1.5 text-[11px] text-primary"
+                      className="h-8 gap-1 px-1.5 text-[11px] text-primary"
+                      aria-label={`${card.name} 상세·AI 분석값`}
                       onClick={() => setDetail(card)}
                     >
                       <Info className="h-3.5 w-3.5" />
-                      상세·AI
+                      상세
                     </Button>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-0.5">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         aria-label={`${card.name} 유사 카드`}
                         disabled={!card.frontR2Key}
                         title="지금 앞면을 다시 분석해 유사·중복 카드 확인"
@@ -151,7 +188,7 @@ export function CardGrid({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         aria-label={`${card.name} 수정`}
                         onClick={() => setEditing(card)}
                       >
@@ -175,9 +212,17 @@ export function CardGrid({
           card={detail}
           teamName={nameOf(detail).team}
           memberName={nameOf(detail).member}
+          memberNameJa={nameOf(detail).memberJa}
           seriesLabel={nameOf(detail).series}
+          seriesKindLabel={nameOf(detail).kind}
+          seriesSku={nameOf(detail).sku}
           imageView={imageView}
           onClose={() => setDetail(null)}
+          onEdit={() => {
+            setEditing(detail);
+            setDetail(null);
+          }}
+          onDelete={() => remove(detail)}
         />
       )}
 

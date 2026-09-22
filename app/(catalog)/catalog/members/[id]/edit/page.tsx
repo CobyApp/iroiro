@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Toaster } from "@/components/ui/sonner";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { MemberForm } from "@/modules/members/components/MemberForm";
 import { getMemberById } from "@/modules/members/lib/queries";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listTeamMembers } from "@/modules/team-members/lib/queries";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export default async function MemberEditPage({
   params,
@@ -22,9 +25,15 @@ export default async function MemberEditPage({
   if (!member) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <Toaster />
-      <h2 className="text-2xl font-bold">멤버 수정</h2>
+    <div className="mx-auto max-w-2xl space-y-4">
+      <AdminPageHeader eyebrow="MEMBERS" title="멤버 수정" description={member.name}>
+        <Button asChild variant="ghost" size="sm" className="gap-1.5">
+          <Link href="/catalog/members">
+            <ArrowLeft className="h-4 w-4" />
+            멤버 목록
+          </Link>
+        </Button>
+      </AdminPageHeader>
       <MemberForm
         mode="edit"
         member={member}

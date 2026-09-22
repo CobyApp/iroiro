@@ -17,6 +17,7 @@ const tmCreateMany = vi.fn();
 const tmFindMany = vi.fn();
 const tmDeleteMany = vi.fn();
 const productCount = vi.fn();
+const tmAggregate = vi.fn();
 
 // 멤버·멤버십은 카탈로그 DB(catalogDb), 상품 참조 검사는 커머스 DB(db).
 // CatalogPrisma(DbNull 등)는 실제 생성 클라이언트의 것을 그대로 노출 — 액션이 DbNull 동일성으로 비운다.
@@ -39,6 +40,7 @@ vi.mock("@/lib/catalog-db", async () => {
           },
         }),
       member: { findUnique: memberFindUnique },
+      teamMember: { aggregate: tmAggregate },
     },
   };
 });
@@ -95,6 +97,7 @@ beforeEach(() => {
   tmFindMany.mockReset().mockResolvedValue([tmRow()]);
   tmDeleteMany.mockReset().mockResolvedValue({ count: 0 });
   productCount.mockReset().mockResolvedValue(0);
+  tmAggregate.mockReset().mockResolvedValue({ _max: { displayOrder: null } });
 });
 
 describe("members actions", () => {
@@ -245,6 +248,59 @@ describe("members actions", () => {
       });
       if (!result.ok) throw new Error(result.message);
       expect(result.data.memberships).toHaveLength(2);
+    });
+  });
+
+  describe("quickCreateMember", () => {
+    it("표기 + 그룹만으로 생성 — 활동 시작일은 오늘, 순번은 그룹 마지막 + 1", async () => {
+      tmAggregate.mockResolvedValue({ _max: { displayOrder: 4 } });
+      const { quickCreateMember } = await import("@/modules/members/actions");
+      const result = await quickCreateMember({
+        name: " 미유 ",
+        nameI18n: { "ja-jpan": "みゆ" },
+        teamId: 2,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        data: expect.objectContaining({ name: "미유", teamIds: [1] }),
+      });
+      expect(tmAggregate).toHaveBeenCalledWith({
+        where: { teamId: 2n },
+        _max: { displayOrder: true },
+      });
+      const createData = memberCreate.mock.calls[0][0].data;
+      expect(createData).toMatchObject({ name: "미유", nameI18n: { "ja-jpan": "みゆ" }, debutDate: null });
+      const rows = tmCreateMany.mock.calls[0][0].data;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ teamId: 2n, displayOrder: 5, activeEndDate: null, role: null });
+      expect(rows[0].activeStartDate).toBeInstanceOf(Date);
+    });
+
+    it("그룹에 순번이 하나도 없으면 순번은 미지정(null)", async () => {
+      const { quickCreateMember } = await import("@/modules/members/actions");
+      const result = await quickCreateMember({ name: "하나", teamId: 2 });
+      expect(result.ok).toBe(true);
+      expect(tmCreateMany.mock.calls[0][0].data[0].displayOrder).toBeNull();
+    });
+
+    it("이름이 비거나 그룹이 없으면 입력 검증 실패 → ok:false", async () => {
+      const { quickCreateMember } = await import("@/modules/members/actions");
+      expect(await quickCreateMember({ name: "  ", teamId: 2 })).toMatchObject({
+        ok: false,
+        code: "invalid_input",
+      });
+      expect(
+        await quickCreateMember({ name: "x", teamId: 0 }),
+      ).toMatchObject({ ok: false, code: "invalid_input" });
+      expect(memberCreate).not.toHaveBeenCalled();
+    });
+
+    it("비관리자는 mutation 전에 거부한다", async () => {
+      mockGetCurrentAccount.mockResolvedValue({ id: "user-1", isAdmin: false });
+      const { quickCreateMember } = await import("@/modules/members/actions");
+      await expect(quickCreateMember({ name: "x", teamId: 1 })).rejects.toThrow(/관리자 권한/);
+      expect(memberCreate).not.toHaveBeenCalled();
     });
   });
 

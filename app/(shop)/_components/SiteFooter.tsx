@@ -11,7 +11,7 @@ const LINKS = [
 // 하단 푸터 — 데스크톱은 좌우 정렬 한 단, 모바일은 중앙 정렬 스택.
 export function SiteFooter() {
   return (
-    <footer className="shop-footer relative z-10 mt-10 border-t-[3px] border-border bg-cream/70 pb-[calc(3.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:pb-0">
+    <footer className="shop-footer relative z-10 mt-10 border-t-[3px] border-border bg-cream/70 pb-[var(--shop-tabbar-safe)] backdrop-blur sm:pb-0">
       {/* 모바일: 하단 고정 탭바 높이만큼 크림 배경을 늘려 바와 푸터 사이 여백을 없앤다. */}
       <div className="shop-page-frame px-4 py-7 sm:px-0 sm:py-6">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -11,31 +11,9 @@ import {
   markBundleShipped,
 } from "../bundle-actions";
 import { USED_BUNDLE_STATUS_LABEL, type UsedBundle } from "../types";
+import { MockQr } from "./MockQr";
 
 type Role = "seller" | "buyer";
-
-function MockQr({ code }: { code: string }) {
-  const cells = code
-    .split("")
-    .flatMap((ch, i) => [ch.charCodeAt(0) * 31 + i, ch.charCodeAt(0) * 17 + i * 3]);
-  return (
-    <div className="mx-auto w-fit rounded-sm border border-border bg-white p-3">
-      <div className="grid grid-cols-12 gap-0.5">
-        {Array.from({ length: 144 }, (_, i) => (
-          <span
-            key={i}
-            className={
-              (cells[i % cells.length] + i * 7) % 3 === 0
-                ? "h-2 w-2 bg-black"
-                : "h-2 w-2 bg-white"
-            }
-          />
-        ))}
-      </div>
-      <p className="mt-2 text-center font-mono text-xs text-black">{code}</p>
-    </div>
-  );
-}
 
 // 묶음 거래 진행 — 결제 → (판매자) QR·발송 → (구매자) 수령 확정.
 export function BundleProgress({ bundle, role }: { bundle: UsedBundle; role: Role }) {

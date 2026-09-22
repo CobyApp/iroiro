@@ -67,9 +67,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // iOS Safari는 글자 16px 미만 입력창 포커스 시 자동 확대(auto-zoom)해 모바일
-  // 레이아웃이 뒤틀린다. maximumScale=1로 자동 확대를 막는다(앱형 UX).
-  maximumScale: 1,
+  // 핀치 줌은 접근성상 막지 않는다(maximumScale/userScalable 미설정).
+  // iOS Safari의 입력창 포커스 자동 확대는 폼 컨트롤을 폰에서 16px(text-base)로
+  // 렌더해 막는다 — components/ui/{input,select,textarea}.tsx 참고.
   themeColor: "#FFF8FC",
   // standalone(홈 화면 PWA)에서 하단 홈 인디케이터/제스처바 영역까지 그리되,
   // env(safe-area-inset-*)를 노출시켜 하단 탭바·플로팅 버튼이 그 위로 올라오게 한다.

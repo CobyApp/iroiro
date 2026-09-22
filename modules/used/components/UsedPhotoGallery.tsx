@@ -31,7 +31,7 @@ export function UsedPhotoGallery({
         />
       </div>
       {photos.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="scroll-x scroll-x-fade flex gap-2 overflow-x-auto pb-1">
           {photos.map((photo, i) => (
             <button
               key={photo.id}

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listOrdersForAdmin } from "@/modules/orders/lib/admin-queries";
 import { AdminOrdersTable } from "@/modules/orders/components/AdminOrdersTable";
 import {
@@ -28,46 +29,41 @@ export default async function AdminOrdersPage({
 
   const orders = await listOrdersForAdmin(status);
 
+  const chipClass = (active: boolean) =>
+    cn(
+      "shrink-0 rounded-full border px-3 py-1 text-xs font-medium",
+      active
+        ? "border-primary bg-primary text-primary-foreground"
+        : "border-border text-muted-foreground hover:text-foreground",
+    );
+
   return (
-    <div className="space-y-4 p-6">
-      <Toaster />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold">주문</h2>
-        <div className="flex flex-wrap gap-1.5">
-          <Link
-            href="/admin/orders"
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium",
-              status === undefined
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
+    <AdminPage>
+      <AdminPageHeader title="주문" count={orders.length}>
+        {/* 상태 칩 — 폰에서는 한 줄 가로 스크롤 */}
+        <nav
+          aria-label="주문 상태 필터"
+          className="scroll-x -mx-1 flex w-full gap-1.5 overflow-x-auto px-1 sm:w-auto sm:flex-wrap"
+        >
+          <Link href="/admin/orders" className={chipClass(status === undefined)}>
             전체
           </Link>
           {ORDER_STATUSES.map((value) => (
             <Link
               key={value}
               href={`/admin/orders?status=${value}`}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium",
-                status === value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
+              className={chipClass(status === value)}
             >
               {ORDER_STATUS_LABEL[value]}
             </Link>
           ))}
-        </div>
-      </div>
-      <div className="rounded-md border border-border">
-        <AdminOrdersTable orders={orders} />
-      </div>
+        </nav>
+      </AdminPageHeader>
+      <AdminOrdersTable orders={orders} />
       <p className="text-xs text-muted-foreground">
         발송 처리·배송 완료 시 구매자에게 알림이 발송됩니다. 배송 완료된 주문의
         구매자만 도착 인증 리뷰를 남길 수 있어요.
       </p>
-    </div>
+    </AdminPage>
   );
 }

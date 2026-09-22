@@ -61,15 +61,16 @@ export function SeriesKindsManage({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-md border border-border bg-card shadow-card">
+      {/* Table 프리미티브가 테두리·모서리를 가지므로 바깥 박스는 두지 않는다. 키 열은 폰에서 라벨 아래로. */}
+      <div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16 text-right">순서</TableHead>
-              <TableHead className="w-44">키</TableHead>
+              <TableHead className="text-right">순서</TableHead>
+              <TableHead className="hidden md:table-cell">키</TableHead>
               <TableHead>라벨</TableHead>
-              <TableHead className="w-24 text-right">시리즈</TableHead>
-              <TableHead className="w-28 text-right">
+              <TableHead className="text-right">시리즈</TableHead>
+              <TableHead className="text-right">
                 <span className="sr-only">작업</span>
               </TableHead>
             </TableRow>
@@ -89,26 +90,27 @@ export function SeriesKindsManage({
                         onChange={(e) =>
                           setDraft({ ...draft, displayOrder: Number(e.target.value) })
                         }
-                        className="h-8 w-16 text-right"
+                        className="h-9 w-16 text-right"
                         aria-label="순서"
                       />
                     ) : (
                       k.displayOrder
                     )}
                   </TableCell>
-                  <TableCell className="catalog-mono text-muted-foreground">{k.key}</TableCell>
+                  <TableCell className="catalog-mono hidden text-muted-foreground md:table-cell">{k.key}</TableCell>
                   <TableCell className="font-medium">
                     {editing ? (
                       <Input
                         value={draft.label}
                         onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-                        className="h-8"
+                        className="h-9 min-w-[7rem]"
                         aria-label="라벨"
                         autoFocus
                       />
                     ) : (
                       k.label
                     )}
+                    <p className="catalog-mono break-all font-normal text-muted-foreground md:hidden">{k.key}</p>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {used > 0 ? used.toLocaleString() : <span className="text-muted-foreground">0</span>}
@@ -188,9 +190,9 @@ export function SeriesKindsManage({
         </Table>
       </div>
 
-      {/* 새 종류 — 키는 영문 소문자·숫자·공백·_·- (series.kind 값이 된다) */}
+      {/* 새 종류 — 키는 영문 소문자·숫자·공백·_·- (series.kind 값이 된다). 폰은 세로 폼, sm 부터 한 줄 */}
       <form
-        className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-border bg-card/60 p-3"
+        className="grid grid-cols-1 gap-2 rounded-md border border-dashed border-border bg-card/60 p-3 sm:grid-cols-[1fr_1fr_5rem_auto] sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
           run(
@@ -201,37 +203,40 @@ export function SeriesKindsManage({
         }}
       >
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">키</label>
+          <label htmlFor="series-kind-key" className="text-xs text-muted-foreground">키</label>
           <Input
+            id="series-kind-key"
             value={create.key}
             onChange={(e) => setCreate({ ...create, key: e.target.value })}
             placeholder="예: live venue"
-            className="h-9 w-40 font-mono"
+            className="h-10 w-full font-mono sm:h-9"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">라벨</label>
+          <label htmlFor="series-kind-label" className="text-xs text-muted-foreground">라벨</label>
           <Input
+            id="series-kind-label"
             value={create.label}
             onChange={(e) => setCreate({ ...create, label: e.target.value })}
             placeholder="예: 공연장 한정"
-            className="h-9 w-44"
+            className="h-10 w-full sm:h-9"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">순서</label>
+          <label htmlFor="series-kind-order" className="text-xs text-muted-foreground">순서</label>
           <Input
+            id="series-kind-order"
             type="number"
             min={1}
             value={create.displayOrder}
             onChange={(e) => setCreate({ ...create, displayOrder: Number(e.target.value) })}
-            className="h-9 w-20 text-right"
+            className="h-10 w-full text-right sm:h-9"
           />
         </div>
         <Button
           type="submit"
           size="sm"
-          className="h-9 gap-1"
+          className="h-10 w-full gap-1 sm:h-9 sm:w-auto"
           disabled={pending || !create.key.trim() || !create.label.trim()}
         >
           <Plus className="h-3.5 w-3.5" />

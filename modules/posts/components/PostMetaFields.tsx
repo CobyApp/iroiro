@@ -140,7 +140,7 @@ export function PostMetaFields({
         <Label className="flex items-center gap-1 text-sm">
           <Sparkles className="h-4 w-4 text-primary" /> 최애 태그 (선택)
         </Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select
             value={value.teamId !== null ? String(value.teamId) : "__none__"}
             onValueChange={(v) =>
@@ -226,7 +226,7 @@ export function PostMetaFields({
                 이 멤버로 등록된 토레카가 없어요.
               </p>
             ) : (
-              <HScroll className="scroll-x flex gap-2 overflow-x-auto pb-1">
+              <HScroll className="scroll-x scroll-x-fade flex gap-2 overflow-x-auto pb-1">
                 {cards.map((card) => {
                   const url = cardFrontUrl(card, publicBaseUrl);
                   return (

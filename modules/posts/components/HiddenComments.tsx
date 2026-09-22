@@ -134,7 +134,7 @@ function HiddenCommentRow({ item, index }: { item: HiddenCommentItem; index: num
           <span className="text-muted-foreground">(글 없음)</span>
         )}
       </TableCell>
-      <TableCell className="max-w-xs whitespace-pre-wrap break-words text-sm">
+      <TableCell className="max-w-[16rem] whitespace-pre-wrap break-words text-sm">
         {item.body}
       </TableCell>
       <TableCell className="max-w-[10rem] truncate text-sm text-muted-foreground" title={item.hiddenReason ?? undefined}>

@@ -38,7 +38,7 @@
 | `modules/auth/lib/account.ts` | 제공자 신원으로 account find-or-create(트랜잭션) |
 | `modules/auth/dal.ts` | `getSession`/`getCurrentAccount`(React cache, 요청당 1회) |
 | `modules/auth/actions.ts` | `logout` Server Action |
-| `modules/auth/components/LogoutButton.tsx` | 헤더 드롭인 로그아웃 버튼 |
+| `modules/auth/components/LogoutConfirmDialog.tsx` | 마이페이지 로그아웃 확인 다이얼로그(구 LogoutButton 대체) |
 | `app/api/auth/[provider]/route.ts` | OAuth 시작(start) |
 | `app/api/auth/[provider]/callback/route.ts` | OAuth 콜백(Node 런타임) |
 | `app/(auth)/login/page.tsx`, `app/(auth)/layout.tsx` | 로그인 화면 |

@@ -35,7 +35,8 @@ iroiro/                              단일 Next.js 16 앱 — 모노레포 X
 │
 ├── modules/                         도메인 응집 (components/ · actions.ts · lib/ · types.ts)
 │   ├── auth/                        dal.ts(getCurrentAccount) · lib/session·cookies·pending-account·oauth/
-│   ├── admin/                       lib/isAdmin.ts · requireAdmin.ts · roles.ts · requireBoardManager.ts
+│   ├── admin/                       lib/isAdmin.ts · requireAdmin.ts · roles.ts · requireBoardManager.ts · nav.ts(메뉴 데이터)
+│   │                                components/AdminShell(관리자·카탈로그 공용 셸) · AdminSidebar · AdminPage · AdminPageHeader
 │   ├── products/  used/  cards/  series/  teams/  members/  team-members/  import/
 │   ├── cart/  orders/  addresses/  points/  reviews/  auction/  wishlist/  favorites/
 │   ├── collection/  posts/ (actions/ 폴더로 승격)  notices/  messages/  notifications/

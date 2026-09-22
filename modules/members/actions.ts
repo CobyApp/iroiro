@@ -12,11 +12,13 @@ import { catalogDb } from "@/lib/catalog-db";
 import { isNotFoundError } from "@/lib/prisma-errors";
 import type { TeamMember } from "@/modules/team-members/types";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
-import { formatKstDate } from "@/lib/datetime";
+import { formatKstDate, todayKstYmd } from "@/lib/datetime";
 import {
   memberCreateSchema,
+  memberQuickCreateSchema,
   memberUpdateSchema,
   type MemberCreateInput,
+  type MemberQuickCreateInput,
   type MemberUpdateInput,
 } from "./lib/schema";
 import { toMember } from "./lib/transform";
@@ -65,6 +67,57 @@ async function mapMemberWriteError<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
+// 멤버 + 활동 이력 삽입 — 전체 폼(createMember)과 빠른 추가(quickCreateMember)가 공유.
+// 검증(zod·active 중복)은 호출자가 끝낸 상태여야 한다.
+async function insertMember(data: MemberCreateInput): Promise<MemberWithTeams> {
+  const result = await catalogDb.$transaction(async (tx) => {
+    const memberRow = await tx.member.create({
+      data: {
+        name: data.name,
+        nameI18n: data.nameI18n ?? undefined,
+        debutDate: data.debutDate ? new Date(data.debutDate) : null,
+        retireDate: data.retireDate ? new Date(data.retireDate) : null,
+      },
+    });
+
+    await tx.teamMember.createMany({
+      data: data.memberships.map((m) => ({
+        memberId: memberRow.id,
+        teamId: BigInt(m.teamId),
+        activeStartDate: new Date(m.activeStartDate),
+        activeEndDate: m.activeEndDate ? new Date(m.activeEndDate) : null,
+        role: m.role ?? null,
+        displayOrder: m.displayOrder ?? null,
+      })),
+    });
+
+    const tmRows = await tx.teamMember.findMany({
+      where: { memberId: memberRow.id },
+    });
+
+    return { memberRow, tmRows };
+  });
+
+  revalidatePath("/catalog/members");
+  // 카드 등록 폼·매트릭스의 멤버 선택지도 같은 데이터를 쓴다.
+  revalidatePath("/catalog/cards");
+  revalidatePath("/catalog/cards/new");
+
+  const member = toMember(result.memberRow);
+  const memberships: TeamMember[] = result.tmRows.map((tm) => ({
+    id: Number(tm.id),
+    teamId: Number(tm.teamId),
+    memberId: Number(tm.memberId),
+    activeStartDate: formatKstDate(tm.activeStartDate),
+    activeEndDate: tm.activeEndDate ? formatKstDate(tm.activeEndDate) : null,
+    role: tm.role,
+    displayOrder: tm.displayOrder,
+    createdAt: tm.createdAt.toISOString(),
+    updatedAt: tm.updatedAt.toISOString(),
+  }));
+  return aggregate(member, memberships);
+}
+
 export async function createMember(
   input: MemberCreateInput,
 ): Promise<ActionResult<MemberWithTeams>> {
@@ -72,50 +125,38 @@ export async function createMember(
     await requireAdmin();
     const data = parseActionInput(memberCreateSchema, input);
     ensureActiveUniqueWithinMembership(data.memberships);
+    return insertMember(data);
+  });
+}
 
-    const result = await catalogDb.$transaction(async (tx) => {
-      const memberRow = await tx.member.create({
-        data: {
-          name: data.name,
-          nameI18n: data.nameI18n ?? undefined,
-          debutDate: data.debutDate ? new Date(data.debutDate) : null,
-          retireDate: data.retireDate ? new Date(data.retireDate) : null,
-        },
-      });
-
-      await tx.teamMember.createMany({
-        data: data.memberships.map((m) => ({
-          memberId: memberRow.id,
-          teamId: BigInt(m.teamId),
-          activeStartDate: new Date(m.activeStartDate),
-          activeEndDate: m.activeEndDate ? new Date(m.activeEndDate) : null,
-          role: m.role ?? null,
-          displayOrder: m.displayOrder ?? null,
-        })),
-      });
-
-      const tmRows = await tx.teamMember.findMany({
-        where: { memberId: memberRow.id },
-      });
-
-      return { memberRow, tmRows };
+// 빠른 추가 — 카드 등록 폼·멤버 목록에서 표기와 소속 그룹만으로 멤버를 만든다.
+// 활동 시작일은 오늘(KST), 순번은 그 그룹의 마지막 순번 + 1(순번이 하나도 없으면 미지정).
+export async function quickCreateMember(
+  input: MemberQuickCreateInput,
+): Promise<ActionResult<MemberWithTeams>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const data = parseActionInput(memberQuickCreateSchema, input);
+    const agg = await catalogDb.teamMember.aggregate({
+      where: { teamId: BigInt(data.teamId) },
+      _max: { displayOrder: true },
     });
-
-    revalidatePath("/catalog/members");
-
-    const member = toMember(result.memberRow);
-    const memberships: TeamMember[] = result.tmRows.map((tm) => ({
-      id: Number(tm.id),
-      teamId: Number(tm.teamId),
-      memberId: Number(tm.memberId),
-      activeStartDate: formatKstDate(tm.activeStartDate),
-      activeEndDate: tm.activeEndDate ? formatKstDate(tm.activeEndDate) : null,
-      role: tm.role,
-      displayOrder: tm.displayOrder,
-      createdAt: tm.createdAt.toISOString(),
-      updatedAt: tm.updatedAt.toISOString(),
-    }));
-    return aggregate(member, memberships);
+    const lastOrder = agg._max.displayOrder;
+    return insertMember({
+      name: data.name,
+      nameI18n: data.nameI18n ?? null,
+      debutDate: null,
+      retireDate: null,
+      memberships: [
+        {
+          teamId: data.teamId,
+          activeStartDate: todayKstYmd(),
+          activeEndDate: null,
+          role: null,
+          displayOrder: lastOrder === null ? null : lastOrder + 1,
+        },
+      ],
+    });
   });
 }
 

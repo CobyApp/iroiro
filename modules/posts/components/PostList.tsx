@@ -84,7 +84,7 @@ export function PostList({ items, total, filter, canFave = false }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="scroll-x flex flex-wrap items-center gap-2 overflow-x-auto">
+        <div className="scroll-x scroll-x-fade flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
           {TOPIC_TABS.map(({ value, label }) => (
             <Link
               key={label}

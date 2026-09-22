@@ -21,9 +21,36 @@ const seriesInputSchema = z.object({
   labelKo: z.string().trim().max(200).nullable().optional(),
   kind: z.string().trim().min(1, "종류를 입력해주세요").max(50),
   teamId: z.number().int().positive().nullable(),
+  // 공식 상품 페이지 URL — 비우면 null. http(s) 만 받는다.
+  productUrl: z
+    .url({ protocol: /^https?$/, error: "상품 URL 형식을 확인해주세요 (https://…)" })
+    .max(500)
+    .nullable()
+    .optional(),
+});
+
+// 추가는 SKU 를 비워도 된다 — 내부 식별용으로 자동 발급(등록 폼의 인라인 추가와 같은 접두어).
+const seriesCreateSchema = seriesInputSchema.extend({
+  sku: z.string().trim().max(120).optional(),
 });
 
 export type SeriesInput = z.infer<typeof seriesInputSchema>;
+export type SeriesCreateInput = z.infer<typeof seriesCreateSchema>;
+
+/** 추가 결과 — 등록 폼이 새 시리즈를 바로 선택할 수 있게 저장된 값을 돌려준다. */
+export type CreatedSeries = {
+  id: number;
+  sku: string;
+  label: string;
+  labelKo: string | null;
+  kind: string;
+  teamId: number | null;
+  productUrl: string | null;
+};
+
+function autoSku(): string {
+  return `usr-${crypto.randomUUID().slice(0, 8)}`;
+}
 
 function revalidateCatalog() {
   revalidatePath("/catalog");
@@ -37,33 +64,43 @@ function labelI18nOf(labelKo: string | null | undefined) {
 }
 
 export async function createSeries(
-  input: SeriesInput,
-): Promise<ActionResult<{ id: number }>> {
+  input: SeriesCreateInput,
+): Promise<ActionResult<CreatedSeries>> {
   return runAction(async () => {
     await requireAdmin();
-    const parsed = seriesInputSchema.safeParse(input);
+    const parsed = seriesCreateSchema.safeParse(input);
     if (!parsed.success) {
       throw new DomainError(
         parsed.error.issues[0]?.message ?? "입력값을 확인해주세요",
         "invalid_input",
       );
     }
+    const sku = parsed.data.sku || autoSku();
     const dup = await catalogDb.series.findUnique({
-      where: { sku: parsed.data.sku },
+      where: { sku },
     });
     if (dup) throw new DomainError("이미 있는 SKU예요", "duplicate_sku");
     const row = await catalogDb.series.create({
       data: {
-        sku: parsed.data.sku,
+        sku,
         label: parsed.data.label,
         labelI18n: labelI18nOf(parsed.data.labelKo) ?? undefined,
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),
+        productUrl: parsed.data.productUrl ?? null,
       },
     });
     revalidateCatalog();
-    return { id: Number(row.id) };
+    return {
+      id: Number(row.id),
+      sku: row.sku,
+      label: row.label,
+      labelKo: parsed.data.labelKo || null,
+      kind: row.kind,
+      teamId: row.teamId === null ? null : Number(row.teamId),
+      productUrl: row.productUrl,
+    };
   });
 }
 
@@ -96,6 +133,7 @@ export async function updateSeries(
         kind: parsed.data.kind,
         teamId:
           parsed.data.teamId === null ? null : BigInt(parsed.data.teamId),
+        productUrl: parsed.data.productUrl ?? null,
         updatedAt: new Date(),
       },
     });

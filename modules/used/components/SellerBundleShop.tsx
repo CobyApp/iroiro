@@ -87,7 +87,7 @@ export function SellerBundleShop({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 pb-24 sm:grid-cols-4 sm:gap-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 pb-28 min-[420px]:grid-cols-2 sm:grid-cols-4 sm:gap-4 sm:pb-24 xl:grid-cols-5">
         {listings.map((l) => {
           const primary = l.photos.find((p) => p.isPrimary) ?? l.photos[0];
           const canPick = eligible(l);
@@ -141,9 +141,9 @@ export function SellerBundleShop({
                 )}
               </div>
               <div className="px-0.5">
-                <p className="line-clamp-1 text-sm font-medium text-foreground">{l.title}</p>
-                <p className="text-sm font-semibold text-primary">₩{price.toLocaleString()}</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="line-clamp-1 text-base font-medium text-foreground sm:text-sm">{l.title}</p>
+                <p className="text-base font-semibold text-primary sm:text-sm">₩{price.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground sm:text-[11px]">
                   {PRODUCT_CONDITION_LABEL[l.condition]}
                   {l.shippingFee > 0 ? ` · 배송 ${l.shippingFee.toLocaleString()}` : " · 배송비 포함"}
                 </p>
@@ -155,7 +155,7 @@ export function SellerBundleShop({
 
       {/* 묶음 바 — 1개 이상 담으면 표시, 2개 이상이어야 구매 가능. */}
       {selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-[calc(var(--shop-tabbar-safe)+1rem)] z-40 flex justify-center px-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]">
           <div className="flex w-full max-w-lg items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-elevated">
             <div className="min-w-0 flex-1 text-sm">
               <p className="font-bold text-foreground">

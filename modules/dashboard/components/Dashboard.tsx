@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatKstRelative } from "@/lib/datetime";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import {
   PRODUCT_CONDITION_LABEL,
   SALE_STATUS_LABEL,
@@ -70,8 +71,9 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
   );
 
   return (
-    <div className="space-y-6 p-6">
-      <h2 className="font-display text-2xl">대시보드</h2>
+    // 여백은 페이지 래퍼(AdminPage)가 준다 — 여기서는 세로 리듬만.
+    <div className="space-y-6">
+      <AdminPageHeader title="대시보드" />
 
       {/* Tier 0 — 비즈니스 현황 (매출·주문·경매·회원) */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -80,7 +82,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
           label="오늘 매출"
           value={formatKrw(business.todaySalesKrw)}
           detail={
-            <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span>주문 {business.todayOrderCount}건</span>
               <span>·</span>
               <span>7일 {formatKrw(business.weekSalesKrw)}</span>
@@ -108,7 +110,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
           label="진행중 경매"
           value={`${business.liveAuctionCount}건`}
           detail={
-            <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span>24시간 내 마감 {business.endingSoonAuctionCount}</span>
               <span>·</span>
               <span>낙찰 결제 대기 {business.awardedUnpaidCount}</span>
@@ -160,7 +162,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
           label="총 상품"
           value={stats.totalProducts.toString()}
           detail={
-            <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span>판매중 {stats.byStatus.active}</span>
               <span>·</span>
               <span>임시저장 {stats.byStatus.draft}</span>
@@ -243,8 +245,8 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
                       ) : (
                         <div className="h-10 w-10 rounded-xs bg-muted" />
                       )}
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">
                           {alert.productName}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -337,8 +339,8 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
                       ) : (
                         <div className="h-10 w-10 rounded-xs bg-muted" />
                       )}
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{product.name}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{product.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {formatKstRelative(product.createdAt)}
                         </div>

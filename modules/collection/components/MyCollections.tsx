@@ -97,7 +97,7 @@ export function MyCollections({ collections }: Props) {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
             {selected.cards.map((card) => (
               <CardTile key={card.id} card={card} />
             ))}

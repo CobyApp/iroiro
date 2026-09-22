@@ -98,7 +98,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const account = await getCurrentAccount();
   if (!account) redirect("/login");
   if (!isBoardManager(account)) redirect("/");
-  return <AdminShell isSiteAdmin={isAdmin(account)}>{children}</AdminShell>;
+  return (
+  <AdminShell scope="admin" isSiteAdmin={isAdmin(account)} isBoardManager>
+    {children}
+  </AdminShell>
+);
 }
 ```
 

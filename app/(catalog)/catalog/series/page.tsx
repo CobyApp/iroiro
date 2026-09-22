@@ -13,7 +13,7 @@ import { listTeams } from "@/modules/teams/lib/queries";
 import { listSeriesWithCounts, type SeriesRow } from "@/modules/series/lib/queries";
 import { buildKindLabelMap, listSeriesKinds, sortKindKeys } from "@/modules/series/lib/kinds-queries";
 import { SeriesCreateButton, SeriesRowActions } from "@/modules/series/components/SeriesManage";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export const metadata: Metadata = { title: "시리즈" };
 
@@ -58,7 +58,7 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
 
   return (
     <div className="space-y-5">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="SERIES"
         title="시리즈"
         count={rows.length}
@@ -73,7 +73,7 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
         }
       />
 
-      <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-1">
+      <div className="scroll-x scroll-x-fade flex gap-1.5 overflow-x-auto pb-1">
         <Link href="/catalog/series" className={chip(teamFilter === undefined)}>
           모든 그룹
         </Link>
@@ -93,8 +93,8 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
           className="team-bar overflow-hidden rounded-md border border-border bg-card"
           style={{ ["--team-color" as string]: team.themeColor ?? undefined }}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
-            <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5 sm:py-3.5">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <h2 className="font-display text-lg">{team.name}</h2>
               {team.nameI18n?.["ja-jpan"] && (
                 <span className="text-xs text-muted-foreground">{team.nameI18n["ja-jpan"]}</span>
@@ -115,7 +115,7 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
 
       {orphan.length > 0 && (
         <section className="overflow-hidden rounded-md border border-dashed border-border bg-card">
-          <div className="px-5 py-3.5">
+          <div className="px-4 py-3 sm:px-5 sm:py-3.5">
             <h2 className="font-display text-lg">그룹 미지정</h2>
             <p className="text-xs text-muted-foreground">
               그룹이 비어 있는 시리즈 — 수정에서 그룹을 지정할 수 없으니 확인 후 정리해주세요.
@@ -128,6 +128,8 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
   );
 }
 
+// 섹션 카드 안에 들어가므로 Table 프리미티브의 자체 테두리·모서리·그림자는 지우고 위쪽 구분선만 남긴다(이중 테두리 방지).
+// SKU·상품 열은 폰에서 숨기고 SKU 는 시리즈 이름 아래에 붙인다.
 function SeriesTable({
   series,
   kindLabel,
@@ -138,15 +140,16 @@ function SeriesTable({
   kindOptions: { key: string; label: string }[];
 }) {
   return (
+    <div className="border-t border-border [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-28">종류</TableHead>
+          <TableHead>종류</TableHead>
           <TableHead>시리즈</TableHead>
-          <TableHead className="w-44">SKU</TableHead>
-          <TableHead className="w-20 text-right">카드</TableHead>
-          <TableHead className="w-20 text-right">상품</TableHead>
-          <TableHead className="w-20 text-right">
+          <TableHead className="hidden md:table-cell">SKU</TableHead>
+          <TableHead className="text-right">카드</TableHead>
+          <TableHead className="hidden text-right md:table-cell">상품</TableHead>
+          <TableHead className="text-right">
             <span className="sr-only">관리</span>
           </TableHead>
         </TableRow>
@@ -168,8 +171,21 @@ function SeriesTable({
                   <p className="text-[11px] font-medium text-primary">한국어 병기 없음</p>
                 )
               )}
+              <p className="catalog-mono break-all text-muted-foreground md:hidden">{s.sku}</p>
             </TableCell>
-            <TableCell className="catalog-mono text-muted-foreground">{s.sku}</TableCell>
+            <TableCell className="hidden md:table-cell">
+              <p className="catalog-mono text-muted-foreground">{s.sku}</p>
+              {s.productUrl && (
+                <a
+                  href={s.productUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block max-w-[14rem] truncate text-[11px] text-primary underline-offset-2 hover:underline"
+                >
+                  {s.productUrl.replace(/^https?:\/\//, "")}
+                </a>
+              )}
+            </TableCell>
             <TableCell className="text-right tabular-nums">
               {s.cardCount > 0 ? (
                 <Link
@@ -182,7 +198,7 @@ function SeriesTable({
                 <span className="text-muted-foreground">0</span>
               )}
             </TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell className="hidden text-right tabular-nums md:table-cell">
               {s.productCount > 0 ? (
                 s.productCount.toLocaleString()
               ) : (
@@ -198,6 +214,7 @@ function SeriesTable({
                   labelKo: s.labelKo,
                   kind: s.kind,
                   teamId: s.teamId,
+                  productUrl: s.productUrl,
                 }}
                 linkedCount={s.cardCount + s.productCount}
                 kinds={kindOptions}
@@ -207,5 +224,6 @@ function SeriesTable({
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 }

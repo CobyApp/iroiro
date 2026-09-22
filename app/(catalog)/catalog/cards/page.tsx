@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Plus, Search } from "lucide-react";
+import { Download, Grid3x3, LayoutGrid, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { listSeriesOptions } from "@/modules/series/lib/queries";
+import { listSeriesKinds } from "@/modules/series/lib/kinds-queries";
 import { countCardsByStatus, listCards } from "@/modules/cards/lib/queries";
+import { getTeamCoverage } from "@/modules/cards/lib/coverage";
+import { buildCoverageMatrix } from "@/modules/cards/lib/coverage-matrix";
 import { CardTable } from "@/modules/cards/components/CardTable";
 import { CardGrid } from "@/modules/cards/components/CardGrid";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { CardFilterDisclosure } from "@/modules/cards/components/CardFilterDisclosure";
+import { CoverageMatrix } from "@/modules/cards/components/CoverageMatrix";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import {
   CARD_STATUSES,
   CARD_STATUS_LABEL,
@@ -25,6 +30,8 @@ const ADMIN_VIEW = { kind: "admin" } as const;
 type SearchParams = Promise<{
   view?: string;
   status?: string;
+  /** list(기본) | matrix — 그룹별 멤버 × 시리즈 커버리지 매트릭스 */
+  mode?: string;
   team?: string;
   member?: string;
   series?: string;
@@ -35,6 +42,7 @@ type SearchParams = Promise<{
 
 // 토레카 — 등록(공개)된 카드와 유저 제보(검수 대기·반려)를 탭으로 분리해 본다.
 // 공개 카드는 도감형 그리드(+풀스크린 확대·상세 AI 값), 검수 대기는 승인·반려 작업 표.
+// 「매트릭스」 보기는 한 그룹의 멤버 × 시리즈 카드 수를 한눈에 — 빈 칸을 누르면 그 조합으로 등록 화면이 열린다.
 export default async function CatalogCardsPage({
   searchParams,
 }: {
@@ -52,32 +60,60 @@ export default async function CatalogCardsPage({
   const ai = sp.ai === "done" || sp.ai === "missing" ? sp.ai : undefined;
   const q = sp.q?.trim() || undefined;
   const page = Math.max(1, Number(sp.page) || 1);
+  // 매트릭스는 공개 카드에만 뜻이 있다 — 다른 탭에서는 목록으로.
+  const mode: "list" | "matrix" = sp.mode === "matrix" && view === "active" ? "matrix" : "list";
 
-  const [{ items, total }, counts, teams, members, seriesOptions] = await Promise.all([
-    listCards({
-      teamId,
-      memberId,
-      seriesId,
-      status: view,
-      analyzed: ai === undefined ? undefined : ai === "done",
-      q,
-      page,
-      pageSize: PAGE_SIZE,
-    }),
+  const [{ items, total }, counts, teams, members, seriesOptions, kinds] = await Promise.all([
+    mode === "list"
+      ? listCards({
+          teamId,
+          memberId,
+          seriesId,
+          status: view,
+          analyzed: ai === undefined ? undefined : ai === "done",
+          q,
+          page,
+          pageSize: PAGE_SIZE,
+        })
+      : Promise.resolve({ items: [], total: 0 }),
     countCardsByStatus(),
     listTeams(),
     listMembers(),
     listSeriesOptions(),
+    listSeriesKinds(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
-  const memberOptions = members.map((m) => ({ id: m.id, name: m.name, teamIds: m.teamIds }));
+  const memberOptions = members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    teamIds: m.teamIds,
+    nameJa: m.nameI18n?.["ja-jpan"] ?? null,
+  }));
+
+  // 매트릭스 — 그룹을 고르지 않았으면 첫 그룹. 행은 그 그룹의 멤버를 표시 순서로.
+  const matrixTeamId = mode === "matrix" ? (teamId ?? teams[0]?.id) : undefined;
+  const matrix =
+    matrixTeamId !== undefined
+      ? await (async () => {
+          const { cells, columns } = await getTeamCoverage(matrixTeamId, kinds);
+          const rows = members
+            .filter((m) => m.teamIds.includes(matrixTeamId))
+            .sort(
+              (a, b) =>
+                (a.displayOrderByTeam[matrixTeamId] ?? 999) - (b.displayOrderByTeam[matrixTeamId] ?? 999),
+            )
+            .map((m) => ({ id: m.id, name: m.name, nameJa: m.nameI18n?.["ja-jpan"] ?? null }));
+          return buildCoverageMatrix(rows, columns, cells);
+        })()
+      : null;
 
   // 현재 조건 유지 링크 — 탭·필터 칩·페이지네이션·CSV가 공유.
   const qs = (patch: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams();
     const base: Record<string, string | number | undefined> = {
       view,
+      mode: mode === "matrix" ? "matrix" : undefined,
       team: teamId,
       member: memberId,
       series: seriesId,
@@ -110,28 +146,31 @@ export default async function CatalogCardsPage({
 
   return (
     <div className="space-y-6">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="TRADING CARDS"
         title="토레카"
         count={counts.active}
         description="등록된 카드는 도감처럼 훑고 눌러서 확대해요. 「상세·AI」로 임베딩 값을, 검수 대기 탭에서 제보를 승인·반려해요."
       >
-        <Button asChild variant="outline" size="sm" className="gap-1.5">
+        <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
           <a href={`/catalog/cards/export${qs({ page: undefined, view: undefined, status: view })}`}>
             <Download className="h-4 w-4" />
             CSV
           </a>
         </Button>
-        <Button asChild size="sm" className="gap-1.5">
+        {/* 폰에서는 CSV 옆 남은 폭을 다 써서 누르기 쉽게, sm 부터는 내용 폭 */}
+        <Button asChild size="sm" className="flex-1 gap-1.5 sm:flex-none">
           <Link href="/catalog/cards/new">
             <Plus className="h-4 w-4" />
             토레카 등록
           </Link>
         </Button>
-      </CatalogPageHeader>
+      </AdminPageHeader>
 
-      {/* 탭 — 등록된 카드 / 검수 대기 / 반려 (내비와 같은 알약 리듬) */}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="카드 구분">
+      {/* 탭 — 등록된 카드 / 검수 대기 / 반려. 검수·반려는 여기 탭이 유일한 진입점(내비에 따로 두지 않는다)
+          오른쪽 끝은 보기 전환(목록 / 매트릭스) — 공개 카드 탭에서만. */}
+      <div className="flex flex-wrap items-center gap-2">
+      <div className="scroll-x flex min-w-0 flex-1 gap-1.5 overflow-x-auto" role="tablist" aria-label="카드 구분">
         {TABS.map((tab) => {
           const active = view === tab.key;
           const n = counts[tab.key];
@@ -140,10 +179,10 @@ export default async function CatalogCardsPage({
               key={tab.key}
               role="tab"
               aria-selected={active}
-              href={`/catalog/cards${qs({ view: tab.key, member: undefined, ai: undefined })}`}
+              href={`/catalog/cards${qs({ view: tab.key, member: undefined, ai: undefined, mode: undefined })}`}
               title={tab.hint}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
                 active ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted",
               )}
             >
@@ -160,8 +199,68 @@ export default async function CatalogCardsPage({
           );
         })}
       </div>
+      {view === "active" && (
+        <div
+          className="inline-flex shrink-0 rounded-full border border-border bg-card p-0.5 text-xs font-medium"
+          role="group"
+          aria-label="보기 방식"
+        >
+          <Link
+            href={`/catalog/cards${qs({ mode: undefined })}`}
+            aria-current={mode === "list" ? "page" : undefined}
+            className={cn(
+              "inline-flex h-8 items-center gap-1 rounded-full px-3 transition-colors",
+              mode === "list" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+            목록
+          </Link>
+          <Link
+            href={`/catalog/cards${qs({ mode: "matrix", member: undefined, series: undefined, ai: undefined, q: undefined })}`}
+            aria-current={mode === "matrix" ? "page" : undefined}
+            className={cn(
+              "inline-flex h-8 items-center gap-1 rounded-full px-3 transition-colors",
+              mode === "matrix" ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+            )}
+          >
+            <Grid3x3 className="h-3.5 w-3.5" aria-hidden />
+            매트릭스
+          </Link>
+        </div>
+      )}
+      </div>
 
-      {/* 검색 + 필터 */}
+      {mode === "matrix" && matrix && matrixTeamId !== undefined ? (
+        <>
+          {/* 매트릭스 — 그룹 칩 한 줄 + 멤버 × 시리즈 표 */}
+          <div className="scroll-x scroll-x-fade flex gap-1.5 overflow-x-auto pb-0.5">
+            {teams.map((team) => (
+              <Link
+                key={team.id}
+                href={`/catalog/cards${qs({ team: team.id })}`}
+                className={matrixTeamId === team.id ? "team-chip shrink-0 !py-1" : chip(false)}
+                style={matrixTeamId === team.id ? { ["--team-color" as string]: team.themeColor ?? undefined } : undefined}
+              >
+                {team.name}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">{teams.find((t) => t.id === matrixTeamId)?.name}</span>
+              {" · "}멤버 {matrix.rows.length} × 시리즈 {matrix.columns.reduce((n, g) => n + g.series.length, 0)}
+              {" · "}카드 {matrix.columnTotals.reduce((a, b) => a + b, 0).toLocaleString()}장
+            </p>
+            <p>
+              빈 칸 <span className="catalog-stat font-medium text-primary">{matrix.emptyCells}</span> — 누르면 그 멤버·시리즈로 등록 화면이 열려요
+            </p>
+          </div>
+          <CoverageMatrix teamId={matrixTeamId} matrix={matrix} />
+        </>
+      ) : (
+      <>
+      {/* 검색 + 필터 — 칩 줄은 폰에서 「필터」 토글 뒤로 접히고, 각 줄은 줄바꿈 없이 가로 스크롤 */}
       <Card>
         <CardContent className="space-y-3 p-4">
           <form action="/catalog/cards" className="relative max-w-md">
@@ -176,7 +275,11 @@ export default async function CatalogCardsPage({
               className="h-10 w-full rounded-full border border-input bg-card pl-10 pr-4 text-sm outline-none focus:border-primary/60"
             />
           </form>
-          <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-0.5">
+          <CardFilterDisclosure
+            defaultOpen={teamId !== undefined || ai !== undefined}
+            activeCount={[teamId, memberId, ai].filter((v) => v !== undefined).length}
+          >
+          <div className="scroll-x scroll-x-fade flex gap-1.5 overflow-x-auto pb-0.5">
             <Link href={`/catalog/cards${qs({ team: undefined, member: undefined })}`} className={chip(!teamId)}>
               모든 그룹
             </Link>
@@ -184,7 +287,7 @@ export default async function CatalogCardsPage({
               <Link
                 key={team.id}
                 href={`/catalog/cards${qs({ team: team.id, member: undefined })}`}
-                className={teamId === team.id ? "team-chip !py-1" : chip(false)}
+                className={teamId === team.id ? "team-chip shrink-0 !py-1" : chip(false)}
                 style={teamId === team.id ? { ["--team-color" as string]: team.themeColor ?? undefined } : undefined}
               >
                 {team.name}
@@ -192,7 +295,7 @@ export default async function CatalogCardsPage({
             ))}
             {view === "active" && (
               <>
-                <span className="mx-1 my-auto h-4 w-px bg-border" aria-hidden />
+                <span className="mx-1 my-auto h-4 w-px shrink-0 bg-border" aria-hidden />
                 <Link href={`/catalog/cards${qs({ ai: undefined })}`} className={chip(!ai)}>
                   AI 전체
                 </Link>
@@ -206,7 +309,7 @@ export default async function CatalogCardsPage({
             )}
           </div>
           {teamId !== undefined && (
-            <div className="scroll-x flex flex-wrap gap-1.5 overflow-x-auto pb-0.5">
+            <div className="scroll-x scroll-x-fade flex gap-1.5 overflow-x-auto pb-0.5">
               <Link href={`/catalog/cards${qs({ member: undefined })}`} className={chip(!memberId)}>
                 모든 멤버
               </Link>
@@ -223,6 +326,7 @@ export default async function CatalogCardsPage({
                 ))}
             </div>
           )}
+          </CardFilterDisclosure>
         </CardContent>
       </Card>
 
@@ -249,18 +353,18 @@ export default async function CatalogCardsPage({
           teams={teamOptions}
           members={memberOptions}
           series={seriesOptions}
+          kinds={kinds}
           imageView={ADMIN_VIEW}
         />
       ) : (
-        <Card className="overflow-hidden">
-          <CardTable
-            items={items}
-            teams={teamOptions}
-            members={memberOptions}
-            series={seriesOptions}
-            imageView={ADMIN_VIEW}
-          />
-        </Card>
+        <CardTable
+          items={items}
+          teams={teamOptions}
+          members={memberOptions}
+          series={seriesOptions}
+          kinds={kinds}
+          imageView={ADMIN_VIEW}
+        />
       )}
 
       {totalPages > 1 && (
@@ -279,6 +383,8 @@ export default async function CatalogCardsPage({
             </Button>
           )}
         </nav>
+      )}
+      </>
       )}
     </div>
   );

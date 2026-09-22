@@ -1,53 +1,114 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Menu } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
+import { ADMIN_SECTIONS, CATALOG_SECTIONS, type NavSection } from "../lib/nav";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-// 관리자 셸 — 헤더(모바일 햄버거) + 반응형 사이드바(모바일 드로어) + 본문.
-// isSiteAdmin=false면 게시판 moderator — 사이드바에서 커뮤니티 관리 섹션만 노출.
+export type AdminShellScope = "admin" | "catalog";
+
+const SCOPE: Record<
+  AdminShellScope,
+  { badge: string; badgeClassName: string; homeHref: string; sections: NavSection[]; navLabel: string }
+> = {
+  admin: {
+    badge: "ADMIN",
+    badgeClassName: "bg-muted text-muted-foreground",
+    homeHref: "/admin",
+    sections: ADMIN_SECTIONS,
+    navLabel: "관리자 메뉴",
+  },
+  catalog: {
+    badge: "TRADING CARD ARCHIVE",
+    badgeClassName: "bg-accent/15 tracking-[0.09em] text-accent",
+    homeHref: "/catalog",
+    sections: CATALOG_SECTIONS,
+    navLabel: "카탈로그 메뉴",
+  },
+};
+
+// 관리자(/admin)·카탈로그(/catalog) 공용 셸 — 상단 고정 헤더 + 사이드바(데스크톱 접기 / 모바일 드로어) + 본문.
+// 스크롤은 문서 스크롤(min-h-dvh) 하나만 쓴다 — 내부 overflow 컨테이너를 두지 않아 모바일에서
+// 주소창 축소·safe-area·키보드가 자연스럽게 동작한다. 토스트는 여기서 한 번만 마운트한다.
 export function AdminShell({
   children,
+  scope = "admin",
+  appName,
+  isDev = false,
   isSiteAdmin = true,
+  isBoardManager = true,
 }: {
   children: React.ReactNode;
+  scope?: AdminShellScope;
+  /** 워드마크 alt — 설치형 앱 이름(dev 접미 포함). */
+  appName?: string;
+  /** dev 배포 표시 배지. */
+  isDev?: boolean;
   isSiteAdmin?: boolean;
+  isBoardManager?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const config = SCOPE[scope];
 
   return (
-    <div className="grid h-dvh grid-rows-[auto_1fr] bg-background">
-      <header className="flex items-center justify-between gap-2 border-b-[3px] border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            aria-label="메뉴 열기"
-            className="grid h-9 w-9 place-items-center rounded-md text-foreground hover:bg-muted md:hidden"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <BrandLockup
-            markClassName="h-9 w-9"
-            wordmarkClassName="h-6"
-            preload
-          />
-          <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            ADMIN
-          </span>
+    <div
+      className="flex min-h-dvh flex-col bg-background"
+      style={{ "--admin-header-h": "calc(3.5rem + 3px + env(safe-area-inset-top))" } as React.CSSProperties}
+    >
+      <header className="sticky top-0 z-40 border-b-[3px] border-border bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              aria-label="메뉴 열기"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-foreground transition-colors hover:bg-muted md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <Link href={config.homeHref} className="flex min-w-0 items-center gap-2">
+              <BrandLockup
+                markClassName="h-8 w-8 sm:h-9 sm:w-9"
+                wordmarkClassName="h-5 sm:h-6"
+                wordmarkAlt={appName}
+                preload
+              />
+              <span
+                className={cn(
+                  "hidden truncate rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline",
+                  config.badgeClassName,
+                )}
+              >
+                {config.badge}
+              </span>
+              {isDev && (
+                <span className="rounded-full bg-lemon px-2 py-0.5 text-[10px] font-medium text-ink">
+                  dev
+                </span>
+              )}
+            </Link>
+          </div>
+          <AdminAccountMenu />
         </div>
-        <AdminAccountMenu />
       </header>
-      <div className="grid min-h-0 grid-cols-1 md:grid-cols-[auto_1fr]">
+
+      <div className="flex flex-1 items-stretch">
         <AdminSidebar
           mobileOpen={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          isSiteAdmin={isSiteAdmin}
+          sections={config.sections}
+          viewer={{ isSiteAdmin, isBoardManager }}
+          ariaLabel={config.navLabel}
         />
-        <main className="min-w-0 overflow-y-auto">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
+
+      <Toaster />
     </div>
   );
 }

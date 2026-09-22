@@ -75,7 +75,7 @@ export function UsedPhotoUpload({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {photos.map((photo, index) => (
           <div
             key={photo.r2Key}
@@ -96,22 +96,23 @@ export function UsedPhotoUpload({
                 대표
               </span>
             )}
-            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/45 px-1 py-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+            {/* 터치 기기는 hover가 없으므로 항상 노출, 마우스 환경에서만 hover/focus 시 표시. */}
+            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/45 px-0.5 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
               <button
                 type="button"
                 onClick={() => setPrimary(index)}
                 aria-label="대표 사진으로"
-                className="text-white"
+                className="grid h-10 w-10 place-items-center text-white"
               >
-                <Star className="h-3.5 w-3.5" />
+                <Star className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={() => remove(index)}
                 aria-label="사진 삭제"
-                className="text-white"
+                className="grid h-10 w-10 place-items-center text-white"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           </div>

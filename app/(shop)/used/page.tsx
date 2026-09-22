@@ -132,13 +132,13 @@ export default async function UsedHomePage({
           name="q"
           defaultValue={q ?? ""}
           placeholder="매물 이름으로 검색"
-          className="h-11 w-full rounded-full border border-border bg-card pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
+          className="h-11 w-full rounded-full border border-border bg-card pl-11 pr-4 text-base text-foreground sm:text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
         />
       </form>
 
       {/* 판매 방식 + 그룹 → 멤버 필터 칩 — 링크 기반이라 뒤로가기·공유에 안전. */}
       <div className="space-y-2">
-        <div className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1">
+        <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
           {[
             { value: undefined, label: "전체" },
             { value: "fixed", label: "바로 판매" },
@@ -175,7 +175,7 @@ export default async function UsedHomePage({
         </div>
         {teamId !== undefined && teamMembers.length > 0 && (
           <div
-            className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1"
+            className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1"
             aria-label="멤버 필터"
           >
             <Link

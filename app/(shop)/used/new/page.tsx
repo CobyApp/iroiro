@@ -8,6 +8,7 @@ import { listMembers } from "@/modules/members/lib/queries";
 import {
   listSeriesOptions,
 } from "@/modules/products/lib/queries";
+import { listSeriesKinds } from "@/modules/series/lib/kinds-queries";
 import { listUsedSoldPrices } from "@/modules/used/lib/queries";
 import { fetchJpyKrwRate } from "@/modules/products/lib/fx";
 import { todayKstYmd } from "@/lib/datetime";
@@ -19,10 +20,11 @@ export default async function UsedNewPage() {
   const account = await getCurrentAccount();
   if (!account) redirect("/login-required?from=/used/new");
 
-  const [teams, members, seriesOptions, fxRate100] = await Promise.all([
+  const [teams, members, seriesOptions, kinds, fxRate100] = await Promise.all([
     listTeams(),
     listMembers(),
     listSeriesOptions(),
+    listSeriesKinds(),
     fetchJpyKrwRate(todayKstYmd())
       .then((r) => r.rate)
       .catch(() => 0),
@@ -49,6 +51,7 @@ export default async function UsedNewPage() {
           teamIds: m.teamIds,
         }))}
         seriesOptions={seriesOptions}
+        kinds={kinds}
         fxRate100={fxRate100}
         usedSoldBySeries={usedSoldBySeries}
         publicBaseUrl={env.CATALOG_PUBLIC_BASE}

@@ -6,7 +6,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
 import { isBoardManager } from "@/modules/admin/lib/roles";
 import { PageTransition } from "@/components/PageTransition";
-import { APP_NAMES, appDisplayName } from "@/lib/app-name";
+import { APP_NAMES, appDisplayName, isDevDeploy } from "@/lib/app-name";
 
 // 관리자 영역은 별도 설치형 PWA — 이름·아이콘·테마를 소비자앱과 분리한다.
 // 이 layout이 관장하는 /admin 하위 전체에 매니페스트·아이콘·테마가 적용된다. dev 배포는 이름에 " dev".
@@ -24,16 +24,18 @@ export async function generateMetadata(): Promise<Metadata> {
         { url: "/brand/admin-icon-512.png", sizes: "512x512", type: "image/png" },
       ],
     },
+    // 헤더가 밝은 카드색이라 상태바도 기본(어두운 글자) — 셸이 safe-area 상단 패딩을 직접 준다.
     appleWebApp: {
       capable: true,
       title: name,
-      statusBarStyle: "black-translucent",
+      statusBarStyle: "default",
     },
   };
 }
 
+// 밝은 UI(크림 배경)에 맞춘 테마색 — 매니페스트(background_color·theme_color)와 동일.
 export const viewport: Viewport = {
-  themeColor: "#211B34",
+  themeColor: "#fffdf9",
 };
 
 export default async function AdminLayout({
@@ -51,7 +53,13 @@ export default async function AdminLayout({
   if (!isBoardManager(account)) redirect("/");
 
   return (
-    <AdminShell isSiteAdmin={isAdmin(account)}>
+    <AdminShell
+      scope="admin"
+      appName={appDisplayName(APP_NAMES.admin)}
+      isDev={isDevDeploy()}
+      isSiteAdmin={isAdmin(account)}
+      isBoardManager
+    >
       <PageTransition>{children}</PageTransition>
     </AdminShell>
   );

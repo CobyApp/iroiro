@@ -58,7 +58,7 @@ export function AvatarUploadField({
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-4">
       <span
         className="grid h-[72px] w-[72px] shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-lemon font-display text-xl text-ink shadow-card"
         aria-hidden

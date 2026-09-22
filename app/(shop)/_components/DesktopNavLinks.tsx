@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { isTabActive, visibleTabs } from "./mobile-tabs";
+import { TAB_DEFS, isTabActive } from "./mobile-tabs";
 import { SHOP_NAVIGATION_ICONS } from "./shop-navigation-icons";
 
 // 데스크톱 주요 메뉴 — 모바일과 같은 탭 구조(마이 제외).
 export function DesktopNavLinks() {
   const pathname = usePathname();
-  const links = visibleTabs().filter(
-    (tab) => tab.key !== "mypage",
-  );
+  const links = TAB_DEFS.filter((tab) => tab.key !== "mypage");
 
   return (
     <nav className="flex items-center gap-0.5" aria-label="주요 메뉴">

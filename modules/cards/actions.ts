@@ -14,7 +14,12 @@ import { deployEnvName } from "@/lib/app-name";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
-import { listAnalyzedCandidates, listExistingCards } from "./lib/queries";
+import {
+  getRegistrationHint,
+  listAnalyzedCandidates,
+  listExistingCards,
+  type RegistrationHint,
+} from "./lib/queries";
 import { storeCardFrontImage } from "./lib/image-storage";
 import {
   analyzeCardFrontByKey,
@@ -351,6 +356,26 @@ export async function fetchExistingCards(
   memberId: number | null,
 ): Promise<ActionResult<Card[]>> {
   return runAction(async () => listExistingCards(seriesId, memberId));
+}
+
+// 관리자 등록 화면 — 연속 등록 힌트(이 시리즈에 등록된 카드 N장 · 다음 포즈 #M).
+const hintInputSchema = z.object({
+  memberId: z.number().int().positive(),
+  seriesId: z.number().int().positive(),
+});
+
+export async function fetchRegistrationHint(input: {
+  memberId: number;
+  seriesId: number;
+}): Promise<ActionResult<RegistrationHint>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const parsed = hintInputSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new DomainError("입력값을 확인해주세요", "invalid_input");
+    }
+    return getRegistrationHint(parsed.data.memberId, parsed.data.seriesId);
+  });
 }
 
 // AI 유사 카드 찾기 — 업로드한 앞면을 임베딩해 같은 그룹(+멤버)의 공개 카드와 코사인 비교.

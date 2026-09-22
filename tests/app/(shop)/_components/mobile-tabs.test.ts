@@ -1,21 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  TAB_DEFS,
-  isTabActive,
-  visibleTabs,
-} from "@/app/(shop)/_components/mobile-tabs";
+import { TAB_DEFS, isTabActive } from "@/app/(shop)/_components/mobile-tabs";
 
 describe("TAB_DEFS", () => {
   it("둘러보기·중고거래·커뮤니티·마이 4탭을 순서대로 정의한다(중고거래가 2번째, 컬렉션 탭 없음)", () => {
     expect(TAB_DEFS.map((t) => t.key)).toEqual(["discover", "used", "community", "mypage"]);
     expect(TAB_DEFS[1]).toMatchObject({ key: "used", href: "/used" });
     expect(TAB_DEFS.some((t) => t.href.startsWith("/collections"))).toBe(false);
-  });
-});
-
-describe("visibleTabs", () => {
-  it("기능 플래그 없이 정의 그대로 노출한다(중고거래 상시)", () => {
-    expect(visibleTabs()).toEqual(TAB_DEFS);
   });
 });
 

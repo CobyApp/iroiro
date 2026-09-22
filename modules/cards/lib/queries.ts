@@ -89,6 +89,22 @@ export async function listExistingCards(
   return rows.map(toCard);
 }
 
+// 연속 등록 힌트 — 같은 (멤버, 시리즈)의 공개 카드 수와 다음 포즈 번호.
+// 다음 포즈는 actions.ts 의 nextPose 와 같은 규칙(상태 무관 최대 포즈 + 1) — 대기·반려 카드가 쓴 번호도 건너뛴다.
+export type RegistrationHint = { count: number; nextPose: number };
+
+export async function getRegistrationHint(
+  memberId: number,
+  seriesId: number,
+): Promise<RegistrationHint> {
+  const where = { memberId: BigInt(memberId), seriesId: BigInt(seriesId) };
+  const [count, agg] = await Promise.all([
+    catalogDb.card.count({ where: { ...where, status: "active" } }),
+    catalogDb.card.aggregate({ where, _max: { pose: true } }),
+  ]);
+  return { count, nextPose: (agg._max.pose ?? 0) + 1 };
+}
+
 // 검수 대기 수 — 관리자 목록 뱃지용.
 export async function countPendingCards(): Promise<number> {
   return catalogDb.card.count({ where: { status: "pending" } });

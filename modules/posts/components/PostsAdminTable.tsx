@@ -252,17 +252,19 @@ function PostAdminRow({ item, index }: { item: AdminPostItem; index: number }) {
           )}
         </div>
       </TableCell>
-      <TableCell className="text-right">
-        {item.status === "visible" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setHideOpen(true)}>
-            숨김
-          </Button>
-        )}
-        {item.status === "hidden" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setUnhideOpen(true)}>
-            해제
-          </Button>
-        )}
+      <TableCell>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {item.status === "visible" && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setHideOpen(true)}>
+              숨김
+            </Button>
+          )}
+          {item.status === "hidden" && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setUnhideOpen(true)}>
+              해제
+            </Button>
+          )}
+        </div>
       </TableCell>
 
       {/* 해당 상태에서 트리거 버튼이 없는 Dialog는 렌더하지 않는다 — 도달 불가능한 마크업 방지. */}
