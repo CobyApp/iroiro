@@ -705,3 +705,106 @@ export async function createDraftProductForCard(
     return { created: true };
   });
 }
+
+const CATALOG_SYNC_BATCH = 25;
+
+export type CatalogSyncResult = {
+  created: number;
+  skipped: { cardId: number; reason: string }[];
+  /** 이번 배치 이후 아직 상품이 없는 활성 카드 수(0이면 완료). */
+  remaining: number;
+};
+
+// 기존 카탈로그 카드 백필 — 아직 상품이 없는 '활성' 카드들을 임시저장(draft) 상품으로 일괄 생성한다.
+// 카탈로그=상품 자동화(카드 추가/승인 시 자동 생성)는 신규 카드만 커버하므로, 이전에 쌓인 카드는
+// 이 동기화로 편입한다. 이미지 복사가 카드당 무거워 한 번에 CATALOG_SYNC_BATCH 장만 처리하고
+// remaining 을 돌려준다(호출측이 0이 될 때까지 반복). 멱등: catalogCardId 로 중복을 건너뛴다.
+export async function syncCatalogDraftProducts(input?: {
+  limit?: number;
+}): Promise<ActionResult<CatalogSyncResult>> {
+  return runAction(async () => {
+    await requireDeliveryManager();
+    const limit = Math.min(Math.max(1, input?.limit ?? CATALOG_SYNC_BATCH), CATALOG_SYNC_BATCH);
+    const { listCards } = await import("@/modules/cards/lib/queries");
+
+    // 이미 상품이 있는 카드 id 집합(커머스 db) — 한 번에 조회.
+    const registeredRows = await db.product.findMany({
+      where: { catalogCardId: { not: null } },
+      select: { catalogCardId: true },
+    });
+    const registered = new Set(
+      registeredRows
+        .map((r) => Number(r.catalogCardId))
+        .filter((n) => Number.isFinite(n)),
+    );
+
+    // 활성 카드를 페이지로 훑어 '미등록 + 이미지 있음' 후보를 모은다(메타데이터만, 이미지 미접근).
+    type Candidate = {
+      id: number;
+      itemCode: string | null;
+      itemType: string;
+      teamId: number | null;
+      memberId: number | null;
+      seriesId: number | null;
+      name: string;
+      retailPriceJpy: number;
+    };
+    const candidates: Candidate[] = [];
+    const pageSize = 200;
+    for (let page = 1; ; page += 1) {
+      const { items } = await listCards({ status: "active", page, pageSize });
+      for (const c of items) {
+        if (registered.has(c.id) || !c.frontR2Key) continue;
+        candidates.push({
+          id: c.id,
+          itemCode: c.itemCode,
+          itemType: c.itemType,
+          teamId: c.teamId,
+          memberId: c.memberId,
+          seriesId: c.seriesId,
+          name: c.name,
+          retailPriceJpy: c.retailPriceJpy,
+        });
+      }
+      if (items.length < pageSize) break;
+    }
+
+    if (candidates.length === 0) return { created: 0, skipped: [], remaining: 0 };
+
+    // 판매가 제안용 환율은 배치당 1회만 조회(카드마다 조회하면 느리다).
+    let rate100 = 0;
+    try {
+      rate100 = (await fetchJpyKrwRate(todayKstYmd())).rate;
+    } catch {
+      rate100 = 0;
+    }
+
+    const batch = candidates.slice(0, limit);
+    const skipped: { cardId: number; reason: string }[] = [];
+    let created = 0;
+    for (const card of batch) {
+      try {
+        const photoR2Key = await copyCatalogCardPhotoToProduct(card.id);
+        const draft = buildDraftProductFromCard(card, {
+          rate100,
+          useRateForSalePrice: rate100 > 0,
+          photoR2Key,
+        });
+        await persistNewProduct(draft);
+        created += 1;
+      } catch (error) {
+        skipped.push({
+          cardId: card.id,
+          reason: error instanceof DomainError ? error.message : "등록 실패",
+        });
+      }
+    }
+
+    if (created > 0) {
+      revalidatePath("/delivery/products");
+      revalidatePath("/");
+    }
+    // remaining = 이번에 성공적으로 편입되지 않고 남은 후보(실패분 포함 → 재시도 가능).
+    return { created, skipped, remaining: candidates.length - created };
+  });
+}
