@@ -82,7 +82,12 @@ export function FavoritesForm({
         return;
       }
       toast.success("최애 정보를 저장했어요! 홈 추천에 반영됩니다.");
-      router.refresh();
+      // 저장 후 이전 화면으로 — 히스토리가 없으면(직접 진입) 마이페이지로.
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+      } else {
+        router.push("/mypage");
+      }
     });
   }
 
