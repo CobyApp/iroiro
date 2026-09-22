@@ -138,7 +138,15 @@ export function HeaderLeading({
       </div>
     );
   }
-  if (leading.kind === "logo" || leading.kind === "account") {
+  if (leading.kind === "account") {
+    // 비로그인 마이 탭 — 로고 대신 게스트 모드 표시(모바일).
+    return (
+      <div className="flex min-w-0 flex-1 items-center sm:hidden">
+        <span className="text-sm font-semibold text-muted-foreground">게스트 모드</span>
+      </div>
+    );
+  }
+  if (leading.kind === "logo") {
     // 데스크톱은 레이아웃의 상시 로고가 이미 있으니 모바일에서만 로고를 보여준다.
     return (
       <div className="flex min-w-0 flex-1 items-center sm:hidden">
