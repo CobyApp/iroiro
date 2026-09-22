@@ -246,7 +246,7 @@ export function UsedListingForm({
             <SelectContent>
               {seriesOfKind.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
-                  {s.label}
+                  {s.labelKo ?? s.label}
                 </SelectItem>
               ))}
             </SelectContent>

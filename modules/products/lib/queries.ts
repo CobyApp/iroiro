@@ -534,10 +534,19 @@ export type SeriesOption = {
   sku: string;
   kind: string;
   label: string;
+  /** 한국어 병기(series.label_i18n.ko) — 없으면 null. 고객 화면은 이 값을 우선 노출한다. */
+  labelKo: string | null;
   teamId: number | null;
   /** 이 시리즈 카탈로그 상품의 외부 시세 평균(JPY) — 0이면 정보 없음 */
   marketAvgJpy: number;
 };
+
+// series.label_i18n.ko 추출(문자열이 아니면 null).
+function seriesKoLabel(labelI18n: unknown): string | null {
+  if (!labelI18n || typeof labelI18n !== "object") return null;
+  const ko = (labelI18n as Record<string, unknown>).ko;
+  return typeof ko === "string" && ko.trim() ? ko : null;
+}
 
 // 시리즈 목록 + 시리즈별 시세 평균(연결된 카탈로그 상품 기준).
 export async function listSeriesOptions(): Promise<SeriesOption[]> {
@@ -557,6 +566,7 @@ export async function listSeriesOptions(): Promise<SeriesOption[]> {
     sku: s.sku,
     kind: s.kind,
     label: s.label,
+    labelKo: seriesKoLabel(s.labelI18n),
     teamId: s.teamId !== null ? Number(s.teamId) : null,
     marketAvgJpy: avgBy.get(Number(s.id)) ?? 0,
   }));
