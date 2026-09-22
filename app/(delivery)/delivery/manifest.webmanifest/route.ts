@@ -6,8 +6,8 @@ export function GET(): Response {
   const manifest = {
     id: "/delivery",
     name,
-    short_name: appDisplayName("배송"),
-    description: "이로이로 배송 정책 관리 콘솔",
+    short_name: appDisplayName("스토어"),
+    description: "이로이로 스토어 상품·주문·정산·배송 관리 콘솔",
     start_url: "/delivery",
     scope: "/delivery",
     display: "standalone",

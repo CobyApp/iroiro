@@ -30,12 +30,12 @@ function p2025() {
   });
 }
 
-// requireAdmin은 세션 DAL 기반 — 액션 경계(허용/거부)만 검증하도록 스텁한다.
+// 상품 액션은 스토어·배송 공간 가드(requireDeliveryManager) — 액션 경계(허용/거부)만 검증하도록 스텁한다.
 const { mockRequireAdmin } = vi.hoisted(() => ({
   mockRequireAdmin: vi.fn(),
 }));
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({
-  requireAdmin: mockRequireAdmin,
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({
+  requireDeliveryManager: mockRequireAdmin,
 }));
 
 const update = vi.fn();

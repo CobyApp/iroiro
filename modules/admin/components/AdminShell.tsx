@@ -48,12 +48,12 @@ const SCOPE: Record<
     navLabel: "게시판 관리 메뉴",
   },
   delivery: {
-    title: "배송 관리",
-    badge: "DELIVERY",
+    title: "스토어 · 배송 관리",
+    badge: "STORE",
     badgeClassName: "bg-cyan/25 text-ink",
     homeHref: "/delivery",
     sections: DELIVERY_SECTIONS,
-    navLabel: "배송 관리 메뉴",
+    navLabel: "스토어 · 배송 관리 메뉴",
   },
   market: {
     title: "중고거래 관리",

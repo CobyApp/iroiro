@@ -130,12 +130,29 @@ describe("실제 섹션 정의", () => {
     expect(hrefs).toContain("/market/blocked");
   });
 
-  it("게시판 회원·등급은 site admin 전용", () => {
-    const board = visibleSections(BOARD_SECTIONS, viewer(false, ["community"]));
-    expect(board.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/board/users");
-    expect(
-      visibleSections(BOARD_SECTIONS, viewer(true)).flatMap((s) => s.items.map((i) => i.href)),
-    ).toContain("/board/users");
+  it("회원·등급은 메인 관리자(site admin 전용)에 있고 게시판 공간엔 없다", () => {
+    // 회원·등급(권한 부여·제재)은 게시판 공간에서 메인 관리자(/admin/users)로 이동했다.
+    const boardHrefs = BOARD_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(boardHrefs).not.toContain("/board/users");
+    expect(boardHrefs).not.toContain("/admin/users");
+    const adminUsers = ADMIN_SECTIONS.flatMap((s) => s.items).find((i) => i.href === "/admin/users");
+    expect(adminUsers?.role).toBe("siteAdmin");
+    // 커뮤니티 부분 권한자에겐 메인 관리자 메뉴가 전혀 안 보인다(회원·등급 포함).
+    expect(visibleSections(ADMIN_SECTIONS, viewer(false, ["community"]))).toEqual([]);
+  });
+
+  it("스토어·배송 공간은 상품·주문·정산·배송을 담고 delivery 권한자에게 열린다", () => {
+    const hrefs = DELIVERY_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/delivery/products");
+    expect(hrefs).toContain("/delivery/orders");
+    expect(hrefs).toContain("/delivery/settlement");
+    expect(hrefs).toContain("/delivery/policy");
+    // 상품·주문·정산은 더 이상 메인 관리자에 없다.
+    const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(adminHrefs).not.toContain("/admin/products");
+    expect(adminHrefs).not.toContain("/admin/orders");
+    expect(adminHrefs).not.toContain("/admin/settlement");
+    expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
   });
 
   it("item keys are unique within each section list", () => {

@@ -13,7 +13,7 @@ import { productCleanKey } from "./lib/photo-keys";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   detectWishlistEvents,
   notifyWishers,
@@ -62,7 +62,7 @@ export async function getExchangeRateForDate(
 ): Promise<ActionResult<ExchangeRateResult>> {
   return runAction(async () => {
     // 어드민 상품 폼 전용 — 무인증 호출로 외부 환율 API를 두드리게 두지 않는다.
-    await requireAdmin();
+    await requireDeliveryManager();
     return fetchJpyKrwRate(date);
   });
 }
@@ -75,7 +75,7 @@ export async function presignProductPhotos(
   files: { filename: string; mimeType: string; sizeBytes: number }[],
 ): Promise<ActionResult<{ r2Key: string; uploadUrl: string }[]>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     if (files.length === 0) throw new DomainError("파일이 없습니다");
     if (files.length > 10) throw new DomainError("상품당 최대 10장");
 
@@ -113,7 +113,7 @@ export async function uploadProductPhotoFile(
   formData: FormData,
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const file = formData.get("file");
     const filename = String(formData.get("filename") ?? "photo.jpg");
     if (!(file instanceof Blob)) throw new DomainError("파일이 없습니다");
@@ -218,9 +218,9 @@ export async function createProduct(
   input: ProductCreateInput,
 ): Promise<ActionResult<Product>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const result = await persistNewProduct(input);
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath("/");
     return toProduct(result);
   });
@@ -230,7 +230,7 @@ export async function updateProduct(
   input: ProductUpdateInput,
 ): Promise<ActionResult<Product>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const data = parseActionInput(productUpdateSchema, input);
 
     // 찜 알림 판정용 수정 전 스냅샷 — 가격 인하·재입고·경매 시작 감지.
@@ -345,7 +345,7 @@ export async function updateProduct(
       console.error("[products] 찜 알림 발송 실패", error),
     );
 
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath(`/products/${data.id}`);
     revalidatePath("/");
     return toProduct(result);
@@ -354,7 +354,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     await mapProductWriteError(() =>
       db.$transaction(async (tx) => {
         await tx.productPhoto.deleteMany({ where: { productId: BigInt(id) } });
@@ -362,7 +362,7 @@ export async function deleteProduct(id: number): Promise<ActionResult> {
       }),
     );
 
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath("/");
   });
 }
@@ -373,7 +373,7 @@ export async function bulkUpdateProducts(
   patch: { saleStatus?: SaleStatus; stockQuantity?: number; salePrice?: number },
 ): Promise<ActionResult<{ updated: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
 
     const uniqueIds = Array.from(
       new Set(ids.filter((id) => Number.isInteger(id) && id > 0)),
@@ -431,8 +431,8 @@ export async function bulkUpdateProducts(
       await db.product.updateMany({ where, data });
     }
 
-    revalidatePath("/admin/products");
-    revalidatePath("/admin/settlement");
+    revalidatePath("/delivery/products");
+    revalidatePath("/delivery/settlement");
     revalidatePath("/");
     return { updated: uniqueIds.length };
   });
@@ -443,7 +443,7 @@ export async function bulkUpdateProducts(
 export async function duplicateProductAsListing(
   productId: number,
 ): Promise<{ id: number }> {
-  await requireAdmin();
+  await requireDeliveryManager();
 
   const src = await db.product.findUnique({ where: { id: BigInt(productId) } });
   if (!src) throw new Error("원본 상품을 찾을 수 없습니다.");
@@ -491,7 +491,7 @@ export async function duplicateProductAsListing(
     return created;
   });
 
-  revalidatePath("/admin/products");
+  revalidatePath("/delivery/products");
   return { id: Number(row.id) };
 }
 
@@ -538,7 +538,7 @@ export async function searchCatalogCardsForProduct(input: {
   page?: number;
 }): Promise<ActionResult<{ items: CatalogCardPick[]; total: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const { listCards } = await import("@/modules/cards/lib/queries");
     const page = input.page && input.page > 0 ? Math.floor(input.page) : 1;
     const { items, total } = await listCards({
@@ -602,7 +602,7 @@ export async function importCatalogCardPhoto(input: {
   cardId: number;
 }): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const r2Key = await copyCatalogCardPhotoToProduct(input.cardId);
     return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
@@ -623,7 +623,7 @@ export async function bulkCreateProductsFromCards(input: {
   useRateForSalePrice: boolean;
 }): Promise<ActionResult<BulkImportResult>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const ids = Array.from(new Set((input.cardIds ?? []).filter((n) => Number.isInteger(n) && n > 0)));
     if (ids.length === 0) throw new DomainError("선택한 카드가 없습니다");
     if (ids.length > BULK_IMPORT_MAX)
@@ -684,7 +684,7 @@ export async function bulkCreateProductsFromCards(input: {
     }
 
     if (created > 0) {
-      revalidatePath("/admin/products");
+      revalidatePath("/delivery/products");
       revalidatePath("/");
     }
     return { created, skipped };

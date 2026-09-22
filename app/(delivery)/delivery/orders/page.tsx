@@ -45,13 +45,13 @@ export default async function AdminOrdersPage({
           aria-label="주문 상태 필터"
           className="scroll-x -mx-1 flex w-full gap-1.5 overflow-x-auto px-1 sm:w-auto sm:flex-wrap"
         >
-          <Link href="/admin/orders" className={chipClass(status === undefined)}>
+          <Link href="/delivery/orders" className={chipClass(status === undefined)}>
             전체
           </Link>
           {ORDER_STATUSES.map((value) => (
             <Link
               key={value}
-              href={`/admin/orders?status=${value}`}
+              href={`/delivery/orders?status=${value}`}
               className={chipClass(status === value)}
             >
               {ORDER_STATUS_LABEL[value]}

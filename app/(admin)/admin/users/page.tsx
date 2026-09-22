@@ -17,7 +17,7 @@ export default async function AdminUsersPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const account = await getCurrentAccount();
-  if (!isAdmin(account)) redirect("/board");
+  if (!isAdmin(account)) redirect("/");
   const { q } = await searchParams;
   const users = await listAdminUsers(q);
 
@@ -28,7 +28,7 @@ export default async function AdminUsersPage({
         count={users.length}
         description="관리 권한(배송·중고·커뮤니티·토레카)을 부여하거나, 사이트 관리자 지정·작성 제재를 해요."
       >
-        <form action="/board/users" className="w-full sm:w-72">
+        <form action="/admin/users" className="w-full sm:w-72">
           <input
             type="search"
             name="q"

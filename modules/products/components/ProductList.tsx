@@ -62,7 +62,7 @@ export function ProductList({
   // 현재 필터·페이지·정렬을 edit URL에 그대로 전달 → form에서 돌아올 때 복원에 사용.
   function navigateTo(id: number) {
     const qs = searchParams.toString();
-    router.push(`/admin/products/${id}/edit${qs ? `?${qs}` : ""}`);
+    router.push(`/delivery/products/${id}/edit${qs ? `?${qs}` : ""}`);
   }
 
   const allSelected =
