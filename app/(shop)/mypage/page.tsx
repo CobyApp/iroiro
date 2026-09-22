@@ -4,6 +4,7 @@ import {
   Coins,
   Sparkles,
   Gavel,
+  Repeat2,
   ArrowRight,
   ChevronRight,
   LogOut,
@@ -37,6 +38,12 @@ const MY_LINK_SECTIONS = [
         label: "주문 내역",
         description: "결제 · 배송 확인",
         icon: PackageCheck,
+      },
+      {
+        href: "/mypage/used",
+        label: "내 중고거래",
+        description: "판매 · 구매 내역",
+        icon: Repeat2,
       },
       {
         href: "/mypage/bids",
