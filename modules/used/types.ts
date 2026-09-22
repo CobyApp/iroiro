@@ -127,3 +127,68 @@ export type UsedTrade = {
   completedAt: string | null;
   createdAt: string;
 };
+
+// ── 중고 매물 신고 ────────────────────────────────────────────────────────
+// 신고 사유 — 중고거래 성격에 맞춘 어휘(글 신고와 다르다). 순서 = 다이얼로그 표시 순서.
+export const USED_REPORT_REASONS = [
+  "prohibited",
+  "counterfeit",
+  "misleading",
+  "fraud",
+  "spam",
+  "abuse",
+  "other",
+] as const;
+export type UsedReportReason = (typeof USED_REPORT_REASONS)[number];
+export const USED_REPORT_REASON_LABELS: Record<UsedReportReason, string> = {
+  prohibited: "판매 금지 물품",
+  counterfeit: "가품/위조품 의심",
+  misleading: "허위·과장(상태·설명 불일치)",
+  fraud: "사기/외부 거래 유도",
+  spam: "스팸/도배",
+  abuse: "욕설/비방",
+  other: "기타",
+};
+
+// 신고 큐에서 본 대상 매물의 현재 상태 — 노출/차단/판매완료/없음.
+export type UsedReportTargetStatus = "visible" | "blocked" | "sold" | "missing";
+
+// 신고 시점 매물 스냅샷(증거 동결) — 이후 매물 수정/삭제와 무관하게 보존.
+export type UsedReportSnapshot = {
+  version: 1;
+  title: string;
+  description: string | null;
+  price: number | null;
+  saleMode: UsedSaleMode;
+  sellerName: string;
+  sellerCode: string;
+  primaryPhotoKey: string | null;
+  updatedAt: string;
+};
+
+// 관리자 신고 큐 항목(미해결) — 대상 매물 요약 + 신고 메타.
+export type UsedReportQueueItem = {
+  id: number;
+  listingId: number;
+  reason: UsedReportReason;
+  detail: string | null;
+  snapshot: UsedReportSnapshot;
+  reporterMasked: string;
+  createdAt: string;
+  targetStatus: UsedReportTargetStatus;
+};
+
+// 중고거래 관리 공간의 매물 목록 행 — 사진 1장·판매자·미해결 신고 수를 요약.
+export type AdminUsedListingRow = {
+  id: number;
+  title: string;
+  status: UsedStatus;
+  saleMode: UsedSaleMode;
+  price: number | null;
+  sellerAccountId: string;
+  sellerName: string;
+  primaryPhotoKey: string | null;
+  openReports: number;
+  blockedReason: string | null;
+  createdAt: string;
+};

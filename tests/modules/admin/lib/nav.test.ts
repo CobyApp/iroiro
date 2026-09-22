@@ -4,6 +4,7 @@ import {
   BOARD_SECTIONS,
   CATALOG_SECTIONS,
   DELIVERY_SECTIONS,
+  MARKET_SECTIONS,
   isNavItemActive,
   visibleSections,
   type NavItem,
@@ -100,9 +101,10 @@ describe("실제 섹션 정의", () => {
   it("메인 관리자는 네 공간으로 가는 바로가기를 갖되 역방향 링크는 없다", () => {
     const admin = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
     expect(admin).toContain("/delivery");
+    expect(admin).toContain("/market");
     expect(admin).toContain("/board");
     expect(admin).toContain("/catalog");
-    for (const sections of [BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS]) {
+    for (const sections of [BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS, MARKET_SECTIONS]) {
       expect(sections.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/admin");
     }
   });
@@ -111,9 +113,21 @@ describe("실제 섹션 정의", () => {
     expect(visibleSections(BOARD_SECTIONS, viewer(false, ["community"])).length).toBeGreaterThan(0);
     expect(visibleSections(CATALOG_SECTIONS, viewer(false, ["catalog"])).length).toBeGreaterThan(0);
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
-    // 커뮤니티 권한만으로는 카탈로그·배송 공간 메뉴가 안 보인다.
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["used"])).length).toBeGreaterThan(0);
+    // 커뮤니티 권한만으로는 카탈로그·배송·중고 공간 메뉴가 안 보인다.
     expect(visibleSections(CATALOG_SECTIONS, viewer(false, ["community"]))).toEqual([]);
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["community"]))).toEqual([]);
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["community"]))).toEqual([]);
+  });
+
+  it("중고거래 공간은 used 권한자·site admin 에게 열리고 다른 부분 권한자에겐 닫힌다", () => {
+    expect(visibleSections(MARKET_SECTIONS, viewer(true)).length).toBeGreaterThan(0);
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["catalog", "delivery"]))).toEqual([]);
+    // 모든 항목이 used 역할 — 신고·매물·차단.
+    const hrefs = MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/market/reports");
+    expect(hrefs).toContain("/market/listings");
+    expect(hrefs).toContain("/market/blocked");
   });
 
   it("게시판 회원·등급은 site admin 전용", () => {
@@ -125,7 +139,13 @@ describe("실제 섹션 정의", () => {
   });
 
   it("item keys are unique within each section list", () => {
-    for (const sections of [ADMIN_SECTIONS, BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS]) {
+    for (const sections of [
+      ADMIN_SECTIONS,
+      BOARD_SECTIONS,
+      CATALOG_SECTIONS,
+      DELIVERY_SECTIONS,
+      MARKET_SECTIONS,
+    ]) {
       const keys = sections.flatMap((s) => s.items.map((i) => i.key));
       expect(new Set(keys).size).toBe(keys.length);
     }
