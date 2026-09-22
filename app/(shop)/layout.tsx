@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrandMark } from "@/modules/ui/components/BrandMark";
 import { CartButton } from "@/modules/cart/components/CartButton";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { MessagesNavButton } from "@/modules/messages/components/MessagesNavButton";
@@ -31,15 +29,7 @@ export default async function ShopLayout({
         <header className="shop-header sticky top-0 z-30 border-b border-border/50 bg-cream/82 backdrop-blur-xl">
           {/* 로고 좌 / 탐색과 구매·계정 기능 우. */}
           <div className="shop-page-frame flex h-16 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-0">
-            <Link
-              href="/"
-              aria-label="이로이로 홈"
-              className="shop-brand flex shrink-0 items-center gap-1.5"
-            >
-              {/* 하트 단독 로고 — 워드마크 없이. 가운데 검색바에 공간을 준다. */}
-              <BrandMark className="h-9 w-9 sm:h-10 sm:w-10" preload />
-            </Link>
-            {/* 가운데 검색바 — 어느 화면에서든 상품 검색을 시작한다. */}
+            {/* 로고 없이 검색바를 넓게 — 어느 화면에서든 상품 검색을 시작한다. */}
             <HeaderSearch />
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
             <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-2">

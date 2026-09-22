@@ -13,7 +13,7 @@ export type TabDef = {
 // 장바구니·검색은 상단 헤더가 담당하고, 하단은 둘러보기/중고거래/찜/커뮤니티/마이 5탭이다.
 // 찜은 엄지로 닿기 쉬운 한가운데 탭에 둔다. 컬렉션은 마이페이지에서 진입한다(탭 아님).
 export const TAB_DEFS: TabDef[] = [
-  { key: "discover", label: "둘러보기", href: "/" },
+  { key: "discover", label: "스토어", href: "/" },
   { key: "used", label: "중고거래", href: "/used" },
   { key: "wishlist", label: "찜", href: "/wishlist" },
   { key: "community", label: "커뮤니티", href: "/posts" },
