@@ -6,7 +6,7 @@ import { getProductsByIds } from "@/modules/products/lib/queries";
 import { getDeliveryPolicy } from "@/modules/orders/lib/queries";
 import { calculateOrderAmounts } from "@/modules/orders/lib/amounts";
 import { CheckoutForm } from "@/modules/orders/components/CheckoutForm";
-import { getDefaultAddress } from "@/modules/addresses/lib/queries";
+import { getDefaultAddress, listAddresses } from "@/modules/addresses/lib/queries";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import {
   countUsableFreeShippingCoupons,
@@ -65,7 +65,10 @@ export default async function CheckoutPage({
     getPointBalance(account.id),
     countUsableFreeShippingCoupons(account.id),
   ]);
-  const defaultAddress = await getDefaultAddress(account.id);
+  const [defaultAddress, savedAddresses] = await Promise.all([
+    getDefaultAddress(account.id),
+    listAddresses(account.id),
+  ]);
 
   return (
     <div className="shop-page-frame space-y-6">
@@ -82,6 +85,7 @@ export default async function CheckoutPage({
         pointBalance={pointBalance}
         freeShippingCoupons={freeShippingCoupons}
         defaultAddress={defaultAddress}
+        savedAddresses={savedAddresses}
       />
     </div>
   );

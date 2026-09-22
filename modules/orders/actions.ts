@@ -14,6 +14,7 @@ import { notify } from "@/modules/notifications/lib/notify";
 // 교차 도메인: 결제 승인 tx 안에서 컬렉션 보유 원장 적재를 원자화해야 하므로 tx client를 넘겨 호출.
 import { materializeItems } from "@/modules/collection/lib/materialize";
 import { calculateOrderAmounts } from "./lib/amounts";
+import { rememberAddress } from "@/modules/addresses/lib/remember";
 import { formatOrderNo } from "./lib/order-no";
 import { decrementStock, restoreStock, SoldOutError } from "./lib/stock";
 import {
@@ -286,6 +287,15 @@ async function placeOrderTx(
       accountId,
       ...(selectedIds.length > 0 ? { id: { in: selectedIds } } : {}),
     },
+  });
+
+  // 이번 배송지를 주소록에 자동 저장·최근 배송지로 승격(다음 결제에 자동 채움).
+  await rememberAddress(tx, accountId, {
+    recipientName: data.recipientName,
+    recipientPhone: data.recipientPhone,
+    zipcode: data.zipcode,
+    baseAddress: data.baseAddress,
+    detailAddress: data.detailAddress ?? null,
   });
 }
 
