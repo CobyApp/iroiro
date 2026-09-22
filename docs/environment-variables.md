@@ -70,7 +70,7 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `CRON_SECRET` 🔒 | ◯ 선택(운영 권장) | `GET /api/cron/close-auctions`(경매 마감 스윕) 보호 토큰. 설정돼 있으면 `Authorization: Bearer ${CRON_SECRET}` 일치 필수, 없으면 라우트가 무인증으로 열린다. `env.ts` 검증 밖(`process.env` 직접 참조). 운영: `setup.sh core`가 자동 생성해 SSM에 넣고, `setup.sh cron`이 EventBridge API destination(10분 간격)에 같은 값을 헤더로 심는다. 로컬은 보통 미설정 |
+| `CRON_SECRET` 🔒 | ◯ 선택(운영 권장) | `GET /api/cron/close-auctions`(경매 마감 스윕)·`GET /api/cron/auto-confirm-used`(중고 자동 수령확정 스윕) 보호 토큰. 설정돼 있으면 `Authorization: Bearer ${CRON_SECRET}` 일치 필수, 없으면 라우트가 무인증으로 열린다. `env.ts` 검증 밖(`process.env` 직접 참조). 운영: `setup.sh core`가 자동 생성해 SSM에 넣고, `setup.sh cron`이 EventBridge API destination(10분 간격)에 같은 값을 헤더로 심는다. 로컬은 보통 미설정 |
 
 ## 웹 푸시 (VAPID)
 
@@ -87,12 +87,16 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
 | `FX_API_BASE` | ◯ 선택 | 매입일 환율(JPY→KRW) 조회 API. 기본 [Frankfurter](https://frankfurter.dev)(ECB 기준, 키 불필요, 과거 영업일 지원). 정식 호스트는 `https://api.frankfurter.dev/v1` — `.app` 도메인은 301 리다이렉트 |
+| `KAKAO_PAY_CID` | ◯ 선택 | 카카오페이 단건결제 CID. 기본값은 카카오 공식 테스트 CID `TC0ONETIME`. 실 계약 CID 는 환경별로 지정 |
+| `KAKAO_PAY_SECRET_KEY` 🔒 | ◯ 조건부 | 카카오페이 Secret key. `PAYMENT_PROVIDER=kakaopay` 일 때 필요 — 없으면 mock(즉시 결제)으로 폴백한다(키 없이도 CI·로컬 안전). 실 키는 SSM |
+| `KOREA_POST_API_BASE` | ◯ 선택 | 우체국 국내우편 종적조회(배송추적) 오픈 API 엔드포인트. 기본값 있음(보통 미설정) |
+| `KOREA_POST_API_KEY` 🔒 | ◯ 선택 | 우체국 배송추적 API 서비스키(공공데이터포털 15035122). 없으면 `lib/korea-post` 가 실 호출 없이 더미 상태를 돌려준다. 실 키는 SSM |
 
 ## 런타임 토글
 
 | 변수 | 구분 | 설명 |
 |---|---|---|
-| `PAYMENT_PROVIDER` | ◯ 선택 | 결제 게이트웨이 어댑터. 기본 `mock`(현재 유일한 값, 운영 태스크 정의도 `mock`). 실 PG 도입 시 `lib/env.ts` enum에 `"toss"` 등 추가 + `lib/payments` 어댑터 구현 후 교체 |
+| `PAYMENT_PROVIDER` | ◯ 선택 | 결제 게이트웨이 어댑터. 기본 `mock`(즉시 결제). 중고 안전거래 리다이렉트 결제는 `kakaopay`(단, `KAKAO_PAY_SECRET_KEY` 없으면 mock 폴백). 실 스토어 PG 도입 시 `lib/env.ts` enum 확장 + `lib/payments` 어댑터 구현 |
 
 ## 자동 설정 (구성 불필요)
 

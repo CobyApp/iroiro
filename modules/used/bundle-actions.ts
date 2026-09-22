@@ -9,7 +9,10 @@ import {
 } from "@/lib/action-result";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
-import { calcUsedBundleFees, mockPostTrackingCode } from "./lib/fees";
+import { issueTracking } from "@/lib/korea-post";
+import { notify } from "@/modules/notifications/lib/notify";
+import { calcUsedBundleFees } from "./lib/fees";
+import { AUTO_CONFIRM_DAYS } from "./lib/settle-trade";
 import { usedBundleBuySchema, type UsedBundleBuyInput } from "./lib/schema";
 
 async function requireLogin() {
@@ -154,7 +157,8 @@ export async function issueBundlePostQr(
       throw new DomainError("결제 완료 상태에서만 발급할 수 있어요");
     }
     const trackingCode =
-      bundle.postTrackingCode ?? mockPostTrackingCode(Number(bundle.id) * 6271);
+      bundle.postTrackingCode ??
+      issueTracking({ seed: Number(bundle.id) * 6271 }).trackingCode;
     await db.usedBundle.update({
       where: { id: bundle.id },
       data: {
@@ -171,15 +175,25 @@ export async function issueBundlePostQr(
 export async function markBundleShipped(bundleId: number): Promise<ActionResult> {
   return runAction(async () => {
     const account = await requireLogin();
+    const now = new Date();
     const res = await db.usedBundle.updateMany({
       where: { id: BigInt(bundleId), sellerAccountId: account.id, status: "paid" },
-      data: { status: "shipped", updatedAt: new Date() },
+      data: { status: "shipped", shippedAt: now, updatedAt: now },
     });
     if (res.count === 0) throw new DomainError("발송 처리할 수 없는 상태입니다");
     await db.usedTrade.updateMany({
       where: { bundleId: BigInt(bundleId), status: "paid" },
-      data: { status: "shipped", updatedAt: new Date() },
+      data: { status: "shipped", shippedAt: now, updatedAt: now },
     });
+    const bundle = await db.usedBundle.findUnique({ where: { id: BigInt(bundleId) } });
+    if (bundle) {
+      await notify(bundle.buyerAccountId, {
+        type: "order_shipped",
+        title: "묶음 구매 상품이 발송됐어요",
+        body: `발송 후 ${AUTO_CONFIRM_DAYS}일이 지나면 자동으로 구매확정돼요.`,
+        link: `/used/bundle/${bundleId}`,
+      });
+    }
     revalidateBundle(bundleId);
   });
 }

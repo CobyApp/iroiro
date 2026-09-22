@@ -36,7 +36,17 @@ const envSchema = z
       .url()
       .default("http://localhost:9000/iroiro-catalog-dev"),
     // 결제 게이트웨이 어댑터 선택. 실 PG 도입 시 enum에 "toss" 등 추가 + lib/payments 어댑터 구현.
-    PAYMENT_PROVIDER: z.enum(["mock"]).default("mock"),
+    // kakaopay = 중고 안전거래 리다이렉트 결제. KAKAO_PAY_SECRET_KEY 가 없으면 런타임이
+    // mock(즉시 결제)으로 폴백하므로 키 없이도 CI·로컬에서 안전하게 동작한다.
+    PAYMENT_PROVIDER: z.enum(["mock", "kakaopay"]).default("mock"),
+    // 카카오페이 단건결제 CID. 기본값은 카카오 공식 테스트 CID(TC0ONETIME) — 실 계약 전까지 사용.
+    KAKAO_PAY_CID: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).default("TC0ONETIME"),
+    ),
+    // 카카오페이 Secret key(dev/prod). 선택 — 미설정이면 kakaopay 선택이어도 mock 으로 폴백.
+    // 실제 키는 SSM(운영)에만 두고 코드/리포지토리에는 넣지 않는다(secretlint).
+    KAKAO_PAY_SECRET_KEY: optionalString,
     // 웹 푸시(VAPID) — 미설정이면 푸시 발송만 조용히 비활성(인앱 알림은 동작).
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: optionalString,
     VAPID_PRIVATE_KEY: optionalString,
@@ -73,6 +83,18 @@ const envSchema = z
       z.string().min(1).default("amazon.titan-embed-image-v1"),
     ),
     BEDROCK_EMBED_DIMENSION: z.coerce.number().int().positive().default(1024),
+    // 우체국 국내우편 종적조회(배송추적) 오픈 API. 전부 선택 — KOREA_POST_API_KEY 가 없으면
+    // lib/korea-post 어댑터가 실 호출 없이 더미 상태를 돌려준다(CI·로컬 안전). 실 키는 SSM.
+    KOREA_POST_API_BASE: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .url()
+        .default(
+          "http://openapi.epost.go.kr/trace/retrieveLongitudinalCombinedService/retrieveLongitudinalCombinedService/getLongitudinalCombinedList",
+        ),
+    ),
+    KOREA_POST_API_KEY: optionalString,
   });
 
 export const env = envSchema.parse(process.env);
@@ -80,3 +102,6 @@ export const env = envSchema.parse(process.env);
 // 이미지 분석 활성화 조건 = 리전 설정. 자격증명은 런타임에 정적 키 또는 자격증명 체인에서
 // 해석하며(lib/vision/client.ts), 해석 실패 시 분석만 조용히 건너뛴다(fail-soft).
 export const isVisionConfigured = Boolean(env.BEDROCK_REGION);
+
+// 배송추적 실연동 활성화 조건 = 우체국 API 키. 없으면 lib/korea-post 가 더미 상태로 폴백.
+export const isKoreaPostConfigured = Boolean(env.KOREA_POST_API_KEY);

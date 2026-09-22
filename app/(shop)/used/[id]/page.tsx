@@ -13,6 +13,8 @@ import {
   listSellerListings,
 } from "@/modules/used/lib/queries";
 import { settleUsedListingIfDue } from "@/modules/used/actions";
+import { AUTO_CONFIRM_MS } from "@/modules/used/lib/settle-trade";
+import { getTrackingStatus } from "@/lib/korea-post";
 import { UsedDetailCta } from "@/modules/used/components/UsedDetailCta";
 import { ReportListingDialog } from "@/modules/used/components/ReportListingDialog";
 import { UsedRow } from "@/modules/used/components/UsedRow";
@@ -78,6 +80,20 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
           : ("visitor" as const);
   // 거래 정보는 당사자에게만 — 방문자에게는 상태 배지로만 보인다.
   const visibleTrade = role === "visitor" ? null : trade;
+
+  // 발송된 거래 — 배송추적 현재 상태(더미라도)와 자동 구매확정 예정일을 계산해 전달.
+  let tracking: { stateLabel: string; isMock: boolean } | null = null;
+  let autoConfirmNote: string | null = null;
+  if (visibleTrade?.status === "shipped" && visibleTrade.postTrackingCode) {
+    const status = await getTrackingStatus(visibleTrade.postTrackingCode);
+    tracking = { stateLabel: status.stateLabel, isMock: status.isMock };
+    if (visibleTrade.shippedAt) {
+      const dueAt = new Date(
+        new Date(visibleTrade.shippedAt).getTime() + AUTO_CONFIRM_MS,
+      );
+      autoConfirmNote = `${formatKstDate(dueAt)}에 자동으로 구매확정돼요`;
+    }
+  }
 
   const team = teams.find((t) => t.id === listing!.teamId);
   const member = members.find((m) => m.id === listing!.memberId);
@@ -161,6 +177,8 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
             isLoggedIn={account !== null}
             wished={usedWishedIds?.has(listing.id) ?? false}
             pointBalance={pointBalance}
+            tracking={tracking}
+            autoConfirmNote={autoConfirmNote}
           />
 
           {listing.description && (

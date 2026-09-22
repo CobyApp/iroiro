@@ -2737,3 +2737,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS product_catalog_card_unique
     ON product (catalog_card_id) WHERE catalog_card_id IS NOT NULL;
 
 -- ============================================================================
+-- [20260929000000_used_escrow_completion]
+-- ============================================================================
+
+-- 중고 에스크로 완성: (1) 자동 수령확정 타이머 — shipped_at 로 발송 시점을 남겨
+-- 일정 기간(AUTO_CONFIRM_MS) 지나면 자동으로 수령확정한다. (2) 카카오페이 등 리다이렉트
+-- 결제 — 결제 대기(pending) 거래에 tid(payment_tid)·사용 포인트(points_used)를 실어
+-- 승인(pg_token) 시 결제완료로 전이한다. 재실행 안전(ADD COLUMN IF NOT EXISTS).
+-- GRANT 는 이미 used_trade·used_bundle 에 SELECT/INSERT/UPDATE 로 부여돼 새 컬럼도 커버된다.
+
+ALTER TABLE used_trade
+    ADD COLUMN IF NOT EXISTS shipped_at  TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_tid TEXT,
+    ADD COLUMN IF NOT EXISTS points_used INT NOT NULL DEFAULT 0;
+
+ALTER TABLE used_bundle
+    ADD COLUMN IF NOT EXISTS shipped_at  TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS payment_tid TEXT;
+
+-- 기존 발송 건 백필 — shipped_at 없이 이미 shipped 인 행은 updated_at 로 근사(발송 처리 시각).
+UPDATE used_trade  SET shipped_at = updated_at WHERE status = 'shipped' AND shipped_at IS NULL;
+UPDATE used_bundle SET shipped_at = updated_at WHERE status = 'shipped' AND shipped_at IS NULL;
+
+-- 자동 수령확정 스윕용 부분 인덱스 — 발송 상태 행만(대부분은 completed/paid 라 인덱스가 작다).
+CREATE INDEX IF NOT EXISTS used_trade_shipped_idx  ON used_trade  (shipped_at) WHERE status = 'shipped';
+CREATE INDEX IF NOT EXISTS used_bundle_shipped_idx ON used_bundle (shipped_at) WHERE status = 'shipped';
+
+COMMENT ON COLUMN used_trade.shipped_at   IS '발송 처리 시각 — 자동 수령확정 타이머 기준';
+COMMENT ON COLUMN used_trade.payment_tid  IS '결제 게이트웨이 거래번호(카카오페이 tid 등) — pending→paid 승인에 사용';
+COMMENT ON COLUMN used_trade.points_used  IS '이 거래에 사용한 포인트(승인 시 차감). 0=미사용';
+COMMENT ON COLUMN used_bundle.shipped_at  IS '발송 처리 시각 — 자동 수령확정 타이머 기준';
+COMMENT ON COLUMN used_bundle.payment_tid IS '결제 게이트웨이 거래번호(카카오페이 tid 등)';
+
+-- ============================================================================
