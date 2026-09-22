@@ -19,16 +19,18 @@ model Product {
   teamId               BigInt?  @map("team_id")
   memberId             BigInt?  @map("member_id")
   name                 String
+  // 매입 원가·부대비용·부가정보(설명/컨디션)·매입정보는 스토어 상품에서 제거됨(2026-09).
+  // 칼럼은 롤아웃 안전을 위해 남겨두되(옵셔널) 앱은 더 이상 쓰지 않는다 — 이후 마이그레이션에서 DROP.
   description          String?
-  purchasePriceJpy     Int      @map("purchase_price_jpy")
-  purchaseExchangeRate Decimal  @map("purchase_exchange_rate") @db.Decimal(8, 4)
-  purchasePriceKrw     Int      @map("purchase_price_krw")
+  purchasePriceJpy     Int?     @map("purchase_price_jpy")
+  purchaseExchangeRate Decimal? @map("purchase_exchange_rate") @db.Decimal(8, 4)
+  purchasePriceKrw     Int?     @map("purchase_price_krw")
   packagingCostKrw     Int      @default(0) @map("packaging_cost_krw")
   overseasShippingKrw  Int      @default(0) @map("overseas_shipping_krw")
   domesticShippingKrw  Int      @default(0) @map("domestic_shipping_krw")
   otherCostKrw         Int      @default(0) @map("other_cost_krw")
   purchaser            String?  @map("purchaser")
-  purchaseDate         DateTime @map("purchase_date") @db.Date
+  purchaseDate         DateTime? @map("purchase_date") @db.Date
   regularPrice         Int      @map("regular_price")
   salePrice            Int      @map("sale_price")
   condition            String?
@@ -780,6 +782,9 @@ model UsedListing {
   auctionWinnerAccountId String?   @map("auction_winner_account_id") @db.Uuid
   auctionPayDueAt        DateTime? @map("auction_pay_due_at") @db.Timestamptz(6)
   viewCount              Int       @default(0) @map("view_count")
+  blockedAt              DateTime? @map("blocked_at") @db.Timestamptz(6)
+  blockedReason          String?   @map("blocked_reason")
+  blockedBy              String?   @map("blocked_by")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   photos                 UsedListingPhoto[]
@@ -791,6 +796,28 @@ model UsedListing {
   @@index([auctionStatus, auctionEndsAt], map: "used_listing_auction_due_idx")
   @@index([cardId], map: "used_listing_card_idx")
   @@map("used_listing")
+}
+
+model UsedReport {
+  id                BigInt    @id @default(autoincrement())
+  listingId         BigInt    @map("listing_id")
+  reporterAccountId String    @map("reporter_account_id") @db.Uuid
+  reason            String
+  detail            String?
+  snapshot          Json
+  resolution        String?
+  resolvedBy        String?   @map("resolved_by")
+  resolutionNote    String?   @map("resolution_note")
+  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([listingId, reporterAccountId], map: "used_report_listing_reporter_unique")
+  @@index([reporterAccountId, createdAt], map: "used_report_reporter_created_at_idx")
+  @@index([createdAt], map: "used_report_unresolved_created_at_idx", where: raw("(resolved_at IS NULL)"))
+  @@index([createdAt], map: "used_report_created_at_idx")
+  @@index([updatedAt], map: "used_report_updated_at_idx")
+  @@map("used_report")
 }
 
 model UsedListingPhoto {

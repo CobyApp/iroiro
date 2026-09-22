@@ -1,21 +1,39 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Package, ShoppingBag, Truck } from "lucide-react";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
-import { getDeliveryPolicy } from "@/modules/orders/lib/queries";
-import { DeliveryPolicyForm } from "@/modules/orders/components/DeliveryPolicyForm";
+import { Card, CardContent } from "@/components/ui/card";
 
-// 관리자 — 배송 정책 (기본 배송비 · 무료배송 기준). 주문 금액 계산의 단일 소스.
-export default async function AdminDeliveryPage() {
-  const policy = await getDeliveryPolicy();
+export const metadata: Metadata = { title: "홈" };
 
+const LINKS = [
+  { label: "상품", href: "/delivery/products", icon: Package, hint: "등록·수정·재고·판매상태" },
+  { label: "주문", href: "/delivery/orders", icon: ShoppingBag, hint: "결제·발송·상태 관리" },
+  { label: "배송 정책", href: "/delivery/policy", icon: Truck, hint: "배송비·무료배송 기준" },
+];
+
+// 스토어·배송 관리 홈 — 상품·주문·정산·배송을 한곳에서 진입.
+export default function StoreHomePage() {
   return (
-    <AdminPage>
-      <AdminPageHeader
-        title="배송 정책"
-        description="모든 주문의 배송비 계산에 적용됩니다. 상품 합계가 무료배송 기준 이상이면 배송비가 면제돼요."
-      />
-      <div className="max-w-lg">
-        <DeliveryPolicyForm policy={policy} />
-      </div>
+    <AdminPage className="space-y-6">
+      <AdminPageHeader title="스토어 · 배송 관리" description="스토어 상품·주문·정산과 배송 정책을 관리해요." />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {LINKS.map((l) => {
+          const Icon = l.icon;
+          return (
+            <Link key={l.href} href={l.href} className="group">
+              <Card className="h-full transition-colors group-hover:border-primary/50">
+                <CardContent className="space-y-2 p-4">
+                  <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />
+                  <p className="font-display text-lg text-foreground">{l.label}</p>
+                  <p className="text-xs text-muted-foreground">{l.hint}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </section>
     </AdminPage>
   );
 }

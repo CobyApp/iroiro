@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { grantReviewPoints } from "@/modules/points/lib/grant";
 import { REVIEW_POINTS } from "@/modules/points/lib/rules";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import type { OrderStatus } from "@/modules/orders/types";
 import { canReviewOrderStatus } from "./lib/rules";
 import {
@@ -97,7 +97,7 @@ export async function adminDeleteReview(
   input: ReviewDeleteInput,
 ): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const data = parseActionInput(reviewDeleteSchema, input);
     const result = await db.productReview.deleteMany({
       where: { id: BigInt(data.reviewId) },
@@ -105,7 +105,7 @@ export async function adminDeleteReview(
     if (result.count === 0) {
       throw new DomainError("리뷰를 찾을 수 없습니다");
     }
-    revalidatePath("/admin/reviews");
+    revalidatePath("/delivery/reviews");
   });
 }
 

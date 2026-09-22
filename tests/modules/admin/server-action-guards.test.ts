@@ -4,9 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // 각 Server Action의 requireAdmin 호출 하나로 좁혀졌다. Server Action은 액션 ID만 알면
 // 공개 라우트로도 POST되므로 layout 가드가 이들을 대신 막아주지 않는다.
 // 이 테스트는 "가드가 빠진 액션이 다시 생기는 것"을 막는다.
-const { mockRequireAdmin } = vi.hoisted(() => ({ mockRequireAdmin: vi.fn() }));
+const { mockRequireAdmin, mockRequireDeliveryManager } = vi.hoisted(() => ({
+  mockRequireAdmin: vi.fn(),
+  mockRequireDeliveryManager: vi.fn(),
+}));
 vi.mock("@/modules/admin/lib/requireAdmin", () => ({
   requireAdmin: mockRequireAdmin,
+}));
+// 상품 액션은 스토어·배송 공간 가드로 이전됐다(requireDeliveryManager).
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({
+  requireDeliveryManager: mockRequireDeliveryManager,
 }));
 
 const reject = vi.fn(async () => {
@@ -33,6 +40,7 @@ const DENIED = /관리자 권한/;
 beforeEach(() => {
   vi.clearAllMocks();
   mockRequireAdmin.mockRejectedValue(new Error("관리자 권한이 필요합니다"));
+  mockRequireDeliveryManager.mockRejectedValue(new Error("관리자 권한이 필요합니다"));
 });
 
 describe("배너 액션은 비관리자를 거부한다", () => {
@@ -96,16 +104,6 @@ describe("상품 액션은 비관리자를 거부한다", () => {
   it("deleteProduct", async () => {
     const { deleteProduct } = await import("@/modules/products/actions");
     await expect(deleteProduct(1)).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-});
-
-describe("외부 자원을 쓰는 액션은 호출 전에 거부한다", () => {
-  it("getExchangeRateForDate — 외부 환율 API 호출 이전에 차단", async () => {
-    const { getExchangeRateForDate } = await import(
-      "@/modules/products/actions"
-    );
-    await expect(getExchangeRateForDate("2026-01-01")).rejects.toThrow(DENIED);
     expect(reject).not.toHaveBeenCalled();
   });
 });

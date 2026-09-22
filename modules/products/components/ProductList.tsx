@@ -32,6 +32,8 @@ type Props = {
   teams: Team[];
   members: MemberWithTeams[];
   publicBaseUrl: string;
+  /** catalogCardId → 포즈 번호. 출처 카드가 있는 상품에 "포즈 N" 표시. */
+  poses?: Record<number, number>;
   /** 페이지네이션 적용 시 현재 페이지의 첫 row index. 글로벌 #번호 매김에 사용. */
   startIndex?: number;
 };
@@ -53,6 +55,7 @@ export function ProductList({
   teams,
   members,
   publicBaseUrl,
+  poses = {},
   startIndex = 0,
 }: Props) {
   const router = useRouter();
@@ -62,7 +65,7 @@ export function ProductList({
   // 현재 필터·페이지·정렬을 edit URL에 그대로 전달 → form에서 돌아올 때 복원에 사용.
   function navigateTo(id: number) {
     const qs = searchParams.toString();
-    router.push(`/admin/products/${id}/edit${qs ? `?${qs}` : ""}`);
+    router.push(`/delivery/products/${id}/edit${qs ? `?${qs}` : ""}`);
   }
 
   const allSelected =
@@ -241,6 +244,12 @@ export function ProductList({
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{product.name}</div>
+                    {product.catalogCardId != null &&
+                      poses[product.catalogCardId] != null && (
+                        <div className="text-xs text-muted-foreground">
+                          포즈 {poses[product.catalogCardId]}
+                        </div>
+                      )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
@@ -255,9 +264,6 @@ export function ProductList({
                           ₩{product.regularPrice.toLocaleString()}
                         </div>
                       )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      매입 ₩{product.purchasePriceKrw.toLocaleString()}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -338,6 +344,12 @@ export function ProductList({
                 <p className="line-clamp-2 font-medium leading-snug">
                   {product.name}
                 </p>
+                {product.catalogCardId != null &&
+                  poses[product.catalogCardId] != null && (
+                    <p className="text-xs text-muted-foreground">
+                      포즈 {poses[product.catalogCardId]}
+                    </p>
+                  )}
                 <div className="flex flex-wrap items-center gap-1">
                   <StatusBadges product={product} />
                   {product.saleStatus === "active" &&

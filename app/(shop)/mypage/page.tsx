@@ -191,18 +191,22 @@ export default async function MyPage() {
                 <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
                   {section.title}
                 </p>
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {/* 한 줄에 하나씩 — 글씨 잘림 없이 라벨·설명을 온전히 보여준다. */}
+                <ul className="space-y-2">
                   {links.map(({ href, label, description, icon: Icon }) => (
                     <li key={href}>
-                      <Link href={href} className="mypage-quick-link group">
-                        <span className="mypage-quick-link-icon">
+                      <Link
+                        href={href}
+                        className="group flex items-center gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3 transition-colors hover:bg-muted/50"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
                           <Icon className="h-5 w-5" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">
+                          <span className="block text-sm font-semibold text-foreground">
                             {label}
                           </span>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
                             {description}
                           </span>
                         </span>

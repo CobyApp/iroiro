@@ -53,7 +53,7 @@ export default async function BoardHomePage() {
 
   return (
     <AdminPage className="space-y-6">
-      <AdminPageHeader title="게시판 관리" description="신고 처리와 커뮤니티 운영을 한곳에서." />
+      <AdminPageHeader title="커뮤니티 관리" description="신고 처리와 커뮤니티 운영을 한곳에서." />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => {

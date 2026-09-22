@@ -76,14 +76,6 @@ describe("toProduct", () => {
     expect(product.memberId).toBeNull();
   });
 
-  it("Decimal 환율을 number로 변환한다", () => {
-    expect(toProduct(productRow).purchaseExchangeRate).toBe(925);
-  });
-
-  it("purchaseDate는 YYYY-MM-DD ISO date string", () => {
-    expect(toProduct(productRow).purchaseDate).toBe("2026-04-15");
-  });
-
   it("itemType과 saleStatus는 enum literal로 노출", () => {
     const product = toProduct(productRow);
     expect(product.itemType).toBe("photocard");

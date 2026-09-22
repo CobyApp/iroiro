@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card as UICard, CardContent } from "@/components/ui/card";
 import { HScroll } from "@/components/HScroll";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,8 +24,11 @@ import { createUsedListing } from "../actions";
 import {
   PRODUCT_CONDITIONS,
   PRODUCT_CONDITION_LABEL,
+  USED_ITEM_TYPE_LABEL,
+  USED_ITEM_TYPES,
   USED_SHIPPING_LABEL,
   USED_SHIPPING_METHODS,
+  type UsedItemType,
   type UsedShippingMethod,
 } from "../types";
 import { UsedPhotoUpload, type UploadedUsedPhoto } from "./UsedPhotoUpload";
@@ -60,6 +64,15 @@ export function UsedListingForm({
 
   const [photos, setPhotos] = useState<UploadedUsedPhoto[]>([]);
   const [description, setDescription] = useState("");
+  // 굿즈 종류 — 토레카(photocard)만 카탈로그 카드 흐름, 나머지는 제목·그룹·멤버 직접 입력.
+  const [itemType, setItemType] = useState<UsedItemType>("photocard");
+  const isToreca = itemType === "photocard";
+  // 직접 입력 모드 — 카탈로그에 없는 그룹·카드(다른 아이돌 등)를 제목·그룹·멤버 직접 입력으로 등록.
+  // 토레카가 아니면 항상 직접 입력, 토레카여도 사용자가 켜면 직접 입력.
+  const [manual, setManual] = useState(false);
+  const manualMode = !isToreca || manual;
+  // 비-토레카·직접입력 굿즈의 제목(카탈로그 카드 선택 시에는 카드 이름 자동).
+  const [title, setTitle] = useState("");
   // 토레카 마스터에서 고른 카드 — 제목·계층은 서버가 여기서 파생한다.
   const [cards, setCards] = useState<Card[]>([]);
   const [cardsChecked, setCardsChecked] = useState(false);
@@ -130,9 +143,15 @@ export function UsedListingForm({
   function submit() {
     const endsAtIso = endsAtLocal ? new Date(endsAtLocal).toISOString() : null;
     startTransition(async () => {
-      if (!selectedCard) return;
+      if (!manualMode && !selectedCard) return;
+      if (manualMode && title.trim() === "") return;
       const result = await createUsedListing({
-        cardId: selectedCard.id,
+        itemType,
+        cardId: manualMode ? null : selectedCard!.id,
+        title: manualMode ? title.trim() : null,
+        teamId: manualMode ? teamId : null,
+        memberId: manualMode ? memberId : null,
+        seriesId: null,
         description: description || null,
         condition: condition as (typeof PRODUCT_CONDITIONS)[number],
         saleMode,
@@ -160,14 +179,46 @@ export function UsedListingForm({
   const selectCls = "h-10 w-full";
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <UICard>
+      <CardContent className="space-y-6 p-4 sm:p-6">
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground">실물 사진</h2>
         <UsedPhotoUpload photos={photos} onChange={setPhotos} />
       </section>
 
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">굿즈 종류</h2>
+        <Select value={itemType} onValueChange={(v) => setItemType(v as UsedItemType)}>
+          <SelectTrigger className={selectCls}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {USED_ITEM_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>
+                {USED_ITEM_TYPE_LABEL[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!isToreca && (
+          <p className="text-xs text-muted-foreground">
+            토레카 외 굿즈는 카탈로그 카드가 없어요 — 제목과 그룹·멤버를 직접 입력해주세요.
+          </p>
+        )}
+      </section>
+
+      {!manualMode ? (
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">어떤 카드인가요?</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">어떤 카드인가요?</h2>
+          <button
+            type="button"
+            onClick={() => setManual(true)}
+            className="text-xs font-medium text-primary underline underline-offset-2"
+          >
+            카탈로그에 없어요? 직접 입력
+          </button>
+        </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select
             value={teamId !== null ? String(teamId) : ""}
@@ -246,7 +297,7 @@ export function UsedListingForm({
             <SelectContent>
               {seriesOfKind.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
-                  {s.label}
+                  {s.labelKo ?? s.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -303,7 +354,15 @@ export function UsedListingForm({
               >
                 토레카 등록
               </Link>
-              으로 먼저 제보해주세요 (승인되면 여기서 바로 고를 수 있어요).
+              으로 먼저 제보하거나,{" "}
+              <button
+                type="button"
+                onClick={() => setManual(true)}
+                className="font-medium text-primary underline underline-offset-2"
+              >
+                직접 입력으로 등록
+              </button>
+              하세요.
             </p>
           )
         )}
@@ -332,6 +391,67 @@ export function UsedListingForm({
           </div>
         )}
       </section>
+      ) : (
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">굿즈 정보 (직접 입력)</h2>
+          {isToreca && (
+            <button
+              type="button"
+              onClick={() => setManual(false)}
+              className="text-xs font-medium text-primary underline underline-offset-2"
+            >
+              카탈로그에서 고르기
+            </button>
+          )}
+        </div>
+        <label className="block text-sm">
+          <span className="mb-1 block text-muted-foreground">제목</span>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={`예: ${USED_ITEM_TYPE_LABEL[itemType]} — 멤버명 / 시리즈`}
+            maxLength={80}
+          />
+        </label>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Select
+            value={teamId !== null ? String(teamId) : ""}
+            onValueChange={(v) => {
+              setTeamId(v ? Number(v) : null);
+              setMemberId(null);
+            }}
+          >
+            <SelectTrigger className={selectCls}>
+              <SelectValue placeholder="그룹 (선택)" />
+            </SelectTrigger>
+            <SelectContent>
+              {teams.map((t) => (
+                <SelectItem key={t.id} value={String(t.id)}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={memberId !== null ? String(memberId) : ""}
+            onValueChange={(v) => setMemberId(v ? Number(v) : null)}
+            disabled={teamId === null}
+          >
+            <SelectTrigger className={selectCls}>
+              <SelectValue placeholder="멤버 (선택)" />
+            </SelectTrigger>
+            <SelectContent>
+              {membersOfTeam.map((m) => (
+                <SelectItem key={m.id} value={String(m.id)}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">실물 상태</h2>
@@ -453,10 +573,15 @@ export function UsedListingForm({
         size="lg"
         className="w-full"
         onClick={submit}
-        disabled={pending || photos.length === 0 || selectedCard === null}
+        disabled={
+          pending ||
+          photos.length === 0 ||
+          (isToreca ? selectedCard === null : title.trim() === "")
+        }
       >
         {pending ? "등록 중…" : "매물 등록하기"}
       </Button>
-    </div>
+      </CardContent>
+    </UICard>
   );
 }

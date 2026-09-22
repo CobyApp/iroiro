@@ -7,7 +7,7 @@ export function GET(): Response {
   const manifest = {
     id: "/board",
     name,
-    short_name: appDisplayName("게시판"),
+    short_name: appDisplayName("커뮤니티"),
     description: "이로이로 커뮤니티·신고 관리 콘솔",
     start_url: "/board",
     scope: "/board",

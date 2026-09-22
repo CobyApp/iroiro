@@ -9,7 +9,7 @@ export const ADMIN_SPACES = ["delivery", "used", "community", "catalog"] as cons
 export type AdminSpace = (typeof ADMIN_SPACES)[number];
 
 export const ADMIN_SPACE_LABEL: Record<AdminSpace, string> = {
-  delivery: "배송 관리",
+  delivery: "스토어 관리",
   used: "중고거래 관리",
   community: "커뮤니티 관리",
   catalog: "토레카 관리",

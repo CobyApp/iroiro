@@ -13,7 +13,7 @@ import { productCleanKey } from "./lib/photo-keys";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   detectWishlistEvents,
   notifyWishers,
@@ -25,7 +25,7 @@ import {
   type ProductUpdateInput,
 } from "./lib/schema";
 import { toProduct } from "./lib/transform";
-import { fetchJpyKrwRate, type ExchangeRateResult } from "./lib/fx";
+import { fetchJpyKrwRate } from "./lib/fx";
 import { buildDraftProductFromCard } from "./lib/build-draft-from-card";
 import { todayKstYmd } from "@/lib/datetime";
 import {
@@ -45,9 +45,7 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error) {
     if (isUniqueViolationOn(error, "item_code")) {
-      throw new DomainError(
-        "같은 아이템 코드·구분·컨디션 조합의 상품이 이미 있습니다",
-      );
+      throw new DomainError("같은 아이템 코드·구분의 상품이 이미 있습니다");
     }
     if (isNotFoundError(error)) {
       throw new DomainError("상품을 찾을 수 없습니다");
@@ -56,16 +54,6 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-// 매입일 환율(JPY→KRW, 100¥ 기준) 조회 — 상품 폼에서 매입일 기준 환율 자동 적용.
-export async function getExchangeRateForDate(
-  date: string,
-): Promise<ActionResult<ExchangeRateResult>> {
-  return runAction(async () => {
-    // 어드민 상품 폼 전용 — 무인증 호출로 외부 환율 API를 두드리게 두지 않는다.
-    await requireAdmin();
-    return fetchJpyKrwRate(date);
-  });
-}
 
 const PRESIGN_TTL_SECONDS = 3600;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -75,7 +63,7 @@ export async function presignProductPhotos(
   files: { filename: string; mimeType: string; sizeBytes: number }[],
 ): Promise<ActionResult<{ r2Key: string; uploadUrl: string }[]>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     if (files.length === 0) throw new DomainError("파일이 없습니다");
     if (files.length > 10) throw new DomainError("상품당 최대 10장");
 
@@ -113,7 +101,7 @@ export async function uploadProductPhotoFile(
   formData: FormData,
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const file = formData.get("file");
     const filename = String(formData.get("filename") ?? "photo.jpg");
     if (!(file instanceof Blob)) throw new DomainError("파일이 없습니다");
@@ -147,6 +135,16 @@ export async function uploadProductPhotoFile(
 async function persistNewProduct(input: ProductCreateInput) {
   const data = parseActionInput(productCreateSchema, input);
 
+  // 같은 카탈로그 카드로 이미 등록된 상품이 있으면 중복 등록 차단(카드당 상품 1개).
+  // 일괄 등록은 사전에 등록된 카드를 건너뛰지만, 단건·경쟁 상황의 백스톱.
+  if (data.catalogCardId != null) {
+    const dup = await db.product.findFirst({
+      where: { catalogCardId: BigInt(data.catalogCardId) },
+      select: { id: true },
+    });
+    if (dup) throw new DomainError("이미 이 카드로 등록된 상품이 있어요");
+  }
+
   // 경매 상품 파생 필드 — 재고 1 고정, 정가/판매가 = 시작가, 상태 live.
   let auctionFields: AuctionPatch = {};
   if (data.saleMode === "auction") {
@@ -166,19 +164,8 @@ async function persistNewProduct(input: ProductCreateInput) {
             ? BigInt(data.memberId)
             : null,
           name: data.name,
-          description: data.description ?? null,
-          purchasePriceJpy: data.purchasePriceJpy,
-          purchaseExchangeRate: data.purchaseExchangeRate,
-          purchasePriceKrw: data.purchasePriceKrw,
-          packagingCostKrw: data.packagingCostKrw,
-          overseasShippingKrw: data.overseasShippingKrw,
-          domesticShippingKrw: data.domesticShippingKrw,
-          otherCostKrw: data.otherCostKrw,
-          purchaser: data.purchaser ?? null,
-          purchaseDate: new Date(data.purchaseDate),
           regularPrice: data.regularPrice,
           salePrice: data.salePrice,
-          condition: data.condition ?? null,
           stockQuantity: data.stockQuantity,
           saleStatus: data.saleStatus,
           saleMode: data.saleMode,
@@ -218,9 +205,9 @@ export async function createProduct(
   input: ProductCreateInput,
 ): Promise<ActionResult<Product>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const result = await persistNewProduct(input);
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath("/");
     return toProduct(result);
   });
@@ -230,7 +217,7 @@ export async function updateProduct(
   input: ProductUpdateInput,
 ): Promise<ActionResult<Product>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const data = parseActionInput(productUpdateSchema, input);
 
     // 찜 알림 판정용 수정 전 스냅샷 — 가격 인하·재입고·경매 시작 감지.
@@ -257,26 +244,8 @@ export async function updateProduct(
     if (data.memberId !== undefined)
       patch.memberId = data.memberId !== null ? BigInt(data.memberId) : null;
     if (data.name !== undefined) patch.name = data.name;
-    if (data.description !== undefined) patch.description = data.description;
-    if (data.purchasePriceJpy !== undefined)
-      patch.purchasePriceJpy = data.purchasePriceJpy;
-    if (data.purchaseExchangeRate !== undefined)
-      patch.purchaseExchangeRate = data.purchaseExchangeRate;
-    if (data.purchasePriceKrw !== undefined)
-      patch.purchasePriceKrw = data.purchasePriceKrw;
-    if (data.packagingCostKrw !== undefined)
-      patch.packagingCostKrw = data.packagingCostKrw;
-    if (data.overseasShippingKrw !== undefined)
-      patch.overseasShippingKrw = data.overseasShippingKrw;
-    if (data.domesticShippingKrw !== undefined)
-      patch.domesticShippingKrw = data.domesticShippingKrw;
-    if (data.otherCostKrw !== undefined) patch.otherCostKrw = data.otherCostKrw;
-    if (data.purchaser !== undefined) patch.purchaser = data.purchaser;
-    if (data.purchaseDate !== undefined)
-      patch.purchaseDate = new Date(data.purchaseDate);
     if (data.regularPrice !== undefined) patch.regularPrice = data.regularPrice;
     if (data.salePrice !== undefined) patch.salePrice = data.salePrice;
-    if (data.condition !== undefined) patch.condition = data.condition;
     if (data.stockQuantity !== undefined)
       patch.stockQuantity = data.stockQuantity;
     if (data.saleStatus !== undefined) patch.saleStatus = data.saleStatus;
@@ -345,7 +314,7 @@ export async function updateProduct(
       console.error("[products] 찜 알림 발송 실패", error),
     );
 
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath(`/products/${data.id}`);
     revalidatePath("/");
     return toProduct(result);
@@ -354,7 +323,7 @@ export async function updateProduct(
 
 export async function deleteProduct(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     await mapProductWriteError(() =>
       db.$transaction(async (tx) => {
         await tx.productPhoto.deleteMany({ where: { productId: BigInt(id) } });
@@ -362,7 +331,7 @@ export async function deleteProduct(id: number): Promise<ActionResult> {
       }),
     );
 
-    revalidatePath("/admin/products");
+    revalidatePath("/delivery/products");
     revalidatePath("/");
   });
 }
@@ -373,7 +342,7 @@ export async function bulkUpdateProducts(
   patch: { saleStatus?: SaleStatus; stockQuantity?: number; salePrice?: number },
 ): Promise<ActionResult<{ updated: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
 
     const uniqueIds = Array.from(
       new Set(ids.filter((id) => Number.isInteger(id) && id > 0)),
@@ -431,8 +400,7 @@ export async function bulkUpdateProducts(
       await db.product.updateMany({ where, data });
     }
 
-    revalidatePath("/admin/products");
-    revalidatePath("/admin/settlement");
+    revalidatePath("/delivery/products");
     revalidatePath("/");
     return { updated: uniqueIds.length };
   });
@@ -443,7 +411,7 @@ export async function bulkUpdateProducts(
 export async function duplicateProductAsListing(
   productId: number,
 ): Promise<{ id: number }> {
-  await requireAdmin();
+  await requireDeliveryManager();
 
   const src = await db.product.findUnique({ where: { id: BigInt(productId) } });
   if (!src) throw new Error("원본 상품을 찾을 수 없습니다.");
@@ -491,7 +459,7 @@ export async function duplicateProductAsListing(
     return created;
   });
 
-  revalidatePath("/admin/products");
+  revalidatePath("/delivery/products");
   return { id: Number(row.id) };
 }
 
@@ -538,7 +506,7 @@ export async function searchCatalogCardsForProduct(input: {
   page?: number;
 }): Promise<ActionResult<{ items: CatalogCardPick[]; total: number }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const { listCards } = await import("@/modules/cards/lib/queries");
     const page = input.page && input.page > 0 ? Math.floor(input.page) : 1;
     const { items, total } = await listCards({
@@ -602,7 +570,7 @@ export async function importCatalogCardPhoto(input: {
   cardId: number;
 }): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const r2Key = await copyCatalogCardPhotoToProduct(input.cardId);
     return { r2Key, previewUrl: getPublicUrl(r2Key) };
   });
@@ -623,7 +591,7 @@ export async function bulkCreateProductsFromCards(input: {
   useRateForSalePrice: boolean;
 }): Promise<ActionResult<BulkImportResult>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const ids = Array.from(new Set((input.cardIds ?? []).filter((n) => Number.isInteger(n) && n > 0)));
     if (ids.length === 0) throw new DomainError("선택한 카드가 없습니다");
     if (ids.length > BULK_IMPORT_MAX)
@@ -671,7 +639,7 @@ export async function bulkCreateProductsFromCards(input: {
             name: card.name,
             retailPriceJpy: card.retailPriceJpy,
           },
-          { rate100, useRateForSalePrice: input.useRateForSalePrice, photoR2Key, today },
+          { rate100, useRateForSalePrice: input.useRateForSalePrice, photoR2Key },
         );
         await persistNewProduct(draft);
         created += 1;
@@ -684,7 +652,7 @@ export async function bulkCreateProductsFromCards(input: {
     }
 
     if (created > 0) {
-      revalidatePath("/admin/products");
+      revalidatePath("/delivery/products");
       revalidatePath("/");
     }
     return { created, skipped };

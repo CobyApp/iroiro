@@ -14,6 +14,7 @@ import {
 } from "@/modules/used/lib/queries";
 import { settleUsedListingIfDue } from "@/modules/used/actions";
 import { UsedDetailCta } from "@/modules/used/components/UsedDetailCta";
+import { ReportListingDialog } from "@/modules/used/components/ReportListingDialog";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { getPointBalance } from "@/modules/points/lib/queries";
@@ -168,6 +169,13 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
               <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                 {listing.description}
               </p>
+            </div>
+          )}
+
+          {/* 신고 — 로그인한 비판매자만. 부적절한 매물을 운영팀에 알린다. */}
+          {role !== "seller" && account !== null && (
+            <div className="flex justify-end border-t border-border pt-3">
+              <ReportListingDialog listingId={listing.id} />
             </div>
           )}
         </div>

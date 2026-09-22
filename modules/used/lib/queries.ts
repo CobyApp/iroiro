@@ -18,6 +18,8 @@ export type UsedListFilter = {
   memberId?: number;
   seriesId?: number;
   saleMode?: "fixed" | "auction";
+  /** 굿즈 종류(used_listing.item_type) — 토레카·체키 등. */
+  itemType?: string;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -76,6 +78,16 @@ export async function listUsedListingFacets(): Promise<ListingFacets> {
   );
 }
 
+// 노출 중 매물이 있는 굿즈 종류 목록(칩·필터용) — 결과 없는 종류는 뺀다.
+export async function listUsedItemTypesInUse(): Promise<string[]> {
+  const rows = await db.usedListing.groupBy({
+    by: ["itemType"],
+    where: LIVE_USED_STATUS,
+    _count: { _all: true },
+  });
+  return rows.map((r) => r.itemType);
+}
+
 // 중고 매물 목록 — 판매중(+거래중)만. 대표사진 포함.
 export async function listUsedListings(
   filter: UsedListFilter = {},
@@ -87,6 +99,7 @@ export async function listUsedListings(
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);
   if (filter.saleMode) where.saleMode = filter.saleMode;
+  if (filter.itemType) where.itemType = filter.itemType;
   if (filter.q) where.title = { contains: filter.q, mode: "insensitive" };
 
   const [rows, total] = await Promise.all([

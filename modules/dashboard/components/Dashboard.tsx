@@ -97,7 +97,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
           value={`${business.awaitingShipmentCount}건`}
           detail={
             <Link
-              href="/admin/orders?status=paid"
+              href="/delivery/orders?status=paid"
               className="text-xs text-primary underline-offset-2 hover:underline"
             >
               주문 관리에서 발송 처리 →
@@ -139,7 +139,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
               ? "아직 없음"
               : `${business.reviewCount}건 · 평균 ${business.reviewAverage ?? "-"}점`
           }
-          href="/admin/reviews"
+          href="/delivery/reviews"
         />
         <MiniStat
           icon={<Coins className="h-4 w-4" />}
@@ -151,7 +151,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
           icon={<ShoppingBag className="h-4 w-4" />}
           label="주문 관리"
           value="전체 주문 보기"
-          href="/admin/orders"
+          href="/delivery/orders"
         />
       </div>
 
@@ -232,7 +232,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
                 {alerts.map((alert) => (
                   <li key={alert.productId}>
                     <Link
-                      href={`/admin/products/${alert.productId}/edit`}
+                      href={`/delivery/products/${alert.productId}/edit`}
                       className="flex items-center gap-3 py-3 transition-colors hover:bg-muted/50"
                     >
                       {alert.thumbnailR2Key ? (
@@ -326,7 +326,7 @@ export function Dashboard({ data, publicBaseUrl }: Props) {
                 {recentProducts.map((product) => (
                   <li key={product.id}>
                     <Link
-                      href={`/admin/products/${product.id}/edit`}
+                      href={`/delivery/products/${product.id}/edit`}
                       className="flex items-center gap-3 py-3 transition-colors hover:bg-muted/50"
                     >
                       {product.thumbnailR2Key ? (

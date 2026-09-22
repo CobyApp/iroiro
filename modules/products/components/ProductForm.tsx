@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { TeamCombobox } from "@/modules/teams/components/TeamCombobox";
 import type { Team } from "@/modules/teams/types";
 import { MemberCombobox } from "@/modules/members/components/MemberCombobox";
@@ -23,13 +21,7 @@ import type { MemberWithTeams } from "@/modules/members/types";
 import type { SeriesOption } from "@/modules/series/lib/queries";
 import { CatalogCardPicker } from "./CatalogCardPicker";
 import { importCatalogCardPhoto } from "../actions";
-import { todayKstYmd } from "@/lib/datetime";
-import {
-  createProduct,
-  getExchangeRateForDate,
-  updateProduct,
-} from "../actions";
-import { computeMargin } from "../lib/accounting";
+import { createProduct, updateProduct } from "../actions";
 import { ProductPhotoDownload } from "./ProductPhotoDownload";
 import { ProductPhotoUpload } from "./ProductPhotoUpload";
 import type { ProductCreateInput, ProductPhotoInput } from "../lib/schema";
@@ -37,14 +29,11 @@ import {
   AUCTION_STATUS_LABEL,
   ITEM_TYPES,
   ITEM_TYPE_LABEL,
-  PRODUCT_CONDITIONS,
-  PRODUCT_CONDITION_LABEL,
   SALE_MODES,
   SALE_MODE_LABEL,
   SALE_STATUSES,
   SALE_STATUS_LABEL,
   type ItemType,
-  type ProductCondition,
   type ProductWithPhotos,
   type SaleMode,
   type SaleStatus,
@@ -84,7 +73,7 @@ export function ProductForm({
   // 목록에서 전달한 필터·페이지·정렬 query를 그대로 보존해 돌아갈 URL을 구성.
   function backToList(): string {
     const qs = searchParams.toString();
-    return `/admin/products${qs ? `?${qs}` : ""}`;
+    return `/delivery/products${qs ? `?${qs}` : ""}`;
   }
   const teams = initialTeams;
   const members = initialMembers;
@@ -103,21 +92,6 @@ export function ProductForm({
   // 단건 폼에서 카탈로그 카드를 골랐을 때의 출처 카드 id — 신규 등록에서만 전송(수정은 건드리지 않음).
   const [catalogCardId, setCatalogCardId] = useState<number | null>(null);
   const [name, setName] = useState(product?.name ?? "");
-  const [description, setDescription] = useState(product?.description ?? "");
-  const [purchasePriceJpy, setPurchasePriceJpy] = useState(
-    product?.purchasePriceJpy?.toString() ?? "0",
-  );
-  const [exchangeRate, setExchangeRate] = useState(
-    product?.purchaseExchangeRate?.toString() ?? "925",
-  );
-  // 수정 모드는 기존 환율이 의도된 값이므로 자동 덮어쓰기 금지(touched).
-  const [rateTouched, setRateTouched] = useState(mode === "edit");
-  const [fxNote, setFxNote] = useState<string | null>(null);
-  const [rateLoading, setRateLoading] = useState(false);
-  const [purchaser, setPurchaser] = useState(product?.purchaser ?? "");
-  const [purchaseDate, setPurchaseDate] = useState(
-    product?.purchaseDate ?? todayKstYmd(),
-  );
   const [listPrice, setListPrice] = useState(
     product?.regularPrice?.toString() ?? "0",
   );
@@ -142,21 +116,6 @@ export function ProductForm({
     isoToLocalInput(product?.auctionEndsAt ?? null),
   );
   const auctionLocked = (product?.auctionBidCount ?? 0) > 0;
-  const [condition, setCondition] = useState<ProductCondition | "">(
-    product?.condition ?? "",
-  );
-  const [packaging, setPackaging] = useState(
-    product?.packagingCostKrw?.toString() ?? "0",
-  );
-  const [overseasShipping, setOverseasShipping] = useState(
-    product?.overseasShippingKrw?.toString() ?? "0",
-  );
-  const [domesticShipping, setDomesticShipping] = useState(
-    product?.domesticShippingKrw?.toString() ?? "0",
-  );
-  const [otherCost, setOtherCost] = useState(
-    product?.otherCostKrw?.toString() ?? "0",
-  );
   const [photos, setPhotos] = useState<ProductPhotoInput[]>(
     product?.photos.map((photo) => ({
       r2Key: photo.r2Key,
@@ -165,79 +124,6 @@ export function ProductForm({
       isThumbnail: photo.isThumbnail,
     })) ?? [],
   );
-
-  function fxNoteText(r: {
-    date: string;
-    requestedDate: string;
-    source: string;
-  }): string {
-    return r.date === r.requestedDate
-      ? `${r.date} 기준 환율 · ${r.source}`
-      : `${r.requestedDate}은 휴장일 → ${r.date} 기준 적용 · ${r.source}`;
-  }
-
-  // 매입일 기준 환율 자동 적용. manual=true면 사용자가 직접 수정한 값도 덮어쓴다.
-  async function loadRate(date: string, manual = false) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
-    if (!manual && rateTouched) return;
-    setRateLoading(true);
-    try {
-      const result = await getExchangeRateForDate(date);
-      if (!result.ok) {
-        setFxNote(result.message);
-        return;
-      }
-      setExchangeRate(String(result.data.rate));
-      setRateTouched(false);
-      setFxNote(fxNoteText(result.data));
-    } catch (error) {
-      setFxNote(error instanceof Error ? error.message : "환율 조회 실패");
-    } finally {
-      setRateLoading(false);
-    }
-  }
-
-  // 신규 등록: 매입일 기본값(오늘) 기준 환율을 최초 1회 자동 조회.
-  useEffect(() => {
-    if (mode !== "new") return;
-    let cancelled = false;
-    getExchangeRateForDate(purchaseDate)
-      .then((result) => {
-        if (cancelled) return;
-        if (!result.ok) {
-          setFxNote(result.message);
-          return;
-        }
-        setExchangeRate(String(result.data.rate));
-        setFxNote(fxNoteText(result.data));
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setFxNote(error instanceof Error ? error.message : "환율 조회 실패");
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const purchaseKrw =
-    Math.round(
-      (Number(purchasePriceJpy || 0) * Number(exchangeRate || 0)) / 100,
-    ) || 0;
-
-  const packagingKrw = Number(packaging || 0);
-  const overseasKrw = Number(overseasShipping || 0);
-  const domesticKrw = Number(domesticShipping || 0);
-  const otherKrw = Number(otherCost || 0);
-  const effectiveSale = salePrice ? Number(salePrice) : Number(listPrice || 0);
-  const { totalCost, profit, marginRate } = computeMargin(effectiveSale, {
-    purchasePriceKrw: purchaseKrw,
-    packagingCostKrw: packagingKrw,
-    overseasShippingKrw: overseasKrw,
-    domesticShippingKrw: domesticKrw,
-    otherCostKrw: otherKrw,
-  });
 
   function buildPayload(): ProductCreateInput {
     const trimmedCode = itemCode.trim();
@@ -260,16 +146,6 @@ export function ProductForm({
       // 신규 등록만 출처 카드를 심는다. 수정에서는 undefined 로 두어 기존 값을 보존한다.
       catalogCardId: mode === "new" ? catalogCardId : undefined,
       name,
-      description: description || null,
-      purchasePriceJpy: Number(purchasePriceJpy),
-      purchaseExchangeRate: Number(exchangeRate),
-      purchasePriceKrw: purchaseKrw,
-      packagingCostKrw: packagingKrw,
-      overseasShippingKrw: overseasKrw,
-      domesticShippingKrw: domesticKrw,
-      otherCostKrw: otherKrw,
-      purchaser: purchaser.trim() === "" ? null : purchaser.trim(),
-      purchaseDate,
       regularPrice: isAuction ? startPrice : Number(listPrice),
       // salePrice는 DB NOT NULL — 비워두면 정가와 동일하게 보낸다.
       salePrice: isAuction
@@ -277,7 +153,6 @@ export function ProductForm({
         : salePrice
           ? Number(salePrice)
           : Number(listPrice),
-      condition: condition === "" ? null : condition,
       stockQuantity: isAuction ? 1 : Number(stock),
       saleStatus,
       photos,
@@ -448,120 +323,6 @@ export function ProductForm({
             <CardTitle>가격 · 재고</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              <div>
-                <Label htmlFor="jpy">
-                  매입가 (JPY) <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="jpy"
-                  type="number"
-                  value={purchasePriceJpy}
-                  onChange={(event) => setPurchasePriceJpy(event.target.value)}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="rate">
-                    환율 (100¥ = ?₩){" "}
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => void loadRate(purchaseDate, true)}
-                    disabled={rateLoading}
-                    className="text-xs font-medium text-primary underline underline-offset-2 disabled:opacity-50"
-                  >
-                    {rateLoading ? "조회 중…" : "매입일 환율 적용"}
-                  </button>
-                </div>
-                <Input
-                  id="rate"
-                  type="number"
-                  step="0.0001"
-                  value={exchangeRate}
-                  onChange={(event) => {
-                    setExchangeRate(event.target.value);
-                    setRateTouched(true);
-                    setFxNote(null);
-                  }}
-                />
-              </div>
-              <div>
-                <Label>매입가 (KRW)</Label>
-                <Input value={purchaseKrw.toLocaleString()} disabled readOnly />
-              </div>
-            </div>
-            {fxNote && (
-              <p className="-mt-1 text-xs text-muted-foreground">{fxNote}</p>
-            )}
-
-            <div>
-              <Label className="text-xs text-muted-foreground">
-                부대비용 (KRW) — 총원가·마진에 반영
-              </Label>
-              <div className="mt-1 grid grid-cols-2 gap-2 md:grid-cols-4">
-                <div>
-                  <Label htmlFor="pkg" className="text-xs">
-                    포장비
-                  </Label>
-                  <Input
-                    id="pkg"
-                    type="number"
-                    value={packaging}
-                    onChange={(e) => setPackaging(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="oss" className="text-xs">
-                    해외배송
-                  </Label>
-                  <Input
-                    id="oss"
-                    type="number"
-                    value={overseasShipping}
-                    onChange={(e) => setOverseasShipping(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dss" className="text-xs">
-                    국내배송
-                  </Label>
-                  <Input
-                    id="dss"
-                    type="number"
-                    value={domesticShipping}
-                    onChange={(e) => setDomesticShipping(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="etc" className="text-xs">
-                    기타
-                  </Label>
-                  <Input
-                    id="etc"
-                    type="number"
-                    value={otherCost}
-                    onChange={(e) => setOtherCost(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">총원가</span>
-                <b>₩{totalCost.toLocaleString()}</b>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  예상 마진 (판매가 기준)
-                </span>
-                <b className={profit >= 0 ? "text-primary" : "text-destructive"}>
-                  ₩{profit.toLocaleString()} ({marginRate}%)
-                </b>
-              </div>
-            </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div>
                 <Label>
@@ -740,83 +501,6 @@ export function ProductForm({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>매입 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label htmlFor="purchase-date">
-                매입일 <span className="text-destructive">*</span>
-              </Label>
-              <DatePicker
-                id="purchase-date"
-                value={purchaseDate || null}
-                onChange={(next) => {
-                  const value = next ?? "";
-                  setPurchaseDate(value);
-                  // 매입일이 바뀌면 (사용자가 환율을 직접 안 만졌을 때) 그 날짜 환율 자동 적용.
-                  if (value) void loadRate(value);
-                }}
-                placeholder="매입일 선택"
-              />
-            </div>
-            <div>
-              <Label htmlFor="purchaser">
-                매입자{" "}
-                <span className="text-xs font-normal text-muted-foreground">
-                  — 매입자별 정산에 사용 (선택)
-                </span>
-              </Label>
-              <Input
-                id="purchaser"
-                value={purchaser}
-                onChange={(event) => setPurchaser(event.target.value)}
-                placeholder="예: 코비, 미나미"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>부가 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label>컨디션</Label>
-              <Select
-                value={condition === "" ? "__unset__" : condition}
-                onValueChange={(value) =>
-                  setCondition(
-                    value === "__unset__" ? "" : (value as ProductCondition),
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="선택 (생략 가능)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__unset__">선택 안 함</SelectItem>
-                  {PRODUCT_CONDITIONS.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {PRODUCT_CONDITION_LABEL[code]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="desc">설명</Label>
-              <Textarea
-                id="desc"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="space-y-4">

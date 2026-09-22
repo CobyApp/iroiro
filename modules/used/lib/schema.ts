@@ -1,6 +1,44 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS } from "@/modules/products/types";
-import { USED_SHIPPING_METHODS } from "../types";
+import { USED_ITEM_TYPES, USED_REPORT_REASONS, USED_SHIPPING_METHODS } from "../types";
+
+// 신고·차단·처리 입력 길이 상한(글 신고와 동일 어휘·값).
+export const USED_REPORT_DETAIL_MAX = 500;
+export const USED_BLOCK_REASON_MAX = 500;
+export const USED_RESOLUTION_NOTE_MAX = 1_000;
+
+const positiveId = z.number().int().positive();
+const optionalText = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() || undefined : (v ?? undefined)),
+    z.string().max(max).optional(),
+  );
+
+// 고객 신고 입력 — 대상 매물 + 사유(+ 상세 선택).
+export const usedReportCreateSchema = z.object({
+  listingId: positiveId,
+  reason: z.enum(USED_REPORT_REASONS),
+  detail: optionalText(USED_REPORT_DETAIL_MAX),
+});
+export type UsedReportCreateInput = z.input<typeof usedReportCreateSchema>;
+
+// 관리자 매물 차단 입력 — 사유 필수(판매자에게 노출).
+export const usedBlockSchema = z.object({
+  listingId: positiveId,
+  reason: z.string().trim().min(1, "차단 사유를 입력해주세요").max(USED_BLOCK_REASON_MAX),
+});
+export type UsedBlockInput = z.input<typeof usedBlockSchema>;
+
+// 관리자 신고 기각 입력 — 메모 선택.
+export const usedDismissReportSchema = z.object({
+  reportId: positiveId,
+  note: optionalText(USED_RESOLUTION_NOTE_MAX),
+});
+export type UsedDismissReportInput = z.input<typeof usedDismissReportSchema>;
+
+// 단일 매물 ID 입력(차단 해제 등).
+export const usedListingIdSchema = z.object({ listingId: positiveId });
+export type UsedListingIdInput = z.input<typeof usedListingIdSchema>;
 
 export const usedPhotoInputSchema = z.object({
   r2Key: z.string().min(1),
@@ -9,8 +47,15 @@ export const usedPhotoInputSchema = z.object({
 });
 
 const usedListingBase = z.object({
-  // 제목·그룹·멤버·시리즈는 선택한 토레카(card)에서 서버가 파생한다.
-  cardId: z.number().int().positive({ message: "카드를 선택해주세요" }),
+  // 굿즈 종류. photocard(토레카)만 카탈로그 카드와 연결되고, 나머지는 제목·그룹·멤버를 직접 입력.
+  itemType: z.enum(USED_ITEM_TYPES).default("photocard"),
+  // 토레카일 때: 선택한 카드에서 제목·그룹·멤버·시리즈를 서버가 파생.
+  cardId: z.number().int().positive().nullable().optional(),
+  // 토레카가 아닐 때: 제목·그룹·멤버를 직접 입력(시리즈는 선택).
+  title: z.string().trim().max(80).nullable().optional().transform((v) => (v === "" ? null : (v ?? null))),
+  teamId: z.number().int().positive().nullable().optional(),
+  memberId: z.number().int().positive().nullable().optional(),
+  seriesId: z.number().int().positive().nullable().optional(),
   // 상태 설명 — 흠집·보관 방법 등 실물 상태 위주.
   description: z
     .string()
@@ -37,7 +82,13 @@ const usedListingBase = z.object({
 });
 
 // 판매방식별 필수값 — 고정가는 price, 경매는 시작가·마감시각.
+// 종류별 필수값 — 토레카는 카드 선택, 그 외는 제목.
 export const usedListingCreateSchema = usedListingBase
+  // 카드를 골랐으면 카드 기반, 아니면 직접 입력(제목 필수) — 종류 무관.
+  .refine(
+    (v) => (v.cardId ?? 0) > 0 || !!(v.title && v.title.trim().length > 0),
+    { message: "카드를 선택하거나 제목을 입력해주세요", path: ["title"] },
+  )
   .refine((v) => v.saleMode !== "fixed" || (v.price ?? 0) > 0, {
     message: "판매가를 입력하세요",
     path: ["price"],

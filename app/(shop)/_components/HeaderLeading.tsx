@@ -5,9 +5,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
-import { ITEM_TYPE_LABEL, SALE_MODE_LABEL } from "@/modules/products/types";
+import { SALE_MODE_LABEL } from "@/modules/products/types";
+import { USED_ITEM_TYPE_LABEL } from "@/modules/used/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
+import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
 
 // 상단 헤더 왼쪽 영역 — 현재 화면에 맞춰 셋 중 하나를 보여준다.
 //  · 검색   스토어(/·/products)·중고(/used)·커뮤니티(/posts) 목록 → 탭에 맞는 검색 + 필터 태그 패널
@@ -34,7 +36,7 @@ const PRODUCT: SearchMode = {
   recentKey: "iroiro:recent-searches",
   placeholder: "상품·그룹·멤버 검색",
   label: "상품 검색",
-  hint: "스토어에서 상품·그룹·종류로 찾기",
+  hint: "스토어에서 상품·그룹으로 찾기",
 };
 const USED: SearchMode = {
   kind: "search",
@@ -58,7 +60,10 @@ const COMMUNITY: SearchMode = {
 type Leading =
   | SearchMode
   | { kind: "back"; fallback: string }
-  | { kind: "logo" };
+  | { kind: "logo" }
+  | { kind: "account" };
+
+export type HeaderAccount = { displayName: string; avatarUrl: string | null };
 
 function resolveLeading(pathname: string): Leading {
   if (pathname === "/") return PRODUCT;
@@ -74,21 +79,73 @@ function resolveLeading(pathname: string): Leading {
       return USED;
     case "/posts":
       return COMMUNITY;
+    // 찜·장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
+    case "/wishlist":
+    case "/cart":
+      return PRODUCT;
     // 메뉴에서 진입하는 leaf 페이지 — 자체 상위 탭이 없으니 뒤로가기.
     case "/messages":
     case "/orders":
       return { kind: "back", fallback: "/" };
+    // 마이 탭 — 로고 대신 내 계정 정보를 보여준다(계정 없으면 로고 폴백).
+    case "/mypage":
+      return { kind: "account" };
     default:
-      // 찜·마이 등 상위 탭 루트 — 로고.
+      // 찜 등 상위 탭 루트 — 로고.
       return { kind: "logo" };
   }
 }
 
-export function HeaderLeading({ teams = [] }: { teams?: TeamOption[] }) {
+const EMPTY_FACETS: SearchTagFacets = {
+  storeTeamIds: [],
+  storeItemTypes: [],
+  usedTeamIds: [],
+  usedSaleModes: [],
+  usedItemTypes: [],
+};
+
+export function HeaderLeading({
+  teams = [],
+  tagFacets = EMPTY_FACETS,
+  account = null,
+}: {
+  teams?: TeamOption[];
+  tagFacets?: SearchTagFacets;
+  account?: HeaderAccount | null;
+}) {
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
 
   if (leading.kind === "back") return <BackButton fallback={leading.fallback} />;
+  if (leading.kind === "account" && account) {
+    // 마이 탭 — 로고 자리에 내 계정 정보(모바일). 데스크톱은 레이아웃 로고가 이미 있다.
+    const initial = (account.displayName.trim()[0] ?? "?").toUpperCase();
+    return (
+      <div className="flex min-w-0 flex-1 items-center sm:hidden">
+        <Link href="/mypage/edit" className="flex min-w-0 items-center gap-2">
+          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-lemon text-sm font-display text-ink">
+            {account.avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- R2 외부 호스트 */
+              <img src={account.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initial
+            )}
+          </span>
+          <span className="truncate text-sm font-semibold text-foreground">
+            {account.displayName}
+          </span>
+        </Link>
+      </div>
+    );
+  }
+  if (leading.kind === "account") {
+    // 비로그인 마이 탭 — 로고 대신 게스트 모드 표시(모바일).
+    return (
+      <div className="flex min-w-0 flex-1 items-center sm:hidden">
+        <span className="text-sm font-semibold text-muted-foreground">게스트 모드</span>
+      </div>
+    );
+  }
   if (leading.kind === "logo") {
     // 데스크톱은 레이아웃의 상시 로고가 이미 있으니 모바일에서만 로고를 보여준다.
     return (
@@ -99,13 +156,14 @@ export function HeaderLeading({ teams = [] }: { teams?: TeamOption[] }) {
       </div>
     );
   }
-  return <SearchField mode={leading} teams={teams} />;
+  return <SearchField mode={leading} teams={teams} tagFacets={tagFacets} />;
 }
 
 function BackButton({ fallback }: { fallback: string }) {
   const router = useRouter();
+  // 데스크톱은 좌측 상시 로고와 브라우저 뒤로가기가 있어 상단 뒤로가기 버튼이 불필요 — 모바일에서만 노출.
   return (
-    <div className="flex min-w-0 flex-1 items-center">
+    <div className="flex min-w-0 flex-1 items-center sm:hidden">
       <button
         type="button"
         aria-label="뒤로"
@@ -122,7 +180,15 @@ function BackButton({ fallback }: { fallback: string }) {
   );
 }
 
-function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] }) {
+function SearchField({
+  mode,
+  teams,
+  tagFacets,
+}: {
+  mode: SearchMode;
+  teams: TeamOption[];
+  tagFacets: SearchTagFacets;
+}) {
   const router = useRouter();
   const { recent, push, remove, clear } = useRecentSearches(mode.recentKey);
   const [q, setQ] = useState("");
@@ -152,9 +218,23 @@ function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] })
   }
 
   const typed = q.trim().toLowerCase();
+  // 상품/매물이 있는 그룹만 태그로 — 커뮤니티는 글 검색어라 facet 제한 없이 모두 노출.
+  const teamFacet =
+    mode.key === "product"
+      ? tagFacets.storeTeamIds
+      : mode.key === "used"
+        ? tagFacets.usedTeamIds
+        : null;
+  const teamAllowed = teamFacet ? new Set(teamFacet) : null;
   const matchTeams = teams
+    .filter((t) => (teamAllowed ? teamAllowed.has(t.id) : true))
     .filter((t) => (typed ? t.name.toLowerCase().includes(typed) : true))
     .slice(0, 10);
+  // 결과가 있는 판매방식·종류만(중고).
+  const usedModes = new Set(tagFacets.usedSaleModes);
+  const usedTypeKeys = (Object.keys(USED_ITEM_TYPE_LABEL) as (keyof typeof USED_ITEM_TYPE_LABEL)[]).filter(
+    (t) => tagFacets.usedItemTypes.includes(t),
+  );
 
   return (
     <div ref={rootRef} className="relative min-w-0 flex-1">
@@ -217,23 +297,27 @@ function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] })
             </ChipGroup>
           )}
 
-          {/* 스토어 — 종류 태그 */}
-          {mode.key === "product" && !typed && (
-            <ChipGroup label="종류">
-              {(Object.keys(ITEM_TYPE_LABEL) as (keyof typeof ITEM_TYPE_LABEL)[]).map((type) => (
-                <Chip key={type} onClick={() => goFilter(`/products?item=${type}`)}>
-                  {ITEM_TYPE_LABEL[type]}
+          {/* 스토어는 토레카만 취급 — 종류 필터 없음(그룹·검색어로 찾는다). */}
+
+          {/* 중고 — 판매 방식 태그(매물이 있는 방식만) */}
+          {mode.key === "used" && !typed && (
+            <ChipGroup label="판매 방식">
+              {(Object.keys(SALE_MODE_LABEL) as (keyof typeof SALE_MODE_LABEL)[])
+                .filter((m) => usedModes.has(m))
+                .map((m) => (
+                <Chip key={m} onClick={() => goFilter(`/used?mode=${m}`)}>
+                  {SALE_MODE_LABEL[m]}
                 </Chip>
               ))}
             </ChipGroup>
           )}
 
-          {/* 중고 — 판매 방식 태그 */}
-          {mode.key === "used" && !typed && (
-            <ChipGroup label="판매 방식">
-              {(Object.keys(SALE_MODE_LABEL) as (keyof typeof SALE_MODE_LABEL)[]).map((m) => (
-                <Chip key={m} onClick={() => goFilter(`/used?mode=${m}`)}>
-                  {SALE_MODE_LABEL[m]}
+          {/* 중고 — 굿즈 종류 태그(매물이 있는 종류만) */}
+          {mode.key === "used" && !typed && usedTypeKeys.length > 0 && (
+            <ChipGroup label="종류">
+              {usedTypeKeys.map((t) => (
+                <Chip key={t} onClick={() => goFilter(`/used?item=${t}`)}>
+                  {USED_ITEM_TYPE_LABEL[t]}
                 </Chip>
               ))}
             </ChipGroup>

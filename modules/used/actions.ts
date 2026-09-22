@@ -118,12 +118,40 @@ export async function createUsedListing(
     const account = await requireLogin();
     const data = usedListingCreateSchema.parse(input);
 
-    // 선택한 토레카에서 제목·계층 파생 — 공개(active) 카드만 허용.
-    const card = await catalogDb.card.findUnique({
-      where: { id: BigInt(data.cardId) },
-    });
-    if (!card || card.status !== "active") {
-      throw new DomainError("카드를 찾을 수 없어요 — 다시 선택해주세요");
+    // 토레카(photocard)는 선택한 카드에서 제목·계층을 파생, 나머지 굿즈는 입력값을 그대로 쓴다.
+    let listingCore: {
+      itemType: string;
+      cardId: bigint | null;
+      teamId: bigint | null;
+      memberId: bigint | null;
+      seriesId: bigint | null;
+      title: string;
+    };
+    // 카드를 골랐으면(cardId 있음) 카탈로그 카드에서 제목·계층 파생, 아니면 직접 입력값 사용.
+    if (data.cardId != null) {
+      const card = await catalogDb.card.findUnique({
+        where: { id: BigInt(data.cardId) },
+      });
+      if (!card || card.status !== "active") {
+        throw new DomainError("카드를 찾을 수 없어요 — 다시 선택해주세요");
+      }
+      listingCore = {
+        itemType: "photocard",
+        cardId: card.id,
+        teamId: card.teamId,
+        memberId: card.memberId,
+        seriesId: card.seriesId,
+        title: card.name,
+      };
+    } else {
+      listingCore = {
+        itemType: data.itemType,
+        cardId: null,
+        teamId: data.teamId != null ? BigInt(data.teamId) : null,
+        memberId: data.memberId != null ? BigInt(data.memberId) : null,
+        seriesId: data.seriesId != null ? BigInt(data.seriesId) : null,
+        title: data.title!,
+      };
     }
 
     const isAuction = data.saleMode === "auction";
@@ -138,11 +166,12 @@ export async function createUsedListing(
       const listing = await tx.usedListing.create({
         data: {
           sellerAccountId: account.id,
-          cardId: card.id,
-          teamId: card.teamId,
-          memberId: card.memberId,
-          seriesId: card.seriesId,
-          title: card.name,
+          itemType: listingCore.itemType,
+          cardId: listingCore.cardId,
+          teamId: listingCore.teamId,
+          memberId: listingCore.memberId,
+          seriesId: listingCore.seriesId,
+          title: listingCore.title,
           description: data.description,
           condition: data.condition,
           saleMode: data.saleMode,

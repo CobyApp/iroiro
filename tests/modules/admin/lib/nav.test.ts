@@ -4,6 +4,7 @@ import {
   BOARD_SECTIONS,
   CATALOG_SECTIONS,
   DELIVERY_SECTIONS,
+  MARKET_SECTIONS,
   isNavItemActive,
   visibleSections,
   type NavItem,
@@ -100,9 +101,10 @@ describe("실제 섹션 정의", () => {
   it("메인 관리자는 네 공간으로 가는 바로가기를 갖되 역방향 링크는 없다", () => {
     const admin = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
     expect(admin).toContain("/delivery");
+    expect(admin).toContain("/market");
     expect(admin).toContain("/board");
     expect(admin).toContain("/catalog");
-    for (const sections of [BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS]) {
+    for (const sections of [BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS, MARKET_SECTIONS]) {
       expect(sections.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/admin");
     }
   });
@@ -111,21 +113,59 @@ describe("실제 섹션 정의", () => {
     expect(visibleSections(BOARD_SECTIONS, viewer(false, ["community"])).length).toBeGreaterThan(0);
     expect(visibleSections(CATALOG_SECTIONS, viewer(false, ["catalog"])).length).toBeGreaterThan(0);
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
-    // 커뮤니티 권한만으로는 카탈로그·배송 공간 메뉴가 안 보인다.
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["used"])).length).toBeGreaterThan(0);
+    // 커뮤니티 권한만으로는 카탈로그·배송·중고 공간 메뉴가 안 보인다.
     expect(visibleSections(CATALOG_SECTIONS, viewer(false, ["community"]))).toEqual([]);
     expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["community"]))).toEqual([]);
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["community"]))).toEqual([]);
   });
 
-  it("게시판 회원·등급은 site admin 전용", () => {
-    const board = visibleSections(BOARD_SECTIONS, viewer(false, ["community"]));
-    expect(board.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/board/users");
-    expect(
-      visibleSections(BOARD_SECTIONS, viewer(true)).flatMap((s) => s.items.map((i) => i.href)),
-    ).toContain("/board/users");
+  it("중고거래 공간은 used 권한자·site admin 에게 열리고 다른 부분 권한자에겐 닫힌다", () => {
+    expect(visibleSections(MARKET_SECTIONS, viewer(true)).length).toBeGreaterThan(0);
+    expect(visibleSections(MARKET_SECTIONS, viewer(false, ["catalog", "delivery"]))).toEqual([]);
+    // 모든 항목이 used 역할 — 신고·매물·차단.
+    const hrefs = MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/market/reports");
+    expect(hrefs).toContain("/market/listings");
+    expect(hrefs).toContain("/market/blocked");
+  });
+
+  it("회원·등급은 메인 관리자(site admin 전용)에 있고 게시판 공간엔 없다", () => {
+    // 회원·등급(권한 부여·제재)은 게시판 공간에서 메인 관리자(/admin/users)로 이동했다.
+    const boardHrefs = BOARD_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(boardHrefs).not.toContain("/board/users");
+    expect(boardHrefs).not.toContain("/admin/users");
+    const adminUsers = ADMIN_SECTIONS.flatMap((s) => s.items).find((i) => i.href === "/admin/users");
+    expect(adminUsers?.role).toBe("siteAdmin");
+    // 커뮤니티 부분 권한자에겐 메인 관리자 메뉴가 전혀 안 보인다(회원·등급 포함).
+    expect(visibleSections(ADMIN_SECTIONS, viewer(false, ["community"]))).toEqual([]);
+  });
+
+  it("스토어 관리 공간은 상품·주문·리뷰·배송을 담고 delivery 권한자에게 열린다", () => {
+    const hrefs = DELIVERY_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/delivery/products");
+    expect(hrefs).toContain("/delivery/orders");
+    expect(hrefs).toContain("/delivery/reviews");
+    expect(hrefs).toContain("/delivery/policy");
+    // 상품·주문·리뷰는 더 이상 메인 관리자에 없다(정산 메뉴는 제거됨).
+    const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(adminHrefs).not.toContain("/admin/products");
+    expect(adminHrefs).not.toContain("/admin/orders");
+    expect(adminHrefs).not.toContain("/admin/reviews");
+    expect(hrefs).not.toContain("/delivery/settlement");
+    // 중고거래 수수료 설정은 중고 관리 공간으로 옮겼다.
+    expect(MARKET_SECTIONS.flatMap((s) => s.items.map((i) => i.href))).toContain("/market/settings");
+    expect(visibleSections(DELIVERY_SECTIONS, viewer(false, ["delivery"])).length).toBeGreaterThan(0);
   });
 
   it("item keys are unique within each section list", () => {
-    for (const sections of [ADMIN_SECTIONS, BOARD_SECTIONS, CATALOG_SECTIONS, DELIVERY_SECTIONS]) {
+    for (const sections of [
+      ADMIN_SECTIONS,
+      BOARD_SECTIONS,
+      CATALOG_SECTIONS,
+      DELIVERY_SECTIONS,
+      MARKET_SECTIONS,
+    ]) {
       const keys = sections.flatMap((s) => s.items.map((i) => i.key));
       expect(new Set(keys).size).toBe(keys.length);
     }

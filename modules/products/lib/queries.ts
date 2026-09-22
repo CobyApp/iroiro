@@ -3,7 +3,6 @@ import "server-only";
 import { db } from "@/lib/db";
 import { catalogDb } from "@/lib/catalog-db";
 import { toProduct, toProductPhoto } from "./transform";
-import type { SettlementInput } from "./settlement";
 import type { ProductFilter } from "./filters";
 import { buildListingFacets, type ListingFacets } from "./facets";
 import type { Product, ProductPhoto, ProductWithPhotos } from "../types";
@@ -297,21 +296,82 @@ export async function getProductsByIds(
   });
 }
 
-// 매입자별 정산 집계에 필요한 최소 필드만 — 사진/조인 없이 전체 상품 스캔.
-export async function listSettlementRows(): Promise<SettlementInput[]> {
+export type DuplicateProductItem = {
+  id: number;
+  name: string;
+  saleStatus: string;
+  salePrice: number;
+  stockQuantity: number;
+  thumbnailKey: string | null;
+  createdAt: string;
+};
+export type DuplicateProductGroup = {
+  catalogCardId: number;
+  items: DuplicateProductItem[];
+};
+
+// 같은 카탈로그 카드로 2개 이상 등록된 상품 그룹 — 중복 정리 화면용.
+export async function listDuplicateProductGroups(): Promise<DuplicateProductGroup[]> {
+  const groups = await db.product.groupBy({
+    by: ["catalogCardId"],
+    where: { catalogCardId: { not: null } },
+    _count: { _all: true },
+    having: { catalogCardId: { _count: { gt: 1 } } },
+  });
+  const cardIds = groups
+    .map((g) => g.catalogCardId)
+    .filter((v): v is bigint => v !== null);
+  if (cardIds.length === 0) return [];
+
   const rows = await db.product.findMany({
+    where: { catalogCardId: { in: cardIds } },
+    orderBy: [{ catalogCardId: "asc" }, { createdAt: "asc" }],
     select: {
-      purchaser: true,
-      purchasePriceKrw: true,
-      packagingCostKrw: true,
-      overseasShippingKrw: true,
-      domesticShippingKrw: true,
-      otherCostKrw: true,
+      id: true,
+      name: true,
+      saleStatus: true,
       salePrice: true,
       stockQuantity: true,
+      catalogCardId: true,
+      createdAt: true,
     },
   });
-  return rows;
+  // 대표 사진은 별도 조회(Product-ProductPhoto 관계 미선언 — productId 로 조인).
+  const thumbs = await db.productPhoto.findMany({
+    where: { productId: { in: rows.map((r) => r.id) }, isThumbnail: true },
+    select: { productId: true, r2Key: true },
+  });
+  const thumbByProduct = new Map(thumbs.map((t) => [t.productId.toString(), t.r2Key]));
+
+  const byCard = new Map<number, DuplicateProductItem[]>();
+  for (const r of rows) {
+    if (r.catalogCardId === null) continue;
+    const key = Number(r.catalogCardId);
+    const arr = byCard.get(key) ?? [];
+    arr.push({
+      id: Number(r.id),
+      name: r.name,
+      saleStatus: r.saleStatus,
+      salePrice: r.salePrice,
+      stockQuantity: r.stockQuantity,
+      thumbnailKey: thumbByProduct.get(r.id.toString()) ?? null,
+      createdAt: r.createdAt.toISOString(),
+    });
+    byCard.set(key, arr);
+  }
+  return [...byCard.entries()].map(([catalogCardId, items]) => ({ catalogCardId, items }));
+}
+
+// 카탈로그 카드 id → 포즈 번호 맵. 관리자 상품 목록에서 "포즈 N" 표시에 쓴다(카탈로그 DB 조회).
+export async function posesByCatalogCard(
+  cardIds: number[],
+): Promise<Record<number, number>> {
+  if (cardIds.length === 0) return {};
+  const rows = await catalogDb.card.findMany({
+    where: { id: { in: cardIds.map((id) => BigInt(id)) } },
+    select: { id: true, pose: true },
+  });
+  return Object.fromEntries(rows.map((r) => [Number(r.id), r.pose]));
 }
 
 export async function getProductById(
@@ -552,10 +612,19 @@ export type SeriesOption = {
   sku: string;
   kind: string;
   label: string;
+  /** 한국어 병기(series.label_i18n.ko) — 없으면 null. 고객 화면은 이 값을 우선 노출한다. */
+  labelKo: string | null;
   teamId: number | null;
   /** 이 시리즈 카탈로그 상품의 외부 시세 평균(JPY) — 0이면 정보 없음 */
   marketAvgJpy: number;
 };
+
+// series.label_i18n.ko 추출(문자열이 아니면 null).
+function seriesKoLabel(labelI18n: unknown): string | null {
+  if (!labelI18n || typeof labelI18n !== "object") return null;
+  const ko = (labelI18n as Record<string, unknown>).ko;
+  return typeof ko === "string" && ko.trim() ? ko : null;
+}
 
 // 시리즈 목록 + 시리즈별 시세 평균(연결된 카탈로그 상품 기준).
 export async function listSeriesOptions(): Promise<SeriesOption[]> {
@@ -575,6 +644,7 @@ export async function listSeriesOptions(): Promise<SeriesOption[]> {
     sku: s.sku,
     kind: s.kind,
     label: s.label,
+    labelKo: seriesKoLabel(s.labelI18n),
     teamId: s.teamId !== null ? Number(s.teamId) : null,
     marketAvgJpy: avgBy.get(Number(s.id)) ?? 0,
   }));

@@ -9,7 +9,8 @@
  * 별도로 수정할 필요가 없습니다. 라벨 누락은 TS 컴파일 에러로 잡힙니다.
  */
 export const ITEM_TYPE_LABEL = {
-  photocard: "포토카드",
+  // 스토어는 토레카(트레이딩 카드)만 판매한다. 값은 photocard(레거시)로 두고 라벨만 토레카.
+  photocard: "토레카",
 } as const satisfies Record<string, string>;
 
 export type ItemType = keyof typeof ITEM_TYPE_LABEL;
@@ -117,16 +118,8 @@ export type Product = {
   teamId: number | null;
   memberId: number | null;
   name: string;
+  // 설명·컨디션은 신규 스토어 상품 폼에서 더 이상 입력받지 않는다(부가정보 제거). DB 레거시 값 표시용으로만 유지.
   description: string | null;
-  purchasePriceJpy: number;
-  purchaseExchangeRate: number;
-  purchasePriceKrw: number;
-  packagingCostKrw: number;
-  overseasShippingKrw: number;
-  domesticShippingKrw: number;
-  otherCostKrw: number;
-  purchaser: string | null;
-  purchaseDate: string;
   regularPrice: number;
   /**
    * 실판매가 (KRW). DB CHECK 제약으로 항상 `salePrice <= regularPrice`.
@@ -138,6 +131,8 @@ export type Product = {
   stockQuantity: number;
   saleStatus: SaleStatus;
   // ── 카탈로그 계층·외부 시세 (임포트 스냅샷) ──
+  /** 등록 출처 카탈로그 카드 id — 포즈 표시·중복 판별에 쓴다(수기 등록은 null). */
+  catalogCardId: number | null;
   seriesId: number | null;
   marketAvgJpy: number;
   marketMinJpy: number;
