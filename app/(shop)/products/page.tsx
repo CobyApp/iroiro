@@ -13,6 +13,7 @@ import { ProductSort } from "@/modules/products/components/ProductSort";
 import { parseProductFilters } from "@/modules/products/lib/filters";
 import {
   listLiveAuctions,
+  listProductFacets,
   listProducts,
 } from "@/modules/products/lib/queries";
 import { ProductRow } from "@/modules/products/components/ProductRow";
@@ -58,12 +59,18 @@ async function ProductFiltersWrapper({
 }: {
   filter: ReturnType<typeof parseProductFilters>;
 }) {
-  const [teams, members] = await Promise.all([listTeams(), listMembers()]);
+  // 고객 화면은 매물이 있는 그룹·멤버·판매방식만 칩으로 — 빈 결과 태그를 없앤다.
+  const [teams, members, facets] = await Promise.all([
+    listTeams(),
+    listMembers(),
+    listProductFacets(),
+  ]);
   return (
     <ProductFilters
       filter={filter}
       teams={teams}
       members={members}
+      facets={facets}
       basePath="/products"
     />
   );

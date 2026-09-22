@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildCallbackUrl, isOAuthProvider } from "@/modules/auth/lib/oauth";
 
 describe("isOAuthProvider", () => {
-  it("kakao·naver만 통과", () => {
+  it("kakao만 통과", () => {
     expect(isOAuthProvider("kakao")).toBe(true);
-    expect(isOAuthProvider("naver")).toBe(true);
+    expect(isOAuthProvider("naver")).toBe(false);
     expect(isOAuthProvider("google")).toBe(false);
     expect(isOAuthProvider("")).toBe(false);
   });
@@ -19,8 +19,8 @@ describe("buildCallbackUrl", () => {
   });
 
   it("origin 끝 슬래시는 제거 (redirect_uri 불일치 방지)", () => {
-    expect(buildCallbackUrl("https://example.com/", "naver")).toBe(
-      "https://example.com/api/auth/naver/callback",
+    expect(buildCallbackUrl("https://example.com/", "kakao")).toBe(
+      "https://example.com/api/auth/kakao/callback",
     );
     expect(buildCallbackUrl("https://example.com///", "kakao")).toBe(
       "https://example.com/api/auth/kakao/callback",

@@ -97,6 +97,8 @@ describe("completeSignupAction", () => {
   const form = (nick: string) => {
     const fd = new FormData();
     fd.set("nickname", nick);
+    fd.set("agree_terms", "on");
+    fd.set("agree_privacy", "on");
     return fd;
   };
   const claims = {
@@ -122,6 +124,18 @@ describe("completeSignupAction", () => {
     await expect(completeSignupAction(form("민수"))).rejects.toThrow(
       "REDIRECT:/login?error=signup_expired",
     );
+  });
+
+  it("필수 약관 미동의면 consent_required로 (account 생성 없음)", async () => {
+    pending.readPendingAccountToken.mockResolvedValue("pt");
+    pending.readPendingAccountByToken.mockResolvedValue(claims);
+    const fd = new FormData();
+    fd.set("nickname", "민수");
+    // agree_terms / agree_privacy 없음
+    await expect(completeSignupAction(fd)).rejects.toThrow(
+      "REDIRECT:/signup?error=consent_required",
+    );
+    expect(account.createAccountFromSignup).not.toHaveBeenCalled();
   });
 
   it("닉네임 검증 실패면 invalid_nickname로 (account 생성 없음)", async () => {

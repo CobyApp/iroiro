@@ -2,13 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const productFindMany = vi.fn();
 const productCount = vi.fn();
+const productGroupBy = vi.fn();
 const photoFindMany = vi.fn();
 const teamFindMany = vi.fn();
 const memberFindMany = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   db: {
-    product: { findMany: productFindMany, count: productCount },
+    product: {
+      findMany: productFindMany,
+      count: productCount,
+      groupBy: productGroupBy,
+    },
     productPhoto: { findMany: photoFindMany },
   },
 }));
@@ -25,6 +30,7 @@ beforeEach(() => {
   vi.resetModules();
   productFindMany.mockReset().mockResolvedValue([]);
   productCount.mockReset().mockResolvedValue(0);
+  productGroupBy.mockReset().mockResolvedValue([]);
   photoFindMany.mockReset().mockResolvedValue([]);
   teamFindMany.mockReset().mockResolvedValue([]);
   memberFindMany.mockReset().mockResolvedValue([]);
@@ -219,5 +225,50 @@ describe("listRelatedProducts", () => {
 
     expect(productFindMany).toHaveBeenCalledTimes(1);
     expect(rows.map((r) => r.id)).toEqual([21, 22]);
+  });
+});
+
+// 고객 필터 칩 facet — 공개 목록과 같은 노출 규칙(active 만)으로 집계해야 한다.
+describe("listProductFacets", () => {
+  it("sale_status='active' 매물만 team·member·saleMode 로 groupBy 하고, 재고있음은 stock>0 으로 따로 센다", async () => {
+    const { listProductFacets } = await import("@/modules/products/lib/queries");
+    await listProductFacets();
+
+    const args = productGroupBy.mock.calls[0][0];
+    expect(args.by).toEqual(["teamId", "memberId", "saleMode"]);
+    expect(args.where).toEqual({ saleStatus: "active" });
+    expect(productCount.mock.calls[0][0].where).toEqual({
+      saleStatus: "active",
+      stockQuantity: { gt: 0 },
+    });
+  });
+
+  it("groupBy 결과를 ListingFacets 로 매핑한다 (BigInt id → 문자열 키)", async () => {
+    productGroupBy.mockResolvedValue([
+      { teamId: 1n, memberId: 10n, saleMode: "fixed", _count: { _all: 2 } },
+      { teamId: 1n, memberId: null, saleMode: "auction", _count: { _all: 1 } },
+      { teamId: null, memberId: null, saleMode: "fixed", _count: { _all: 4 } },
+    ]);
+    productCount.mockResolvedValue(3);
+    const { listProductFacets } = await import("@/modules/products/lib/queries");
+
+    const facets = await listProductFacets();
+
+    expect(facets).toEqual({
+      teams: { "1": 3 },
+      membersByTeam: { "1": { "10": 2 } },
+      saleModes: { fixed: 6, auction: 1 },
+      inStock: 3,
+    });
+  });
+
+  it("판매중 매물이 없으면 빈 facet 을 돌려준다", async () => {
+    const { listProductFacets } = await import("@/modules/products/lib/queries");
+    expect(await listProductFacets()).toEqual({
+      teams: {},
+      membersByTeam: {},
+      saleModes: {},
+      inStock: 0,
+    });
   });
 });

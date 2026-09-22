@@ -3,10 +3,15 @@ import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
+import { listSeriesOptions } from "@/modules/series/lib/queries";
 import { ProductForm } from "@/modules/products/components/ProductForm";
 
 export default async function ProductNewPage() {
-  const [teams, members] = await Promise.all([listTeams(), listMembers()]);
+  const [teams, members, series] = await Promise.all([
+    listTeams(),
+    listMembers(),
+    listSeriesOptions(),
+  ]);
 
   return (
     <AdminPage>
@@ -15,7 +20,9 @@ export default async function ProductNewPage() {
         mode="new"
         teams={teams}
         members={members}
+        series={series}
         publicBaseUrl={env.R2_PUBLIC_BASE}
+        catalogPublicBase={env.CATALOG_PUBLIC_BASE}
       />
     </AdminPage>
   );

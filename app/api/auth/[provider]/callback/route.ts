@@ -18,6 +18,7 @@ import {
 import {
   clearOAuthCookies,
   readOAuthCookies,
+  readOAuthReturn,
 } from "@/modules/auth/lib/oauth/state";
 import { createSession } from "@/modules/auth/lib/session";
 
@@ -33,7 +34,7 @@ function loginError(request: NextRequest, code: string): NextResponse {
 }
 
 // OAuth 콜백 — state 검증 → code 교환 → 프로필 → account 생성/연결 → 세션 발급 → 쿠키.
-// GET /api/auth/{kakao|naver}/callback?code=...&state=...
+// GET /api/auth/{kakao}/callback?code=...&state=...
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
@@ -80,7 +81,8 @@ export async function GET(
       // 기존 사용자 → 로그인.
       // TODO(온보딩): 전화 인증 미완료(phone_number_verified_at NULL)면 /onboarding/phone로.
       const { token, expiresAt } = await createSession(existing.id);
-      const response = NextResponse.redirect(publicUrl(request, "/"));
+      const returnTo = readOAuthReturn(request) ?? "/";
+      const response = NextResponse.redirect(publicUrl(request, returnTo));
       response.cookies.set(
         SESSION_COOKIE_NAME,
         token,

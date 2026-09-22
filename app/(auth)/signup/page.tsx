@@ -1,7 +1,6 @@
 // 가입 닉네임 화면 — OAuth 신규 신원만 도달(pending-account 쿠키 보유). 제출 시 account 최초 생성.
 import { redirect } from "next/navigation";
 
-import { PageBack } from "@/components/PageBack";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandMark } from "@/modules/ui/components/BrandMark";
@@ -17,6 +16,7 @@ import {
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_nickname: `닉네임을 확인해 주세요. (1–${NICKNAME_MAX_LENGTH}자)`,
+  consent_required: "필수 약관에 동의해 주세요.",
 };
 
 export default async function SignupPage({
@@ -34,14 +34,8 @@ export default async function SignupPage({
   const [teams, members] = await Promise.all([listTeams(), listMembers()]);
 
   return (
-    <div className="space-y-3">
-      {/* 뒤로가기 — 다른 계정으로 다시 로그인하러 갈 수 있게. */}
-      <div className="flex items-center gap-2">
-        <PageBack fallbackHref="/login" />
-        <span className="text-sm text-muted-foreground">로그인으로 돌아가기</span>
-      </div>
-
-      <div className="rounded-md border border-border bg-card p-8 shadow-card">
+    <div className="pt-3">
+      <div className="mx-auto max-w-sm rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
         <div className="mb-8 text-center">
           <BrandMark className="mx-auto mb-4 h-14 w-14" preload />
           <h1 className="font-display text-2xl text-foreground">
@@ -98,6 +92,48 @@ export default async function SignupPage({
             </p>
           </div>
         )}
+        {/* 약관 동의 — 필수 2개(이용약관·개인정보), 선택 1개(마케팅 수신). 네이티브 required로 강제. */}
+        <fieldset className="space-y-2 rounded-md border border-border bg-muted/20 p-4">
+          <legend className="px-1 text-sm font-medium text-foreground">약관 동의</legend>
+          <label className="flex items-start gap-2.5 text-sm text-foreground">
+            <input
+              type="checkbox"
+              name="agree_terms"
+              required
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="text-destructive">[필수]</span>{" "}
+              <a href="/terms" target="_blank" className="text-primary underline underline-offset-2">
+                이용약관
+              </a>
+              에 동의합니다.
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm text-foreground">
+            <input
+              type="checkbox"
+              name="agree_privacy"
+              required
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="text-destructive">[필수]</span>{" "}
+              <a href="/privacy" target="_blank" className="text-primary underline underline-offset-2">
+                개인정보 수집·이용
+              </a>
+              에 동의합니다.
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              name="agree_marketing"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span>[선택] 이벤트·혜택 소식 알림 수신에 동의합니다.</span>
+          </label>
+        </fieldset>
         <Button type="submit" size="lg">
           시작하기
         </Button>

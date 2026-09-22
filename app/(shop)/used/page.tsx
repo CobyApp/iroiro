@@ -10,8 +10,13 @@ import { listMembers } from "@/modules/members/lib/queries";
 import {
   listEndingSoonUsedAuctions,
   listNewestUsedListings,
+  listUsedListingFacets,
   listUsedListings,
 } from "@/modules/used/lib/queries";
+import {
+  pickSaleModesWithListings,
+  pickWithListings,
+} from "@/modules/products/lib/facets";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { UsedRow } from "@/modules/used/components/UsedRow";
@@ -46,10 +51,12 @@ export default async function UsedHomePage({
   // 검색·필터가 없는 기본 화면에서만 큐레이션 섹션(최애·마감 임박)을 보여준다.
   const isDefaultBrowse = !mode && !teamId && !memberId && !q && page === 1;
 
-  const [account, teams, members] = await Promise.all([
+  // facets: 노출 중인 매물(판매중·거래중) 기준 — 매물이 있는 그룹·멤버·판매방식만 칩으로.
+  const [account, teams, members, facets] = await Promise.all([
     getCurrentAccount(),
     listTeams(),
     listMembers(),
+    listUsedListingFacets(),
   ]);
   const [{ items, total }, endingSoon, usedWishedIds] = await Promise.all([
     isDefaultBrowse
@@ -92,10 +99,28 @@ export default async function UsedHomePage({
     return s ? `/used?${s}` : "/used";
   };
 
+  // 선택된 값은 매물이 0이어도 남겨서(공유 URL 등) 해제할 수 있게 한다.
+  const visibleTeams = pickWithListings(teams, facets.teams, teamId);
   const teamMembers =
     teamId !== undefined
-      ? members.filter((m) => m.teamIds.includes(teamId))
+      ? pickWithListings(
+          members.filter((m) => m.teamIds.includes(teamId)),
+          facets.membersByTeam[String(teamId)],
+          memberId,
+        )
       : [];
+  const visibleModes = pickSaleModesWithListings(
+    ["fixed", "auction"] as const,
+    facets.saleModes,
+    mode,
+  );
+  const modeTabs: { value: "fixed" | "auction" | undefined; label: string }[] = [
+    { value: undefined, label: "전체" },
+    ...visibleModes.map((value) => ({
+      value,
+      label: value === "fixed" ? "바로 판매" : "입찰 경매",
+    })),
+  ];
 
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
@@ -139,11 +164,7 @@ export default async function UsedHomePage({
       {/* 판매 방식 + 그룹 → 멤버 필터 칩 — 링크 기반이라 뒤로가기·공유에 안전. */}
       <div className="space-y-2">
         <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
-          {[
-            { value: undefined, label: "전체" },
-            { value: "fixed", label: "바로 판매" },
-            { value: "auction", label: "입찰 경매" },
-          ].map((tab) => (
+          {modeTabs.map((tab) => (
             <Link
               key={tab.label}
               href={qs({ mode: tab.value, page: 1 })}
@@ -159,7 +180,7 @@ export default async function UsedHomePage({
           >
             모든 그룹
           </Link>
-          {teams.map((team) => (
+          {visibleTeams.map((team) => (
             <Link
               key={team.id}
               href={qs({

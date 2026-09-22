@@ -34,6 +34,11 @@ import type { Team } from "@/modules/teams/types";
 import type { MemberWithTeams } from "@/modules/members/types";
 import { buildProductQuery, type ProductFilter } from "../lib/filters";
 import {
+  pickSaleModesWithListings,
+  pickWithListings,
+  type ListingFacets,
+} from "../lib/facets";
+import {
   ITEM_TYPES,
   ITEM_TYPE_LABEL,
   PRODUCT_CONDITION_LABEL,
@@ -61,6 +66,12 @@ type Props = {
   showSaleStatus?: boolean;
   /** 재고없음 토글 노출 — 어드민에서만 true (공개 사용자에겐 의미 적음). */
   showOutOfStockFilter?: boolean;
+  /**
+   * 노출 중인 매물 facet — 넘기면 매물이 있는 그룹·멤버·판매방식만 칩/옵션으로 보인다
+   * (고객 화면). 생략하면 카탈로그 마스터 전체를 보여준다(어드민).
+   * 현재 선택된 값은 매물이 0이어도 남겨서 해제할 수 있게 한다.
+   */
+  facets?: ListingFacets;
 };
 
 export function ProductFilters({
@@ -70,6 +81,7 @@ export function ProductFilters({
   basePath = "/",
   showSaleStatus = false,
   showOutOfStockFilter = false,
+  facets,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -99,10 +111,27 @@ export function ProductFilters({
     startTransition(() => router.push(`${basePath}${buildProductQuery(next)}`));
   }
 
-  const filteredMembers =
+  // facets 가 있으면 매물이 있는 값만 — 빈 결과로 이어지는 태그를 고객에게 보이지 않는다.
+  const visibleTeams = facets
+    ? pickWithListings(teams, facets.teams, filter.teamId)
+    : teams;
+  const teamMembers =
     filter.teamId !== undefined
       ? members.filter((member) => member.teamIds.includes(filter.teamId!))
       : [];
+  const filteredMembers =
+    facets && filter.teamId !== undefined
+      ? pickWithListings(
+          teamMembers,
+          facets.membersByTeam[String(filter.teamId)],
+          filter.memberId,
+        )
+      : teamMembers;
+  const visibleSaleModes = facets
+    ? pickSaleModesWithListings(SALE_MODES, facets.saleModes, filter.saleMode)
+    : [...SALE_MODES];
+  const showInStockToggle =
+    !facets || facets.inStock > 0 || filter.stock === "in_stock";
 
   const activeFilterCount =
     (filter.teamId !== undefined ? 1 : 0) +
@@ -140,7 +169,7 @@ export function ProductFilters({
 
   const controls = (
     <div className="flex flex-wrap gap-2">
-      {!isSearching && (
+      {!isSearching && visibleTeams.length > 0 && (
         <Select
           value={
             filter.teamId !== undefined ? String(filter.teamId) : "__all__"
@@ -164,7 +193,7 @@ export function ProductFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">모든 그룹</SelectItem>
-            {teams.map((team) => (
+            {visibleTeams.map((team) => (
               <SelectItem key={team.id} value={String(team.id)}>
                 {team.name}
               </SelectItem>
@@ -241,36 +270,38 @@ export function ProductFilters({
         </Select>
       )}
 
-      <Select
-        value={filter.saleMode ?? "__all__"}
-        onValueChange={(value) =>
-          update({
-            saleMode: value === "__all__" ? undefined : (value as SaleMode),
-          })
-        }
-        disabled={pending}
-      >
-        <SelectTrigger
-          className={cn(
-            pillTriggerClass,
-            "w-auto min-w-[140px] max-w-[240px]",
-            saleModeActive && pillActiveClass,
-          )}
+      {visibleSaleModes.length > 0 && (
+        <Select
+          value={filter.saleMode ?? "__all__"}
+          onValueChange={(value) =>
+            update({
+              saleMode: value === "__all__" ? undefined : (value as SaleMode),
+            })
+          }
+          disabled={pending}
         >
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <Gavel className="h-4 w-4 shrink-0 opacity-60" />
-            <SelectValue placeholder="판매 방식" />
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">모든 판매 방식</SelectItem>
-          {SALE_MODES.map((mode) => (
-            <SelectItem key={mode} value={mode}>
-              {SALE_MODE_FILTER_LABEL[mode]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          <SelectTrigger
+            className={cn(
+              pillTriggerClass,
+              "w-auto min-w-[140px] max-w-[240px]",
+              saleModeActive && pillActiveClass,
+            )}
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <Gavel className="h-4 w-4 shrink-0 opacity-60" />
+              <SelectValue placeholder="판매 방식" />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">모든 판매 방식</SelectItem>
+            {visibleSaleModes.map((mode) => (
+              <SelectItem key={mode} value={mode}>
+                {SALE_MODE_FILTER_LABEL[mode]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* 상품 상태 필터 없음 — 스토어 판매품은 상태 미노출 정책.
          URL로 남은 condition은 아래 활성 칩에서 해제만 가능. */}
@@ -308,21 +339,23 @@ export function ProductFilters({
         </Select>
       )}
 
-      <Button
-        type="button"
-        variant={filter.stock === "in_stock" ? "default" : "outline"}
-        size="sm"
-        onClick={() =>
-          update({
-            stock: filter.stock === "in_stock" ? undefined : "in_stock",
-          })
-        }
-        disabled={pending}
-        className="h-9 gap-2 rounded-full px-4"
-      >
-        <Package className="h-4 w-4" />
-        재고있음
-      </Button>
+      {showInStockToggle && (
+        <Button
+          type="button"
+          variant={filter.stock === "in_stock" ? "default" : "outline"}
+          size="sm"
+          onClick={() =>
+            update({
+              stock: filter.stock === "in_stock" ? undefined : "in_stock",
+            })
+          }
+          disabled={pending}
+          className="h-9 gap-2 rounded-full px-4"
+        >
+          <Package className="h-4 w-4" />
+          재고있음
+        </Button>
+      )}
       {showOutOfStockFilter && (
         <Button
           type="button"
@@ -455,7 +488,7 @@ export function ProductFilters({
       {/* 모바일: 그룹은 가로 스크롤 칩으로 빠르게 훑고, 나머지 필터는 시트에 모은다.
          (상태·아이템 등은 시트 안에서만 노출해 상단이 여러 줄로 터지지 않게 한다.) */}
       <div className="sm:hidden">
-        {!isSearching && teams.length > 0 && (
+        {!isSearching && visibleTeams.length > 0 && (
           <div
             className="scroll-x scroll-x-bleed mb-2 flex gap-2 overflow-x-auto pb-1"
             aria-label="그룹 카테고리"
@@ -470,7 +503,7 @@ export function ProductFilters({
             >
               전체
             </Button>
-            {teams.map((team) => (
+            {visibleTeams.map((team) => (
               <Button
                 key={team.id}
                 type="button"
@@ -542,23 +575,25 @@ export function ProductFilters({
               </SheetContent>
             </Sheet>
           ) : (
-            <Button
-              type="button"
-              variant={filter.stock === "in_stock" ? "default" : "outline"}
-              size="sm"
-              onClick={() =>
-                update({
-                  stock: filter.stock === "in_stock" ? undefined : "in_stock",
-                })
-              }
-              disabled={pending}
-              className="shrink-0 gap-1.5 rounded-full"
-            >
-              <Package className="h-4 w-4" />
-              재고있음
-            </Button>
+            showInStockToggle && (
+              <Button
+                type="button"
+                variant={filter.stock === "in_stock" ? "default" : "outline"}
+                size="sm"
+                onClick={() =>
+                  update({
+                    stock: filter.stock === "in_stock" ? undefined : "in_stock",
+                  })
+                }
+                disabled={pending}
+                className="shrink-0 gap-1.5 rounded-full"
+              >
+                <Package className="h-4 w-4" />
+                재고있음
+              </Button>
+            )
           )}
-          {SALE_MODES.map((mode) => (
+          {visibleSaleModes.map((mode) => (
             <Button
               key={mode}
               type="button"

@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
-import { BrandLockup } from "@/modules/ui/components/BrandMark";
+import { BrandMark } from "@/modules/ui/components/BrandMark";
 import { ADMIN_SECTIONS, CATALOG_SECTIONS, type NavSection } from "../lib/nav";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
@@ -14,9 +13,10 @@ export type AdminShellScope = "admin" | "catalog";
 
 const SCOPE: Record<
   AdminShellScope,
-  { badge: string; badgeClassName: string; homeHref: string; sections: NavSection[]; navLabel: string }
+  { title: string; badge: string; badgeClassName: string; homeHref: string; sections: NavSection[]; navLabel: string }
 > = {
   admin: {
+    title: "관리자",
     badge: "ADMIN",
     badgeClassName: "bg-muted text-muted-foreground",
     homeHref: "/admin",
@@ -24,6 +24,7 @@ const SCOPE: Record<
     navLabel: "관리자 메뉴",
   },
   catalog: {
+    title: "토레카 카탈로그",
     badge: "TRADING CARD ARCHIVE",
     badgeClassName: "bg-accent/15 tracking-[0.09em] text-accent",
     homeHref: "/catalog",
@@ -71,23 +72,18 @@ export function AdminShell({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <Link href={config.homeHref} className="flex min-w-0 items-center gap-2">
-              <BrandLockup
-                markClassName="h-8 w-8 sm:h-9 sm:w-9"
-                wordmarkClassName="h-5 sm:h-6"
-                wordmarkAlt={appName}
-                preload
-              />
-              <span
-                className={cn(
-                  "hidden truncate rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline",
-                  config.badgeClassName,
-                )}
-              >
-                {config.badge}
+            <Link
+              href={config.homeHref}
+              aria-label={`${appName ?? config.title} 홈`}
+              className="flex min-w-0 items-center gap-2"
+            >
+              <BrandMark className="h-8 w-8 shrink-0 sm:h-9 sm:w-9" preload />
+              {/* 스코프 이름을 항상 노출 — 모바일에서 메인 사이트와 구분된다. */}
+              <span className="truncate font-display text-lg text-foreground">
+                {config.title}
               </span>
               {isDev && (
-                <span className="rounded-full bg-lemon px-2 py-0.5 text-[10px] font-medium text-ink">
+                <span className="shrink-0 rounded-full bg-lemon px-2 py-0.5 text-[10px] font-medium text-ink">
                   dev
                 </span>
               )}

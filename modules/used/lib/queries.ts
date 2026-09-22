@@ -8,6 +8,10 @@ import {
   toUsedTrade,
 } from "./transform";
 import type { UsedListingWithPhotos, UsedTrade } from "../types";
+import {
+  buildListingFacets,
+  type ListingFacets,
+} from "@/modules/products/lib/facets";
 
 export type UsedListFilter = {
   teamId?: number;
@@ -50,15 +54,35 @@ async function attachPhotosAndSellers(
   }));
 }
 
+// 고객에게 보이는 중고 매물 — 판매중(+거래중). 목록·facet 이 같은 규칙을 공유한다.
+const LIVE_USED_STATUS: Prisma.UsedListingWhereInput = {
+  status: { in: ["active", "reserved"] },
+};
+
+// 중고거래 홈 필터 칩용 facet — listUsedListings 와 같은 노출 규칙(status active·reserved).
+export async function listUsedListingFacets(): Promise<ListingFacets> {
+  const rows = await db.usedListing.groupBy({
+    by: ["teamId", "memberId", "saleMode"],
+    where: LIVE_USED_STATUS,
+    _count: { _all: true },
+  });
+  return buildListingFacets(
+    rows.map((r) => ({
+      teamId: r.teamId,
+      memberId: r.memberId,
+      saleMode: r.saleMode,
+      count: r._count._all,
+    })),
+  );
+}
+
 // 중고 매물 목록 — 판매중(+거래중)만. 대표사진 포함.
 export async function listUsedListings(
   filter: UsedListFilter = {},
 ): Promise<{ items: UsedListingWithPhotos[]; total: number }> {
   const page = filter.page ?? 1;
   const pageSize = filter.pageSize ?? 24;
-  const where: Prisma.UsedListingWhereInput = {
-    status: { in: ["active", "reserved"] },
-  };
+  const where: Prisma.UsedListingWhereInput = { ...LIVE_USED_STATUS };
   if (filter.teamId !== undefined) where.teamId = BigInt(filter.teamId);
   if (filter.memberId !== undefined) where.memberId = BigInt(filter.memberId);
   if (filter.seriesId !== undefined) where.seriesId = BigInt(filter.seriesId);

@@ -16,7 +16,7 @@ import {
 export const runtime = "nodejs";
 
 // OAuth 시작 — state·PKCE 생성 후 쿠키로 심고 제공자 authorize로 302.
-// GET /api/auth/{kakao|naver}
+// GET /api/auth/{kakao}
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
@@ -44,6 +44,7 @@ export async function GET(
   });
 
   const response = NextResponse.redirect(authorizationUrl);
-  setOAuthCookies(response, { state, codeVerifier });
+  const returnTo = request.nextUrl.searchParams.get("returnTo");
+  setOAuthCookies(response, { state, codeVerifier, returnTo });
   return response;
 }

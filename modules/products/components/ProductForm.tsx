@@ -20,6 +20,9 @@ import { TeamCombobox } from "@/modules/teams/components/TeamCombobox";
 import type { Team } from "@/modules/teams/types";
 import { MemberCombobox } from "@/modules/members/components/MemberCombobox";
 import type { MemberWithTeams } from "@/modules/members/types";
+import type { SeriesOption } from "@/modules/series/lib/queries";
+import { CatalogCardPicker } from "./CatalogCardPicker";
+import { importCatalogCardPhoto } from "../actions";
 import { todayKstYmd } from "@/lib/datetime";
 import {
   createProduct,
@@ -60,7 +63,9 @@ type Props = {
   product?: ProductWithPhotos | null;
   teams: Team[];
   members: MemberWithTeams[];
+  series: SeriesOption[];
   publicBaseUrl: string;
+  catalogPublicBase: string;
 };
 
 export function ProductForm({
@@ -68,7 +73,9 @@ export function ProductForm({
   product,
   teams: initialTeams,
   members: initialMembers,
+  series,
   publicBaseUrl,
+  catalogPublicBase,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -89,6 +96,10 @@ export function ProductForm({
   const [memberId, setMemberId] = useState<number | null>(
     product?.memberId ?? null,
   );
+  const [seriesId, setSeriesId] = useState<number | null>(
+    product?.seriesId ?? null,
+  );
+  const [catalogImporting, setCatalogImporting] = useState(false);
   const [name, setName] = useState(product?.name ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [purchasePriceJpy, setPurchasePriceJpy] = useState(
@@ -243,6 +254,7 @@ export function ProductForm({
       itemType,
       teamId,
       memberId,
+      seriesId,
       name,
       description: description || null,
       purchasePriceJpy: Number(purchasePriceJpy),
@@ -312,6 +324,56 @@ export function ProductForm({
             <CardTitle>식별</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">
+                판매할 토레카를 카탈로그에서 고르면 그룹·멤버·시리즈·이름·정가·사진이 한 번에 채워져요.
+              </p>
+              <div className="mt-2">
+                <CatalogCardPicker
+                  teams={teams}
+                  members={members}
+                  series={series}
+                  catalogPublicBase={catalogPublicBase}
+                  onPick={(card) => {
+                    setTeamId(card.teamId);
+                    setMemberId(card.memberId);
+                    setSeriesId(card.seriesId);
+                    setItemType(card.itemType as ItemType);
+                    if (card.itemCode) setItemCode(card.itemCode);
+                    setName(card.name);
+                    if (card.retailPriceJpy > 0 && (listPrice === "0" || listPrice === "")) {
+                      // 정가(엔)는 참고용 — 판매가는 관리자가 원화로 정한다. 여기선 이름·식별만 채우고
+                      // 가격은 매입 정보에서 계산되므로 건드리지 않는다.
+                    }
+                    setCatalogImporting(true);
+                    void (async () => {
+                      const res = await importCatalogCardPhoto({ cardId: card.id });
+                      if (res.ok) {
+                        setPhotos((prev) => [
+                          ...prev,
+                          {
+                            r2Key: res.data.r2Key,
+                            altText: null,
+                            displayOrder: prev.length,
+                            isThumbnail: prev.length === 0,
+                          },
+                        ]);
+                        toast.success("토레카 정보와 사진을 불러왔어요");
+                      } else {
+                        toast.error(res.message);
+                      }
+                      setCatalogImporting(false);
+                    })();
+                  }}
+                />
+              </div>
+              {seriesId != null && (
+                <p className="mt-2 text-xs text-primary">
+                  시리즈 연결됨 · {series.find((s) => s.id === seriesId)?.label ?? `#${seriesId}`}
+                  {catalogImporting && " · 사진 불러오는 중…"}
+                </p>
+              )}
+            </div>
             <div>
               <Label>그룹</Label>
               <TeamCombobox

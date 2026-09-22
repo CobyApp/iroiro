@@ -10,8 +10,6 @@ export default defineConfig({
     // 통과하도록 더미값을 전역 주입한다. 개별 테스트는 stubEnv로 덮어쓸 수 있다.
     env: {
       KAKAO_REST_API_KEY: "test-kakao-key",
-      NAVER_CLIENT_ID: "test-naver-id",
-      NAVER_CLIENT_SECRET: "test-naver-secret",
     },
   },
   resolve: {

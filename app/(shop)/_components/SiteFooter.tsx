@@ -37,7 +37,7 @@ export function SiteFooter() {
           </nav>
         </div>
         <p className="mt-5 border-t border-border/60 pt-4 text-center text-[11px] text-muted-foreground sm:text-left">
-          © 2026 이로이로 · 문의는 커뮤니티 게시판으로
+          © 2026 이로이로 · 문의 coby5502@iroiro.club
         </p>
       </div>
     </footer>

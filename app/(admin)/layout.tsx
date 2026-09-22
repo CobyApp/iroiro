@@ -49,7 +49,7 @@ export default async function AdminLayout({
   // site admin은 전체, 게시판 moderator는 커뮤니티 관리 섹션만(사이드바에서 필터).
   // Server Action은 layout과 별개로 requireAdmin/requireBoardManager에서 재검증.
   const account = await getCurrentAccount();
-  if (!account) redirect("/login");
+  if (!account) redirect("/login?returnTo=/admin");
   if (!isBoardManager(account)) redirect("/");
 
   return (

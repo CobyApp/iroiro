@@ -66,7 +66,7 @@ describe("env", () => {
   });
 
 
-  it.each(["KAKAO_REST_API_KEY", "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"])(
+  it.each(["KAKAO_REST_API_KEY"])(
     "필수 OAuth 자격증명 %s 가 비면 import를 거부한다 (fail-fast)",
     async (key) => {
       baseProdEnv();

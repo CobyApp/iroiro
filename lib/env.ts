@@ -49,8 +49,6 @@ const envSchema = z
     KAKAO_CLIENT_SECRET: optionalString,
     // 선택: 동의항목(scope). 기본 profile_nickname. 이메일은 비즈앱+"profile_nickname,account_email".
     KAKAO_SCOPE: optionalString,
-    NAVER_CLIENT_ID: z.string().min(1), // 필수 (네이버는 ID·시크릿 둘 다 필요)
-    NAVER_CLIENT_SECRET: z.string().min(1), // 필수
     // 매입일 환율(JPY→KRW) 조회 API. 기본 Frankfurter(ECB, 키 불필요, 과거 영업일 지원).
     // 정식 호스트는 api.frankfurter.dev/v1 (.app은 301 리다이렉트).
     FX_API_BASE: z.preprocess(

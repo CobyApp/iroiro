@@ -90,7 +90,6 @@ aws ssm put-parameter --profile personal --region ap-northeast-2 --overwrite --t
 | 이름 | 출처 |
 |---|---|
 | `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET` | developers.kakao.com — Redirect URI `https://<도메인>/api/auth/kakao/callback` 등록 |
-| `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | developers.naver.com — Callback `https://<도메인>/api/auth/naver/callback` |
 | `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` + GitHub 변수 `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | `npx web-push generate-vapid-keys` (환경별로 별도 생성) |
 | `CRON_SECRET` | `setup.sh core`가 자동 생성 |
 

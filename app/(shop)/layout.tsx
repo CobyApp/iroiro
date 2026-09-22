@@ -1,11 +1,8 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { Heart, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrandLockup } from "@/modules/ui/components/BrandMark";
-import { WishlistNavButton } from "@/modules/wishlist/components/WishlistNavButton";
 import { CartButton } from "@/modules/cart/components/CartButton";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { MessagesNavButton } from "@/modules/messages/components/MessagesNavButton";
@@ -13,6 +10,7 @@ import { AccountNav } from "@/modules/auth/components/AccountNav";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
+import { HeaderSearch } from "./_components/HeaderSearch";
 import { NavigationFeedback } from "./_components/NavigationFeedback";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -31,21 +29,10 @@ export default async function ShopLayout({
         <header className="shop-header sticky top-0 z-30 border-b border-border/50 bg-cream/82 backdrop-blur-xl">
           {/* 로고 좌 / 탐색과 구매·계정 기능 우. */}
           <div className="shop-page-frame flex h-16 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-0">
-            <Link
-              href="/"
-              aria-label="이로이로 홈"
-              className="shop-brand flex shrink-0 items-center gap-1.5"
-            >
-              {/* 360px대 폰은 우측 아이콘 5개와 겹치므로 워드마크를 380px 미만에서 숨긴다. */}
-              <BrandLockup
-                className="gap-2 sm:gap-2.5"
-                markClassName="h-9 w-9 sm:h-10 sm:w-10"
-                wordmarkClassName="hidden h-[22px] min-[380px]:block sm:h-[25px]"
-                preload
-              />
-            </Link>
+            {/* 로고 없이 검색바를 넓게 — 어느 화면에서든 상품 검색을 시작한다. */}
+            <HeaderSearch />
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
-            <div className="flex min-w-0 items-center gap-0 sm:gap-2">
+            <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-2">
               <div className="hidden sm:block">
                 <DesktopNavLinks />
               </div>
@@ -53,22 +40,6 @@ export default async function ShopLayout({
                 className="hidden h-6 w-px bg-border/60 sm:block"
                 aria-hidden="true"
               />
-              <Suspense
-                fallback={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 px-2.5"
-                    aria-label="찜"
-                    disabled
-                  >
-                    <Heart className="h-5 w-5" />
-                    <span className="hidden lg:inline">찜</span>
-                  </Button>
-                }
-              >
-                <WishlistNavButton />
-              </Suspense>
               <Suspense
                 fallback={
                   <Button

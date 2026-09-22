@@ -33,7 +33,7 @@ describe("findAccountByIdentity", () => {
 
   it("신원이 없으면 null", async () => {
     dbMock.accountIdentity.findUnique.mockResolvedValue(null);
-    await expect(findAccountByIdentity("naver", "n-1")).resolves.toBeNull();
+    await expect(findAccountByIdentity("kakao", "k-1")).resolves.toBeNull();
   });
 });
 
@@ -75,7 +75,7 @@ describe("createAccountFromSignup", () => {
     dbMock.$transaction.mockImplementation(async (cb) => cb(tx));
 
     const result = await createAccountFromSignup({
-      provider: "naver",
+      provider: "kakao",
       providerUserId: "n-1",
       email: null,
       displayName: "x",
