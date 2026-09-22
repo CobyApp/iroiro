@@ -39,6 +39,7 @@ import {
   type CardImageView,
   type Card,
 } from "../types";
+import { kindLabelOf, type KindOption } from "@/modules/series/lib/kind-options";
 import type {
   MemberOption,
   SeriesOption,
@@ -54,12 +55,15 @@ export function CardTable({
   teams,
   members,
   series,
+  kinds = [],
   imageView,
 }: {
   items: Card[];
   teams: TeamOption[];
   members: MemberOption[];
   series: SeriesOption[];
+  /** 종류 라벨(DB) — 상세 다이얼로그의 종류 배지용. */
+  kinds?: KindOption[];
   imageView: CardImageView;
 }) {
   const router = useRouter();
@@ -74,7 +78,9 @@ export function CardTable({
 
   const teamById = new Map(teams.map((t) => [t.id, t.name]));
   const memberById = new Map(members.map((m) => [m.id, m.name]));
+  const memberRowById = new Map(members.map((m) => [m.id, m]));
   const seriesById = new Map(series.map((s) => [s.id, s.label]));
+  const seriesRowById = new Map(series.map((s) => [s.id, s]));
   const pendingItems = items.filter((c) => c.status === "pending");
   const allPendingSelected =
     pendingItems.length > 0 && pendingItems.every((c) => selected.has(c.id));
@@ -108,8 +114,233 @@ export function CardTable({
     });
   }
 
+  const approve = (card: Card) =>
+    run(() => reviewCard(card.id, "approve"), "승인 — 공개됐어요");
+  const reject = (card: Card) =>
+    run(() => reviewCard(card.id, "reject", noteById[card.id]), "반려했어요");
+  const remove = (card: Card) => {
+    if (!window.confirm(`「${card.name}」 카드를 삭제할까요?`)) return;
+    run(() => deleteCard(card.id), "삭제했어요");
+  };
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const hierarchyOf = (card: Card) =>
+    card.memberId !== null
+      ? (memberById.get(card.memberId) ?? "-")
+      : card.teamId !== null
+        ? teamById.get(card.teamId)
+        : "-";
+
+  // 반려 사유 입력 — 표에서는 짝은 폭, 폰 카드에서는 전체 폭.
+  const noteInput = (card: Card, className: string) => (
+    <input
+      value={noteById[card.id] ?? ""}
+      onChange={(e) => setNoteById((prev) => ({ ...prev, [card.id]: e.target.value }))}
+      placeholder="반려 사유"
+      aria-label={`${card.name} 반려 사유`}
+      className={`rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/50 ${className}`}
+    />
+  );
+
+  // 검수 액션(유사·수정·승인·반려) — layout 에 따라 표용(작게) / 폰 카드용(44px, 줄바꿈) 크기.
+  const pendingActions = (card: Card, layout: "table" | "card") => {
+    const tall = layout === "card";
+    const h = tall ? "h-11" : "h-8";
+    return (
+      <div className={tall ? "flex flex-wrap gap-1.5" : "flex flex-wrap items-center justify-end gap-1"}>
+        {!tall && noteInput(card, "h-8 w-24")}
+        <Button
+          size="sm"
+          className={`${h} gap-1 px-2 text-xs ${tall ? "flex-1" : ""}`}
+          disabled={pending}
+          onClick={() => approve(card)}
+        >
+          <Check className="h-3.5 w-3.5" />
+          승인
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className={`${h} gap-1 px-2 text-xs ${tall ? "flex-1" : ""}`}
+          disabled={pending}
+          onClick={() => reject(card)}
+        >
+          <X className="h-3.5 w-3.5" />
+          반려
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${h} gap-1 px-2 text-xs`}
+          aria-label={`${card.name} 유사 카드 보기`}
+          title="AI로 기존·유사 카드 확인 (저장 전 비교)"
+          disabled={pending || !card.frontR2Key}
+          onClick={() => setSimilarFor(card)}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          유사
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={tall ? "h-11 w-11 p-0" : "h-8 w-8 p-0"}
+          aria-label={`${card.name} 수정`}
+          disabled={pending}
+          onClick={() => setEditing(card)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  };
+
+  // 공개·반려 카드 액션(상세·수정·삭제).
+  const settledActions = (card: Card, layout: "table" | "card") => {
+    const tall = layout === "card";
+    const h = tall ? "h-11" : "h-8";
+    return (
+      <div className={tall ? "flex flex-wrap gap-1.5" : "flex items-center justify-end gap-0.5"}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${h} gap-1 px-2 text-xs text-primary`}
+          aria-label={`${card.name} 상세·AI 분석값`}
+          onClick={() => setDetailFor(card)}
+        >
+          <Info className="h-3.5 w-3.5" />
+          상세
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${h} gap-1 px-2 text-xs`}
+          aria-label={`${card.name} 수정`}
+          disabled={pending}
+          onClick={() => setEditing(card)}
+        >
+          <Pencil className="h-4 w-4" />
+          {tall && "수정"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`${h} gap-1 px-2 text-xs text-muted-foreground hover:text-destructive`}
+          aria-label={`${card.name} 삭제`}
+          disabled={pending}
+          onClick={() => remove(card)}
+        >
+          <Trash2 className="h-4 w-4" />
+          {tall && "삭제"}
+        </Button>
+      </div>
+    );
+  };
+
+  const statusBadge = (card: Card) =>
+    card.status !== "active" ? (
+      <Badge
+        className={
+          card.status === "pending"
+            ? "whitespace-nowrap"
+            : "whitespace-nowrap bg-destructive hover:bg-destructive"
+        }
+      >
+        {CARD_STATUS_LABEL[card.status]}
+      </Badge>
+    ) : (
+      <span className="text-xs text-muted-foreground">
+        {CARD_STATUS_LABEL.active}
+        {card.submittedByAccountId && " · 제보"}
+      </span>
+    );
+
   return (
     <>
+      {/* 폰 — 검수 큐를 카드 리스트로. 사유 입력은 전체 폭, 버튼은 44px·줄바꿈. */}
+      <ul className="space-y-3 md:hidden">
+        {pendingItems.length > 0 && (
+          <li className="flex items-center gap-2 px-1 text-sm">
+            <input
+              type="checkbox"
+              checked={allPendingSelected}
+              onChange={() =>
+                setSelected(
+                  allPendingSelected ? new Set() : new Set(pendingItems.map((c) => c.id)),
+                )
+              }
+              className="h-5 w-5 cursor-pointer accent-primary"
+              id="card-review-select-all"
+            />
+            <label htmlFor="card-review-select-all" className="cursor-pointer text-muted-foreground">
+              검수 대기 전체 선택
+            </label>
+          </li>
+        )}
+        {items.map((card) => {
+          const frontUrl = cardImageSrc(card, imageView);
+          const isPending = card.status === "pending";
+          return (
+            <li key={card.id} className="rounded-md border border-border bg-card p-3 shadow-card">
+              <div className="flex items-start gap-3">
+                {isPending && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(card.id)}
+                    onChange={() => toggle(card.id)}
+                    className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-primary"
+                    aria-label={`${card.name} 선택`}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDetailFor(card)}
+                  aria-label={`${card.name} 상세 보기`}
+                  className="block h-[5.25rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xs border border-border bg-lilac"
+                >
+                  {frontUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={frontUrl} alt={card.name} loading="lazy" className="h-full w-full object-cover" />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate text-sm font-medium">
+                    <span className="catalog-mono mr-1 text-muted-foreground">#{card.id}</span>
+                    {card.name}
+                  </p>
+                  {card.itemCode && (
+                    <p className="catalog-mono break-all text-muted-foreground">{card.itemCode}</p>
+                  )}
+                  <p className="truncate text-xs text-muted-foreground">
+                    {hierarchyOf(card)}
+                    {card.seriesId !== null && ` · ${seriesById.get(card.seriesId) ?? "-"}`}
+                    {card.seriesId !== null && ` · 포즈 ${card.pose}`}
+                  </p>
+                  <div className="pt-0.5">{statusBadge(card)}</div>
+                  {card.status === "rejected" && card.reviewNote && (
+                    <p className="text-xs text-destructive">반려: {card.reviewNote}</p>
+                  )}
+                </div>
+              </div>
+              {isPending ? (
+                <div className="mt-3 space-y-2">
+                  {noteInput(card, "h-11 w-full")}
+                  {pendingActions(card, "card")}
+                </div>
+              ) : (
+                <div className="mt-3">{settledActions(card, "card")}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* md+ — 작업 표 */}
+      <div className="hidden md:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -130,12 +361,12 @@ export function CardTable({
                 />
               )}
             </TableHead>
-            <TableHead className="w-12 text-right">#</TableHead>
-            <TableHead className="w-16">앞면</TableHead>
+            <TableHead className="text-right">#</TableHead>
+            <TableHead>앞면</TableHead>
             <TableHead>카드 이름</TableHead>
             <TableHead>멤버 / 시리즈</TableHead>
             <TableHead>상태</TableHead>
-            <TableHead className="w-48 text-right">
+            <TableHead className="text-right">
               <span className="sr-only">작업</span>
             </TableHead>
           </TableRow>
@@ -151,14 +382,7 @@ export function CardTable({
                     <input
                       type="checkbox"
                       checked={selected.has(card.id)}
-                      onChange={() =>
-                        setSelected((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(card.id)) next.delete(card.id);
-                          else next.add(card.id);
-                          return next;
-                        })
-                      }
+                      onChange={() => toggle(card.id)}
                       className="h-4 w-4 cursor-pointer accent-primary align-middle"
                       aria-label={`${card.name} 선택`}
                     />
@@ -199,11 +423,7 @@ export function CardTable({
                   )}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {card.memberId !== null
-                    ? (memberById.get(card.memberId) ?? "-")
-                    : card.teamId !== null
-                      ? teamById.get(card.teamId)
-                      : "-"}
+                  {hierarchyOf(card)}
                   {card.seriesId !== null && (
                     <p className="text-xs text-muted-foreground">
                       {seriesById.get(card.seriesId) ?? "-"}
@@ -213,155 +433,29 @@ export function CardTable({
                     </p>
                   )}
                 </TableCell>
+                <TableCell>{statusBadge(card)}</TableCell>
                 <TableCell>
-                  {card.status !== "active" ? (
-                    <Badge
-                      className={
-                        isPending
-                          ? "whitespace-nowrap"
-                          : "whitespace-nowrap bg-destructive hover:bg-destructive"
-                      }
-                    >
-                      {CARD_STATUS_LABEL[card.status]}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {CARD_STATUS_LABEL.active}
-                      {card.submittedByAccountId && " · 제보"}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {isPending ? (
-                    <div className="flex flex-wrap items-center justify-end gap-1">
-                      <input
-                        value={noteById[card.id] ?? ""}
-                        onChange={(e) =>
-                          setNoteById((prev) => ({
-                            ...prev,
-                            [card.id]: e.target.value,
-                          }))
-                        }
-                        placeholder="반려 사유"
-                        className="h-8 w-24 rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary/50"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs"
-                        aria-label={`${card.name} 유사 카드 보기`}
-                        title="AI로 기존·유사 카드 확인 (저장 전 비교)"
-                        disabled={pending || !card.frontR2Key}
-                        onClick={() => setSimilarFor(card)}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        유사
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        aria-label={`${card.name} 수정`}
-                        disabled={pending}
-                        onClick={() => setEditing(card)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs"
-                        disabled={pending}
-                        onClick={() =>
-                          run(
-                            () => reviewCard(card.id, "approve"),
-                            "승인 — 공개됐어요",
-                          )
-                        }
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        승인
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1 px-2 text-xs"
-                        disabled={pending}
-                        onClick={() =>
-                          run(
-                            () =>
-                              reviewCard(
-                                card.id,
-                                "reject",
-                                noteById[card.id],
-                              ),
-                            "반려했어요",
-                          )
-                        }
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        반려
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-end gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs text-primary"
-                        aria-label={`${card.name} 상세·AI 분석값`}
-                        onClick={() => setDetailFor(card)}
-                      >
-                        <Info className="h-3.5 w-3.5" />
-                        상세
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        aria-label={`${card.name} 수정`}
-                        disabled={pending}
-                        onClick={() => setEditing(card)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        aria-label={`${card.name} 삭제`}
-                        disabled={pending}
-                        onClick={() => {
-                          if (
-                            !window.confirm(
-                              `「${card.name}」 카드를 삭제할까요?`,
-                            )
-                          )
-                            return;
-                          run(() => deleteCard(card.id), "삭제했어요");
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  {isPending ? pendingActions(card, "table") : settledActions(card, "table")}
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+      </div>
 
-      {/* 일괄 승인 바 — 검수 대기 카드를 여러 장 선택했을 때 */}
+      {/* 일괄 승인 바 — 검수 대기 카드를 여러 장 선택했을 때. 폰에서도 줄바꿈으로 버튼이 잘리지 않게. */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-elevated">
-            <span className="text-sm font-bold">{selected.size}장 선택</span>
-            <Button size="sm" disabled={pending} onClick={bulkApprove}>
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-elevated">
+            <span className="shrink-0 text-sm font-bold">{selected.size}장 선택</span>
+            <Button size="sm" className="shrink-0" disabled={pending} onClick={bulkApprove}>
               {pending ? "승인 중…" : "한 번에 승인"}
             </Button>
             <Button
               size="sm"
               variant="ghost"
+              className="shrink-0"
               disabled={pending}
               onClick={() => setSelected(new Set())}
             >
@@ -396,9 +490,25 @@ export function CardTable({
           card={detailFor}
           teamName={detailFor.teamId !== null ? teamById.get(detailFor.teamId) : undefined}
           memberName={detailFor.memberId !== null ? memberById.get(detailFor.memberId) : undefined}
+          memberNameJa={detailFor.memberId !== null ? memberRowById.get(detailFor.memberId)?.nameJa : undefined}
           seriesLabel={detailFor.seriesId !== null ? seriesById.get(detailFor.seriesId) : undefined}
+          seriesKindLabel={
+            detailFor.seriesId !== null && seriesRowById.get(detailFor.seriesId)
+              ? kindLabelOf(kinds, seriesRowById.get(detailFor.seriesId)!.kind)
+              : undefined
+          }
+          seriesSku={detailFor.seriesId !== null ? seriesRowById.get(detailFor.seriesId)?.sku : undefined}
           imageView={imageView}
           onClose={() => setDetailFor(null)}
+          onEdit={() => {
+            setEditing(detailFor);
+            setDetailFor(null);
+          }}
+          onDelete={() => {
+            const target = detailFor;
+            setDetailFor(null);
+            remove(target);
+          }}
         />
       )}
 

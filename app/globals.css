@@ -4,6 +4,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  /* 모바일 하단 탭바 높이 — 탭바 위에 떠야 하는 푸터·플로팅 바가 함께 참조한다. */
+  --shop-tabbar-h: 3.5rem;
+  --shop-tabbar-safe: calc(var(--shop-tabbar-h) + env(safe-area-inset-bottom));
+
   --hotpink: #ff639c;
   --pink: #ffadc9;
   --purple: #9a8cf4;
@@ -142,6 +146,17 @@ body {
 .scroll-x {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* 스크롤바를 숨긴 가로 행에 "더 있다"는 힌트 — 오른쪽 끝 2rem을 투명하게 페이드.
+   @utility로 정의해 max-md: 같은 변형과 함께 쓸 수 있다. */
+@utility scroll-x-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 2rem),
+    transparent
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
 }
 
 /* 시작과 끝은 본문 프레임에 맞추고, 스크롤 중에는 화면 양끝까지 활용한다. */
@@ -822,7 +837,8 @@ body[data-route-pending="true"] .shop-main {
 
 @media (max-width: 639px) {
   .shop-main {
-    padding-bottom: 5.75rem;
+    /* 하단 고정 탭바 + 여백 — 탭바 높이는 --shop-tabbar-h 한 곳에서 관리. */
+    padding-bottom: calc(var(--shop-tabbar-safe) + 2.25rem);
   }
 
   .kawaii-group-pill {

@@ -9,6 +9,7 @@ import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
+import { listSeriesKinds } from "@/modules/series/lib/kinds-queries";
 import { CardForm } from "@/modules/cards/components/CardForm";
 import { CARD_STATUS_LABEL, cardFrontUrl } from "@/modules/cards/types";
 import { toCard } from "@/modules/cards/lib/transform";
@@ -20,9 +21,10 @@ export default async function CardSubmitPage() {
   const account = await getCurrentAccount();
   if (!account) redirect(loginRequiredHref("profile"));
 
-  const [teams, members, seriesRows, mySubmissions] = await Promise.all([
+  const [teams, members, kinds, seriesRows, mySubmissions] = await Promise.all([
     listTeams(),
     listMembers(),
+    listSeriesKinds(),
     catalogDb.series.findMany({
       select: { id: true, teamId: true, label: true, kind: true },
       orderBy: { label: "asc" },
@@ -92,6 +94,7 @@ export default async function CardSubmitPage() {
             label: s.label,
             kind: s.kind,
           }))}
+          kinds={kinds}
           imageView={{ kind: "public", publicBase: env.CATALOG_PUBLIC_BASE }}
         />
       </section>

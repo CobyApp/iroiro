@@ -47,10 +47,15 @@
 const account = await getCurrentAccount();
 if (!account) redirect("/login");
 if (!isBoardManager(account)) redirect("/");
-return <AdminShell isSiteAdmin={isAdmin(account)}>{children}</AdminShell>;
+return (
+  <AdminShell scope="admin" isSiteAdmin={isAdmin(account)} isBoardManager>
+    {children}
+  </AdminShell>
+);
 ```
 - 세션 없으면 `/login`으로, 권한 없으면 `/`로 (404 노출 금지 — 정보 누설)
-- `isBoardManager`는 `isAdmin`(site admin)을 포함한다. moderator는 커뮤니티 관리 섹션만 보이도록 사이드바에서 필터.
+- `isBoardManager`는 `isAdmin`(site admin)을 포함한다. moderator는 커뮤니티 관리 섹션만 보이도록 사이드바에서 필터한다(`modules/admin/lib/nav.ts`의 `visibleSections`). 대시보드는 admin 전용이라 moderator는 `/admin`에서 `/admin/posts`로 리다이렉트된다.
+- `/admin`과 `/catalog`는 **같은 `AdminShell`**을 쓴다(`scope`로 배지·기본 메뉴만 달라짐). `(catalog)/layout.tsx`는 `isAdmin`만 통과시킨다. 페이지 제목은 `AdminPageHeader`, 페이지 프레임은 `AdminPage`로 통일한다.
 - **Server Action은 layout과 별개로 `requireAdmin()` / `requireBoardManager()`로 재검증**한다 — Server Action은 공개 엔드포인트와 같은 보안 기준.
 
 ### `(auth)/layout.tsx` — 레이아웃만

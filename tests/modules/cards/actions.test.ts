@@ -27,6 +27,7 @@ vi.mock("@/modules/cards/lib/analysis", () => ({
 vi.mock("@/modules/cards/lib/queries", () => ({
   listAnalyzedCandidates: vi.fn(async () => []),
   listExistingCards: vi.fn(async () => []),
+  getRegistrationHint: vi.fn(async () => ({ count: 2, nextPose: 3 })),
 }));
 
 import { getCurrentAccount } from "@/modules/auth/dal";
@@ -34,9 +35,11 @@ import {
   analyzeCardFrontByKey,
   rankSimilarCards,
 } from "@/modules/cards/lib/analysis";
-import { listAnalyzedCandidates } from "@/modules/cards/lib/queries";
+import { getRegistrationHint, listAnalyzedCandidates } from "@/modules/cards/lib/queries";
+import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
 import {
   approveCards,
+  fetchRegistrationHint,
   findSimilarCards,
   reviewCard,
   submitCardReport,
@@ -241,5 +244,25 @@ describe("findSimilarCards", () => {
     const res = await findSimilarCards(input);
     expect(listAnalyzedCandidates).toHaveBeenCalledWith(1, 2);
     expect(res).toEqual({ ok: true, data: { configured: true, matches } });
+  });
+});
+
+describe("fetchRegistrationHint — 연속 등록 힌트", () => {
+  it("관리자가 아니면 requireAdmin 오류를 그대로 던진다", async () => {
+    vi.mocked(requireAdmin).mockRejectedValueOnce(new Error("관리자 권한이 필요합니다"));
+    await expect(fetchRegistrationHint({ memberId: 1, seriesId: 2 })).rejects.toThrow("관리자 권한");
+    expect(getRegistrationHint).not.toHaveBeenCalled();
+  });
+
+  it("id 가 양의 정수가 아니면 invalid_input", async () => {
+    const res = await fetchRegistrationHint({ memberId: 0, seriesId: 2 });
+    expect(res).toMatchObject({ ok: false, code: "invalid_input" });
+    expect(getRegistrationHint).not.toHaveBeenCalled();
+  });
+
+  it("happy path — 쿼리 결과(카드 수·다음 포즈)를 그대로 돌려준다", async () => {
+    const res = await fetchRegistrationHint({ memberId: 1, seriesId: 2 });
+    expect(getRegistrationHint).toHaveBeenCalledWith(1, 2);
+    expect(res).toEqual({ ok: true, data: { count: 2, nextPose: 3 } });
   });
 });

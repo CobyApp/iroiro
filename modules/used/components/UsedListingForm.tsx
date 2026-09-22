@@ -18,7 +18,7 @@ import {
 import type { SeriesOption } from "@/modules/products/lib/queries";
 import { fetchExistingCards } from "@/modules/cards/actions";
 import { cardFrontUrl, type Card } from "@/modules/cards/types";
-import { seriesKindLabel, sortSeriesKinds } from "@/modules/series/kinds";
+import { kindLabelOf, sortKindKeys, type KindOption } from "@/modules/series/lib/kind-options";
 import { createUsedListing } from "../actions";
 import {
   PRODUCT_CONDITIONS,
@@ -35,10 +35,12 @@ type MemberOpt = { id: number; name: string; teamIds: number[] };
 
 // 중고 매물 등록 — 사진 → 카탈로그(그룹→멤버→종류→시리즈) → 상태·가격 → 배송.
 // 시리즈를 고르면 일본 시세·중고 최근 거래가를 보여줘 가격 결정을 돕는다.
+// 종류 라벨·순서는 DB(series_kind)에서 내려온 kinds 로 그린다 — /catalog/kinds 편집이 그대로 반영.
 export function UsedListingForm({
   teams,
   members,
   seriesOptions,
+  kinds: kindRows,
   fxRate100,
   usedSoldBySeries,
   publicBaseUrl,
@@ -46,6 +48,7 @@ export function UsedListingForm({
   teams: TeamOpt[];
   members: MemberOpt[];
   seriesOptions: SeriesOption[];
+  kinds: KindOption[];
   /** 100¥당 원 — 0이면 환산 생략 */
   fxRate100: number;
   /** seriesId → 최근 중고 완료 거래가(최신순) */
@@ -85,8 +88,8 @@ export function UsedListingForm({
     const inTeam = seriesOptions.filter(
       (s) => teamId === null || s.teamId === teamId,
     );
-    return sortSeriesKinds([...new Set(inTeam.map((s) => s.kind))]);
-  }, [seriesOptions, teamId]);
+    return sortKindKeys([...new Set(inTeam.map((s) => s.kind))], kindRows);
+  }, [seriesOptions, teamId, kindRows]);
   const seriesOfKind = useMemo(
     () =>
       seriesOptions.filter(
@@ -165,7 +168,7 @@ export function UsedListingForm({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">어떤 카드인가요?</h2>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select
             value={teamId !== null ? String(teamId) : ""}
             onValueChange={(v) => {
@@ -223,7 +226,7 @@ export function UsedListingForm({
             <SelectContent>
               {kinds.map((k) => (
                 <SelectItem key={k} value={k}>
-                  {seriesKindLabel(k)}
+                  {kindLabelOf(kindRows, k)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -381,7 +384,7 @@ export function UsedListingForm({
             />
           </label>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="mb-1 block text-muted-foreground">시작가 (원)</span>
               <Input
@@ -409,7 +412,7 @@ export function UsedListingForm({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">배송</h2>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select
             value={shippingMethod}
             onValueChange={(v) => setShippingMethod(v as UsedShippingMethod)}

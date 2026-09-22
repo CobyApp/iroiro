@@ -1,12 +1,12 @@
-import { Toaster } from "@/components/ui/sonner";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { BannerForm } from "@/modules/banners/components/BannerForm";
 
 export default function BannerNewPage() {
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <Toaster />
-      <h2 className="text-2xl font-bold">신규 배너</h2>
+    <AdminPage narrow>
+      <AdminPageHeader title="신규 배너" />
       <BannerForm mode="new" />
-    </div>
+    </AdminPage>
   );
 }

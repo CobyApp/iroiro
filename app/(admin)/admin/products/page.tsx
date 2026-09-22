@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/sonner";
 import { env } from "@/lib/env";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { ProductFilters } from "@/modules/products/components/ProductFilters";
@@ -30,17 +31,15 @@ export default async function ProductsListPage({
   };
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <Toaster />
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">상품 목록</h2>
+    <AdminPage>
+      <AdminPageHeader title="상품 목록">
         <Button asChild>
           <Link href="/admin/products/new">
             <Plus className="mr-0.5 h-4 w-4" />
             신규 등록
           </Link>
         </Button>
-      </div>
+      </AdminPageHeader>
 
       <Suspense fallback={<div className="h-10" />}>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -66,7 +65,7 @@ export default async function ProductsListPage({
       >
         <AdminProductsView filter={filter} />
       </Suspense>
-    </div>
+    </AdminPage>
   );
 }
 

@@ -301,9 +301,10 @@ export function ProductForm({
     });
   }
 
+  // 문서 스크롤 한 개만 쓴다(내부 overflow 컨테이너 없음) — 여백은 페이지 래퍼(AdminPage)가 준다.
+  // 하단 액션 바는 sticky로 화면 아래에 붙어, 긴 폼에서도 저장 버튼이 항상 손에 닿는다.
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+    <div className="space-y-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-4">
         <Card>
@@ -770,9 +771,8 @@ export function ProductForm({
       </div>
 
         </div>
-      </div>
 
-      <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-card px-6 py-3 shadow-[0_-4px_12px_rgb(0_0_0/0.04)]">
+      <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t border-border bg-card/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgb(0_0_0/0.04)] backdrop-blur sm:-mx-6 sm:px-6">
         <Button
           type="button"
           variant="outline"

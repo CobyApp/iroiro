@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { HiddenComments } from "@/modules/posts/components/HiddenComments";
 import { PostsAdminTable } from "@/modules/posts/components/PostsAdminTable";
 import { ReportQueue } from "@/modules/posts/components/ReportQueue";
@@ -80,18 +81,21 @@ export default async function AdminPostsPage({
   }
 
   return (
-    <div className="space-y-4 p-6">
-      <Toaster />
-      <h2 className="text-2xl font-bold">게시판 관리</h2>
+    <AdminPage>
+      <AdminPageHeader title="게시판 관리" />
 
-      <nav className="flex gap-2 border-b border-border" aria-label="게시판 관리 탭">
+      {/* 탭 — 폰에서 줄바꿈 대신 가로 스크롤 */}
+      <nav
+        className="scroll-x flex gap-2 overflow-x-auto border-b border-border"
+        aria-label="게시판 관리 탭"
+      >
         {TABS.map((t) => (
           <Link
             key={t.value}
             href={`/admin/posts?tab=${t.value}`}
             aria-current={tab === t.value ? "page" : undefined}
             className={cn(
-              "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              "shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
               tab === t.value
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -123,6 +127,6 @@ export default async function AdminPostsPage({
           pageSize={hiddenComments.pageSize}
         />
       )}
-    </div>
+    </AdminPage>
   );
 }

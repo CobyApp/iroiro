@@ -369,7 +369,7 @@ function ReportQueueRow({ item, index }: { item: ReportQueueItem; index: number 
         </Badge>
       </TableCell>
       <TableCell>
-        <div className="flex justify-end gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
           {hideSlot}
           <Button type="button" variant="ghost" size="sm" onClick={() => setDismissOpen(true)}>
             기각

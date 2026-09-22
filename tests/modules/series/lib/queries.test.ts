@@ -20,9 +20,9 @@ beforeEach(() => vi.clearAllMocks());
 describe("listSeriesWithCounts", () => {
   it("label_i18n.ko 를 labelKo 로 풀고, 공개 카드·상품 수를 시리즈별로 붙인다", async () => {
     m.series.findMany.mockResolvedValue([
-      { id: BigInt(1), sku: "A", label: "クリスマス", labelI18n: { ko: "크리스마스" }, kind: "event", teamId: BigInt(7) },
-      { id: BigInt(2), sku: "B", label: "Regular", labelI18n: null, kind: "random", teamId: null },
-      { id: BigInt(3), sku: "C", label: "空", labelI18n: { ko: "  " }, kind: "random", teamId: BigInt(7) },
+      { id: BigInt(1), sku: "A", label: "クリスマス", labelI18n: { ko: "크리스마스" }, kind: "event", teamId: BigInt(7), productUrl: "https://example.com/xmas" },
+      { id: BigInt(2), sku: "B", label: "Regular", labelI18n: null, kind: "random", teamId: null, productUrl: null },
+      { id: BigInt(3), sku: "C", label: "空", labelI18n: { ko: "  " }, kind: "random", teamId: BigInt(7), productUrl: null },
     ]);
     m.card.groupBy.mockResolvedValue([
       { seriesId: BigInt(1), _count: { _all: 12 } },
@@ -37,10 +37,10 @@ describe("listSeriesWithCounts", () => {
       expect.objectContaining({ where: { status: "active" } }),
     );
     expect(out).toEqual([
-      { id: 1, sku: "A", label: "クリスマス", labelKo: "크리스마스", kind: "event", teamId: 7, cardCount: 12, productCount: 0 },
-      { id: 2, sku: "B", label: "Regular", labelKo: null, kind: "random", teamId: null, cardCount: 0, productCount: 4 },
+      { id: 1, sku: "A", label: "クリスマス", labelKo: "크리스마스", kind: "event", teamId: 7, productUrl: "https://example.com/xmas", cardCount: 12, productCount: 0 },
+      { id: 2, sku: "B", label: "Regular", labelKo: null, kind: "random", teamId: null, productUrl: null, cardCount: 0, productCount: 4 },
       // 공백만 있는 ko 는 없는 것으로 본다
-      { id: 3, sku: "C", label: "空", labelKo: null, kind: "random", teamId: 7, cardCount: 0, productCount: 0 },
+      { id: 3, sku: "C", label: "空", labelKo: null, kind: "random", teamId: 7, productUrl: null, cardCount: 0, productCount: 0 },
     ]);
   });
 });
@@ -58,10 +58,10 @@ describe("seriesDisplayLabel", () => {
 describe("listSeriesOptions", () => {
   it("선택지 라벨에 한국어 병기를 합쳐 돌려준다", async () => {
     m.series.findMany.mockResolvedValue([
-      { id: BigInt(5), teamId: BigInt(1), label: "夏", labelI18n: { ko: "여름" }, kind: "event" },
+      { id: BigInt(5), teamId: BigInt(1), label: "夏", labelI18n: { ko: "여름" }, kind: "event", sku: "EV-summer" },
     ]);
     expect(await listSeriesOptions()).toEqual([
-      { id: 5, teamId: 1, label: "夏 (여름)", kind: "event" },
+      { id: 5, teamId: 1, label: "夏 (여름)", kind: "event", sku: "EV-summer" },
     ]);
     expect(m.series.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { label: "asc" } }),

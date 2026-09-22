@@ -30,7 +30,8 @@ export function BannersTable({
           now,
         );
         return (
-          <li key={b.id} className="flex items-center gap-4 p-3">
+          // 폰에서는 배지·버튼이 아래 줄로 내려간다(flex-wrap).
+          <li key={b.id} className="flex flex-wrap items-center gap-3 p-3 sm:gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element -- R2 이미지 */}
             <img
               src={`${publicBase}/${b.imageKey}`}
@@ -47,13 +48,15 @@ export function BannersTable({
                 {b.endsAt?.slice(0, 10) ?? "무제한"} · 순서 {b.sortOrder}
               </p>
             </div>
-            <Badge variant={active ? "default" : "outline"}>
-              {active ? "게시중" : "비활성"}
-            </Badge>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/admin/banners/${b.id}/edit`}>수정</Link>
-            </Button>
-            <DeleteBannerButton id={b.id} />
+            <div className="ml-auto flex items-center gap-1.5">
+              <Badge variant={active ? "default" : "outline"}>
+                {active ? "게시중" : "비활성"}
+              </Badge>
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/admin/banners/${b.id}/edit`}>수정</Link>
+              </Button>
+              <DeleteBannerButton id={b.id} />
+            </div>
           </li>
         );
       })}

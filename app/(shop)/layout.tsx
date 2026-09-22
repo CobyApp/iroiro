@@ -30,21 +30,22 @@ export default async function ShopLayout({
 
         <header className="shop-header sticky top-0 z-30 border-b border-border/50 bg-cream/82 backdrop-blur-xl">
           {/* 로고 좌 / 탐색과 구매·계정 기능 우. */}
-          <div className="shop-page-frame flex h-16 items-center justify-between gap-3 px-4 sm:px-0">
+          <div className="shop-page-frame flex h-16 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-0">
             <Link
               href="/"
               aria-label="이로이로 홈"
               className="shop-brand flex shrink-0 items-center gap-1.5"
             >
+              {/* 360px대 폰은 우측 아이콘 5개와 겹치므로 워드마크를 380px 미만에서 숨긴다. */}
               <BrandLockup
-                className="gap-2.5"
-                markClassName="h-10 w-10"
-                wordmarkClassName="h-[25px]"
+                className="gap-2 sm:gap-2.5"
+                markClassName="h-9 w-9 sm:h-10 sm:w-10"
+                wordmarkClassName="hidden h-[22px] min-[380px]:block sm:h-[25px]"
                 preload
               />
             </Link>
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
-            <div className="flex items-center gap-0.5 sm:gap-2">
+            <div className="flex min-w-0 items-center gap-0 sm:gap-2">
               <div className="hidden sm:block">
                 <DesktopNavLinks />
               </div>

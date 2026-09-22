@@ -173,7 +173,7 @@ export function NoticeForm({ mode, notice }: Props) {
             상단 고정 (전체 최대 {NOTICE_PIN_LIMIT}개)
           </label>
 
-          <div className="flex items-center justify-between gap-2 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             {mode === "edit" && notice ? (
               <Button
                 type="button"

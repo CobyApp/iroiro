@@ -110,7 +110,7 @@ export function BannerForm({
             <img
               src={preview}
               alt=""
-              className="aspect-[16/6] w-full rounded-md border border-border object-cover"
+              className="aspect-[16/6] w-full max-w-full rounded-md border border-border object-cover"
             />
           )}
           <input
@@ -146,7 +146,8 @@ export function BannerForm({
           placeholder="https://..."
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      {/* 게시기간 — 폰에서는 세로로 쌓고, sm+에서 나란히 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="게시 시작(비우면 무제한)">
           <Input
             type="date"

@@ -1,11 +1,27 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+type TableProps = React.ComponentProps<"table"> & {
+  /**
+   * 표 최소 너비 — 기본은 폰(md 미만)에서 40rem을 확보해 열이 글자 단위로
+   * 쪼개지지 않고 가로 스크롤되게 한다. 열이 2~3개인 좁은 표는 `min-w-0`으로 끈다.
+   */
+  minWidthClassName?: string;
+};
+
+function Table({
+  className,
+  minWidthClassName = "min-w-[40rem] md:min-w-0",
+  ...props
+}: TableProps) {
   return (
-    <div className="w-full overflow-auto rounded-md border border-border bg-card shadow-card">
+    <div className="relative w-full overflow-x-auto rounded-md max-md:scroll-x-fade border border-border bg-card shadow-card">
       <table
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn(
+          "w-full caption-bottom text-sm",
+          minWidthClassName,
+          className,
+        )}
         {...props}
       />
     </div>
@@ -56,3 +72,4 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 }
 
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };
+export type { TableProps };

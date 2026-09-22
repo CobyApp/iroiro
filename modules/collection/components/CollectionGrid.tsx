@@ -34,7 +34,7 @@ export function CollectionGrid({ sections }: Props) {
                 {section.label ?? "기타"}
               </h2>
             )}
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 min-[420px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
               {section.cards.map((card) => (
                 <CardTile
                   key={card.id}

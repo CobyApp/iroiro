@@ -87,7 +87,7 @@ export function PostPhotoUploader({ items, onChange, disabled = false, onUploadi
         onChange={(event) => handleFiles(event.target.files)}
       />
       {items.length > 0 && (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-5">
           {items.map((item, index) => (
             <li key={item.pendingPhotoId} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element -- 로컬 blob 미리보기 */}
@@ -106,9 +106,12 @@ export function PostPhotoUploader({ items, onChange, disabled = false, onUploadi
                 aria-label="사진 제거"
                 onClick={() => removeAt(index)}
                 disabled={disabled || uploading}
-                className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white"
+                className="absolute right-0 top-0 grid h-10 w-10 place-items-center text-white"
               >
-                <X className="h-3 w-3" />
+                {/* 40px 터치 영역 안에 24px 원형 배지 — 시각 크기는 유지하고 탭 영역만 넓힌다. */}
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-black/60">
+                  <X className="h-3.5 w-3.5" />
+                </span>
               </button>
             </li>
           ))}

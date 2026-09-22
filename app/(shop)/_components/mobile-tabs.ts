@@ -19,11 +19,6 @@ export const TAB_DEFS: TabDef[] = [
   { key: "mypage", label: "마이", href: "/mypage" },
 ];
 
-// 노출 탭 목록 — 현재는 기능 플래그가 없어 정의 그대로다(호출부 계약 유지).
-export function visibleTabs(): TabDef[] {
-  return TAB_DEFS;
-}
-
 // 현재 경로 기준 활성 판정.
 export function isTabActive(key: TabKey, pathname: string): boolean {
   switch (key) {

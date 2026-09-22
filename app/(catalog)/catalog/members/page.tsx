@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
 import { MembersTable } from "@/modules/members/components/MembersTable";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { MemberQuickAddButton } from "@/modules/members/components/MemberQuickAddButton";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export const metadata: Metadata = { title: "멤버" };
 
@@ -17,7 +17,7 @@ export default async function CatalogMembersPage() {
 
   return (
     <div className="space-y-5">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="MEMBERS"
         title="멤버"
         count={members.length}
@@ -30,17 +30,16 @@ export default async function CatalogMembersPage() {
           </>
         }
       >
-        <Button asChild size="sm" className="gap-1.5">
+        <MemberQuickAddButton teams={teams.map((t) => ({ id: t.id, name: t.name }))} />
+        <Button asChild size="sm" className="flex-1 gap-1.5 sm:flex-none">
           <Link href="/catalog/members/new">
             <Plus className="h-4 w-4" />
             신규 멤버
           </Link>
         </Button>
-      </CatalogPageHeader>
+      </AdminPageHeader>
 
-      <Card className="overflow-hidden">
-        <MembersTable members={members} teamNameById={teamNameById} />
-      </Card>
+      <MembersTable members={members} teamNameById={teamNameById} />
     </div>
   );
 }

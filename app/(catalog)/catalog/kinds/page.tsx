@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { countSeriesByKind, listSeriesKinds } from "@/modules/series/lib/kinds-queries";
 import { SeriesKindsManage } from "@/modules/series/components/SeriesKindsManage";
-import { CatalogPageHeader } from "@/modules/admin/components/CatalogPageHeader";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 export const metadata: Metadata = { title: "시리즈 종류" };
 
@@ -13,7 +13,7 @@ export default async function CatalogKindsPage() {
 
   return (
     <div className="space-y-5">
-      <CatalogPageHeader
+      <AdminPageHeader
         eyebrow="SERIES KINDS"
         title="시리즈 종류"
         count={kinds.length}

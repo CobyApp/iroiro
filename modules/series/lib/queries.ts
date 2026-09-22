@@ -13,6 +13,8 @@ export type SeriesRow = {
   labelKo: string | null;
   kind: string;
   teamId: number | null;
+  /** 공식 상품 페이지 URL — 없으면 null. */
+  productUrl: string | null;
   cardCount: number;
   productCount: number;
 };
@@ -52,6 +54,7 @@ export async function listSeriesWithCounts(): Promise<SeriesRow[]> {
       labelKo: koLabelOf(s.labelI18n),
       kind: s.kind,
       teamId: s.teamId === null ? null : Number(s.teamId),
+      productUrl: s.productUrl ?? null,
       cardCount: cards.get(id) ?? 0,
       productCount: products.get(id) ?? 0,
     };
@@ -68,12 +71,13 @@ export type SeriesOption = {
   teamId: number | null;
   label: string;
   kind: string;
+  sku: string;
 };
 
-// 카드 화면 선택지 — 카운트 없이 가볍게. 라벨은 한국어 병기 포함.
+// 카드 화면 선택지 — 카운트 없이 가볍게. 라벨은 한국어 병기 포함, SKU 는 카드 상세 표시용.
 export async function listSeriesOptions(): Promise<SeriesOption[]> {
   const rows = await catalogDb.series.findMany({
-    select: { id: true, teamId: true, label: true, labelI18n: true, kind: true },
+    select: { id: true, teamId: true, label: true, labelI18n: true, kind: true, sku: true },
     orderBy: { label: "asc" },
   });
   return rows.map((s) => ({
@@ -81,5 +85,6 @@ export async function listSeriesOptions(): Promise<SeriesOption[]> {
     teamId: s.teamId === null ? null : Number(s.teamId),
     label: seriesDisplayLabel({ label: s.label, labelKo: koLabelOf(s.labelI18n) }),
     kind: s.kind,
+    sku: s.sku,
   }));
 }

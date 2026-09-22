@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Toaster } from "@/components/ui/sonner";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { NoticeForm } from "@/modules/notices/components/NoticeForm";
 import { getNoticeById } from "@/modules/notices/lib/queries";
 
@@ -16,10 +17,9 @@ export default async function NoticeEditPage({
   if (!notice) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <Toaster />
-      <h2 className="text-2xl font-bold">공지 수정</h2>
+    <AdminPage narrow>
+      <AdminPageHeader title="공지 수정" />
       <NoticeForm mode="edit" notice={notice} />
-    </div>
+    </AdminPage>
   );
 }

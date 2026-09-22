@@ -22,5 +22,13 @@ export const memberUpdateSchema = z.object({
   memberships: z.array(teamMembershipInputSchema).optional(),
 });
 
+// 빠른 추가 — 표기 + 소속 그룹만 받는다. 활동 시작일은 오늘, 순번은 그룹의 마지막 다음.
+export const memberQuickCreateSchema = z.object({
+  name: z.string().trim().min(1, "한글 멤버명은 필수입니다").max(100),
+  nameI18n: nameI18nSchema,
+  teamId: z.number().int().positive("소속 그룹을 선택해주세요"),
+});
+
 export type MemberCreateInput = z.infer<typeof memberCreateSchema>;
+export type MemberQuickCreateInput = z.infer<typeof memberQuickCreateSchema>;
 export type MemberUpdateInput = z.infer<typeof memberUpdateSchema>;

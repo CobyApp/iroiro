@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { env } from "@/lib/env";
-import { Toaster } from "@/components/ui/sonner";
+import { AdminPage } from "@/modules/admin/components/AdminPage";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { getBanner } from "@/modules/banners/lib/queries";
 import { BannerForm } from "@/modules/banners/components/BannerForm";
 
@@ -14,14 +15,13 @@ export default async function BannerEditPage({
   if (!banner) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <Toaster />
-      <h2 className="text-2xl font-bold">배너 수정</h2>
+    <AdminPage narrow>
+      <AdminPageHeader title="배너 수정" />
       <BannerForm
         mode="edit"
         banner={banner}
         initialImageUrl={`${env.R2_PUBLIC_BASE}/${banner.imageKey}`}
       />
-    </div>
+    </AdminPage>
   );
 }

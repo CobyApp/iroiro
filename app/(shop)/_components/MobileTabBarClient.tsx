@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { isTabActive, visibleTabs } from "./mobile-tabs";
+import { TAB_DEFS, isTabActive } from "./mobile-tabs";
 import { SHOP_NAVIGATION_ICONS } from "./shop-navigation-icons";
 
 // 모바일 전용 하단 고정 탭바. sm 이상에선 숨김(sm:hidden).
 // 둘러보기·중고거래·커뮤니티·마이 4탭. 장바구니는 상단 헤더가 담당.
 export function MobileTabBarClient() {
   const pathname = usePathname();
-  const tabs = visibleTabs();
 
   return (
     <nav
       aria-label="하단 내비게이션"
       className="shop-mobile-tabs fixed inset-x-0 bottom-0 z-40 border-t border-border bg-cream/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
     >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around px-1">
-        {tabs.map((def) => {
+      {/* 4탭이 화면 폭 전체를 쓴다(430px 폰에서도 가운데로 몰리지 않게). */}
+      <ul className="flex items-stretch justify-around px-1">
+        {TAB_DEFS.map((def) => {
           const Icon = SHOP_NAVIGATION_ICONS[def.key];
           const active = isTabActive(def.key, pathname);
           return (
@@ -28,7 +28,7 @@ export function MobileTabBarClient() {
                 aria-current={active ? "page" : undefined}
                 aria-label={def.label}
                 className={cn(
-                  "group flex min-h-14 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-muted-foreground transition-colors",
+                  "group flex min-h-[var(--shop-tabbar-h)] flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-muted-foreground transition-colors",
                   active && "text-primary",
                 )}
               >

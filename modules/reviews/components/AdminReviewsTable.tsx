@@ -6,6 +6,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatKstDateTime } from "@/lib/datetime";
 import { adminDeleteReview } from "../actions";
 import { ReviewStars } from "./ReviewStars";
@@ -30,66 +38,65 @@ export function AdminReviewsTable({ reviews }: { reviews: AdminReviewRow[] }) {
 
   if (reviews.length === 0) {
     return (
-      <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+      <p className="rounded-md border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
         아직 리뷰가 없습니다
       </p>
     );
   }
 
+  // 폰에서는 표가 가로 스크롤된다(Table 래퍼 overflow) — 열 폭이 무너지지 않게 최소 폭을 둔다.
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs text-muted-foreground">
-            <th className="px-4 py-2.5 font-medium">상품</th>
-            <th className="px-4 py-2.5 font-medium">작성자</th>
-            <th className="px-4 py-2.5 font-medium">별점</th>
-            <th className="px-4 py-2.5 font-medium">내용</th>
-            <th className="px-4 py-2.5 font-medium">작성일시</th>
-            <th className="px-4 py-2.5 font-medium">관리</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {reviews.map((review) => (
-            <tr key={review.id}>
-              <td className="max-w-[200px] px-4 py-2.5">
-                <Link
-                  href={`/products/${review.productId}`}
-                  className="line-clamp-1 underline-offset-2 hover:underline"
-                >
-                  {review.productName}
-                </Link>
-              </td>
-              <td className="px-4 py-2.5">{review.reviewerName}</td>
-              <td className="px-4 py-2.5">
-                <ReviewStars rating={review.rating} />
-              </td>
-              <td className="max-w-[280px] px-4 py-2.5">
-                <span className="line-clamp-2 text-xs">
-                  {review.body || (
-                    <span className="text-muted-foreground">(내용 없음)</span>
-                  )}
-                </span>
-              </td>
-              <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                {formatKstDateTime(review.createdAt)}
-              </td>
-              <td className="px-4 py-2.5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                  onClick={() => remove(review.id)}
-                  disabled={pending}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  삭제
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table className="min-w-[48rem]">
+      <TableHeader>
+        <TableRow>
+          <TableHead>상품</TableHead>
+          <TableHead>작성자</TableHead>
+          <TableHead>별점</TableHead>
+          <TableHead>내용</TableHead>
+          <TableHead>작성일시</TableHead>
+          <TableHead>관리</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {reviews.map((review) => (
+          <TableRow key={review.id}>
+            <TableCell className="max-w-[200px] py-2.5">
+              <Link
+                href={`/products/${review.productId}`}
+                className="line-clamp-1 underline-offset-2 hover:underline"
+              >
+                {review.productName}
+              </Link>
+            </TableCell>
+            <TableCell className="py-2.5">{review.reviewerName}</TableCell>
+            <TableCell className="py-2.5">
+              <ReviewStars rating={review.rating} />
+            </TableCell>
+            <TableCell className="max-w-[280px] py-2.5">
+              <span className="line-clamp-2 text-xs">
+                {review.body || (
+                  <span className="text-muted-foreground">(내용 없음)</span>
+                )}
+              </span>
+            </TableCell>
+            <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
+              {formatKstDateTime(review.createdAt)}
+            </TableCell>
+            <TableCell className="py-2.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 text-xs text-destructive hover:text-destructive"
+                onClick={() => remove(review.id)}
+                disabled={pending}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                삭제
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
