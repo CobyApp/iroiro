@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Heart } from "lucide-react";
 import { env } from "@/lib/env";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/EmptyState";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
@@ -44,16 +43,12 @@ export default async function WishlistPage() {
     <div className="shop-page-frame space-y-8">
       <h1 className="font-display text-2xl">찜</h1>
       {isEmpty ? (
-        <div className="rounded-md border border-border bg-card p-12 text-center shadow-card">
-          <p className="mb-2 text-4xl">🤍</p>
-          <p className="font-display text-foreground">찜한 상품이 없어요</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            상품에서 하트를 눌러 담아보세요
-          </p>
-          <Button asChild className="mt-5">
-            <Link href="/products">상품 둘러보기</Link>
-          </Button>
-        </div>
+        <EmptyState
+          emoji="🤍"
+          title="찜한 상품이 없어요"
+          description="상품에서 하트를 눌러 담아보세요"
+          action={{ href: "/products", label: "상품 둘러보기" }}
+        />
       ) : (
         <>
           {products.length > 0 && (

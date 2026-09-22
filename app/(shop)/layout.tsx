@@ -9,13 +9,14 @@ import { AccountNav } from "@/modules/auth/components/AccountNav";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import Link from "next/link";
 import { listTeams } from "@/modules/teams/lib/queries";
+import { listMembers } from "@/modules/members/lib/queries";
 import { getSearchTagFacets } from "@/modules/search/lib/tag-facets";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getPublicUrl } from "@/lib/r2/presign";
 import { SiteFooter } from "./_components/SiteFooter";
 import { MobileTabBar } from "./_components/MobileTabBar";
 import { DesktopNavLinks } from "./_components/DesktopNavLinks";
-import { HeaderLeading } from "./_components/HeaderLeading";
+import { HeaderLeading, HeaderSearchBar } from "./_components/HeaderLeading";
 import { NavigationFeedback } from "./_components/NavigationFeedback";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -26,12 +27,15 @@ export default async function ShopLayout({
 }) {
   // 검색 패널의 그룹 필터 태그 — 그룹 표는 작아(수 개) 레이아웃에서 가볍게 읽는다.
   // 태그 facet — 상품/매물이 없는 그룹·종류·판매방식 태그는 감춘다(빈 결과 방지).
-  const [teams, tagFacets, account] = await Promise.all([
+  const [teams, members, tagFacets, account] = await Promise.all([
     listTeams(),
+    listMembers(),
     getSearchTagFacets(),
     getCurrentAccount().catch(() => null),
   ]);
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
+  // 그룹 선택 후 멤버 칩 라벨용 — 이름만 넘긴다(facet 이 그룹별 멤버 id 를 제한).
+  const memberOptions = members.map((m) => ({ id: m.id, name: m.name }));
   // 마이 탭 헤더에 보여줄 최소 계정 정보(모바일). 비로그인은 null → 로고 폴백.
   const headerAccount = account
     ? {
@@ -58,8 +62,14 @@ export default async function ShopLayout({
             >
               <BrandLockup markClassName="h-8 w-8" wordmarkClassName="h-5" />
             </Link>
-            {/* 탭에 따라 검색(스토어·중고·커뮤니티)·뒤로가기(상세)·로고로 바뀐다. */}
-            <HeaderLeading teams={teamOptions} tagFacets={tagFacets} account={headerAccount} />
+            {/* 탭에 따라 검색(스토어·중고·커뮤니티)·뒤로가기(상세)·로고로 바뀐다.
+               데스크톱 검색바는 네비바 아래(HeaderSearchBar)로 내렸다 — 여기선 모바일만. */}
+            <HeaderLeading
+              teams={teamOptions}
+              members={memberOptions}
+              tagFacets={tagFacets}
+              account={headerAccount}
+            />
             {/* 핵심 탐색과 구매·계정 기능을 시각적으로 분리해 메뉴 밀도를 낮춘다. */}
             <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-2">
               <div className="hidden sm:block">
@@ -100,6 +110,18 @@ export default async function ShopLayout({
             </div>
           </div>
         </header>
+
+        {/* 데스크톱 검색바 — 상단 네비바 아래, 페이지 상단에 둔다(모바일은 상단바 검색 유지).
+           검색 대상 탭에서만 렌더되고, 상세·기타 페이지에선 스스로 감춘다. */}
+        <div className="hidden border-b border-border/50 bg-cream/82 backdrop-blur-xl sm:block">
+          <div className="shop-page-frame flex items-center px-3 py-2.5 sm:px-0">
+            <HeaderSearchBar
+              teams={teamOptions}
+              members={memberOptions}
+              tagFacets={tagFacets}
+            />
+          </div>
+        </div>
 
         <main className="shop-main relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
           <PageTransition>{children}</PageTransition>

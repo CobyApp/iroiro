@@ -23,6 +23,7 @@ import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { UsedFaveSection } from "@/modules/used/components/UsedFaveSection";
+import { EmptyState } from "@/components/EmptyState";
 
 export const metadata: Metadata = { title: "중고거래" };
 
@@ -268,21 +269,21 @@ export default async function UsedHomePage({
           )}
         </div>
         {items.length === 0 ? (
-          <div className="rounded-md border border-border bg-card p-12 text-center">
-            <p className="font-medium text-foreground">
-              {q || teamId || mode ? "조건에 맞는 매물이 없어요" : "아직 매물이 없어요"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {q || teamId || mode
-                ? "필터를 바꾸거나 전체에서 다시 찾아보세요."
-                : "첫 판매자가 되어보세요!"}
-            </p>
-            <Button asChild size="sm" className="mt-4" variant={q || teamId || mode ? "outline" : "default"}>
-              <Link href={q || teamId || mode ? "/used" : "/used/new"}>
-                {q || teamId || mode ? "전체 매물 보기" : "판매하기"}
-              </Link>
-            </Button>
-          </div>
+          q || teamId || memberId || mode || itemType ? (
+            <EmptyState
+              emoji="🔍"
+              title="조건에 맞는 매물이 없어요"
+              description="필터를 바꾸거나 전체에서 다시 찾아보세요."
+              action={{ href: "/used", label: "전체 매물 보기", variant: "outline" }}
+            />
+          ) : (
+            <EmptyState
+              emoji="🛒"
+              title="아직 매물이 없어요"
+              description="첫 판매자가 되어보세요!"
+              action={{ href: "/used/new", label: "판매하기" }}
+            />
+          )
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 xl:grid-cols-5">
             {items.map((listing) => (
