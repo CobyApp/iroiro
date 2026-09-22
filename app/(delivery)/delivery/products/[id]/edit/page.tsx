@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { env } from "@/lib/env";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
@@ -34,7 +33,6 @@ export default async function ProductEditPage({
         teams={teams}
         members={members}
         series={series}
-        publicBaseUrl={env.R2_PUBLIC_BASE}
       />
     </AdminPage>
   );
