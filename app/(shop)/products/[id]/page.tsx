@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { env } from "@/lib/env";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listTeams } from "@/modules/teams/lib/queries";
@@ -167,7 +166,6 @@ export default async function ProductPage({ params }: { params: Params }) {
 
   return (
     <div className="shop-page-frame space-y-4">
-      <PageBack fallbackHref="/products" />
       <ProductDetail
         product={product}
         team={team}

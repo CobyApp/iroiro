@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Camera } from "lucide-react";
 import { env } from "@/lib/env";
 import { catalogDb } from "@/lib/catalog-db";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
@@ -42,7 +41,6 @@ export default async function CardSubmitPage() {
         eyebrow="CARD ARCHIVE"
         title="토레카 등록"
         description="아직 카탈로그에 없는 토레카를 제보해 주세요 — 검수 승인되면 100P가 적립돼요."
-        action={<PageBack fallbackHref="/mypage" />}
       />
 
       {/* PhotoScan 촬영 가이드 — 토레카분석기와 동일한 안내. */}

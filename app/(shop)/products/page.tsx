@@ -8,7 +8,6 @@ import { listMembers } from "@/modules/members/lib/queries";
 import { ProductFilters } from "@/modules/products/components/ProductFilters";
 import { ProductGrid } from "@/modules/products/components/ProductGrid";
 import { ProductPagination } from "@/modules/products/components/ProductPagination";
-import { ProductSearchInput } from "@/modules/products/components/ProductSearchInput";
 import { ProductSort } from "@/modules/products/components/ProductSort";
 import { parseProductFilters } from "@/modules/products/lib/filters";
 import {
@@ -34,9 +33,7 @@ export default async function ProductsPage({
 
   return (
     <div className="shop-page-frame space-y-5">
-      <Suspense fallback={<div className="h-11" />}>
-        <ProductSearchInput />
-      </Suspense>
+      {/* 검색은 상단 헤더 검색바가 담당한다(탭별 검색). 여기선 필터·정렬만. */}
       <Suspense fallback={<div className="h-10" />}>
         {/* 모바일 정렬은 별도 줄 대신 필터의 토글 줄 안에 끼워 상단 높이를 줄인다.
            데스크톱은 지금처럼 필터 오른쪽에 따로 렌더. */}

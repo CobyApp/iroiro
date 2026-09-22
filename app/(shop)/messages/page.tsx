@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Mail } from "lucide-react";
-import { PageBack } from "@/components/PageBack";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
@@ -25,7 +24,6 @@ export default async function MessagesInboxPage() {
         eyebrow="MESSAGES"
         title="쪽지함"
         description="판매자·회원과 주고받은 1:1 쪽지를 확인하세요."
-        action={<PageBack fallbackHref="/mypage" />}
       />
 
       {threads.length === 0 ? (

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
 import { redirect } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
@@ -41,7 +40,6 @@ export default async function UsedNewPage() {
 
   return (
     <div className="shop-page-frame space-y-4">
-      <PageBack fallbackHref="/used" />
       <h1 className="text-xl font-bold text-foreground">중고 판매하기</h1>
       <UsedListingForm
         teams={teams.map((t) => ({ id: t.id, name: t.name }))}

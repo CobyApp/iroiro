@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Store } from "lucide-react";
 import { env } from "@/lib/env";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import {
   getSellerSummary,
@@ -52,7 +51,6 @@ export default async function UsedSellerPage({
 
   return (
     <div className="shop-page-frame space-y-5">
-      <PageBack fallbackHref="/used" />
 
       <header className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">

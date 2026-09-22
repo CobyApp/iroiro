@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageBack } from "@/components/PageBack";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
@@ -28,7 +27,6 @@ export default async function FavoritesPage() {
         eyebrow="MY FAVE"
         title="최애 설정"
         description="좋아하는 그룹·멤버를 고르면 홈에서 오시 위주로 추천해 드려요."
-        action={<PageBack fallbackHref="/mypage" />}
       />
       <section className="shop-content-surface">
         <FavoritesForm
