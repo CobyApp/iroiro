@@ -19,6 +19,7 @@ import { ProductRow } from "@/modules/products/components/ProductRow";
 import { settleDueAuctions } from "@/modules/auction/lib/settle";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getWishlistProductIds } from "@/modules/wishlist/lib/queries";
+import { InPageSearchBar } from "../_components/HeaderLeading";
 
 export const metadata: Metadata = { title: "둘러보기" };
 
@@ -114,6 +115,9 @@ async function ProductsView({
 
   return (
     <div className="space-y-6">
+      {/* 데스크톱 검색바 — 목록 상단(모바일은 상단 헤더 검색). */}
+      <InPageSearchBar />
+
       {liveAuctions.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
