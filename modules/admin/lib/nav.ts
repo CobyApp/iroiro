@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { AdminSpace } from "./adminRoles";
 import {
   ArrowRight,
   Calculator,
@@ -25,11 +26,10 @@ import {
 
 /**
  * 메뉴 항목을 볼 수 있는 최소 권한.
- * - boardManager: site admin 또는 게시판 moderator (커뮤니티 관리)
- * - admin: 운영 관리자 콘솔 — site admin(account.is_admin)
- * - siteAdmin: 카탈로그 등 site admin 전용 공간 — 판정은 admin과 같다(is_admin).
+ * - siteAdmin: 메인 운영 관리자 전용 — site admin(account.is_admin).
+ * - delivery|used|community|catalog: 각 관리 공간의 부분 권한(site admin 은 전부 포함).
  */
-export type NavRole = "boardManager" | "admin" | "siteAdmin";
+export type NavRole = "siteAdmin" | AdminSpace;
 
 export type NavItem = {
   /** 렌더 key·테스트 식별자. 섹션 목록 안에서 유일. */
@@ -49,13 +49,20 @@ export type NavSection = {
 
 export type NavViewer = {
   isSiteAdmin: boolean;
-  isBoardManager: boolean;
+  /** 보유한 부분 관리 권한. site admin 은 전부 가진 것으로 본다(아래 ROLE_CHECK). */
+  spaces: ReadonlySet<AdminSpace>;
 };
 
+function hasSpace(viewer: NavViewer, space: AdminSpace): boolean {
+  return viewer.isSiteAdmin || viewer.spaces.has(space);
+}
+
 const ROLE_CHECK: Record<NavRole, (viewer: NavViewer) => boolean> = {
-  boardManager: (v) => v.isBoardManager,
-  admin: (v) => v.isSiteAdmin,
   siteAdmin: (v) => v.isSiteAdmin,
+  delivery: (v) => hasSpace(v, "delivery"),
+  used: (v) => hasSpace(v, "used"),
+  community: (v) => hasSpace(v, "community"),
+  catalog: (v) => hasSpace(v, "catalog"),
 };
 
 /** 뷰어 권한으로 항목을 걸러내고, 비어버린 섹션은 제거한다. */
@@ -81,7 +88,7 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
 export const ADMIN_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "dashboard", label: "대시보드", href: "/admin", icon: LayoutDashboard, role: "admin" },
+      { key: "dashboard", label: "대시보드", href: "/admin", icon: LayoutDashboard, role: "siteAdmin" },
     ],
   },
   {
@@ -93,7 +100,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/products",
         icon: Package,
         matchPrefix: "/admin/products",
-        role: "admin",
+        role: "siteAdmin",
       },
       {
         key: "orders",
@@ -101,7 +108,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/orders",
         icon: ShoppingBag,
         matchPrefix: "/admin/orders",
-        role: "admin",
+        role: "siteAdmin",
       },
       {
         key: "settlement",
@@ -109,15 +116,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/settlement",
         icon: Calculator,
         matchPrefix: "/admin/settlement",
-        role: "admin",
-      },
-      {
-        key: "delivery",
-        label: "배송",
-        href: "/admin/delivery",
-        icon: Truck,
-        matchPrefix: "/admin/delivery",
-        role: "admin",
+        role: "siteAdmin",
       },
     ],
   },
@@ -130,7 +129,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/banners",
         icon: ImageIcon,
         matchPrefix: "/admin/banners",
-        role: "admin",
+        role: "siteAdmin",
       },
       {
         key: "reviews",
@@ -138,7 +137,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/reviews",
         icon: Star,
         matchPrefix: "/admin/reviews",
-        role: "admin",
+        role: "siteAdmin",
       },
     ],
   },
@@ -151,7 +150,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/points",
         icon: Coins,
         matchPrefix: "/admin/points",
-        role: "admin",
+        role: "siteAdmin",
       },
     ],
   },
@@ -164,19 +163,19 @@ export const ADMIN_SECTIONS: NavSection[] = [
         href: "/admin/settings",
         icon: Settings,
         matchPrefix: "/admin/settings",
-        role: "admin",
+        role: "siteAdmin",
       },
     ],
   },
   {
     title: "바로가기",
     items: [
-      // 토레카 마스터·게시판 관리는 각각 별도 공간(/catalog·/board)에서 — 여기서는 진입 링크만.
+      // 배송·중고·게시판·토레카는 각각 별도 공간에서 — 메인에서는 진입 링크만(역방향은 없음).
       {
-        key: "to-catalog",
-        label: "토레카 카탈로그 →",
-        href: "/catalog",
-        icon: ArrowRight,
+        key: "to-delivery",
+        label: "배송 관리 →",
+        href: "/delivery",
+        icon: Truck,
         role: "siteAdmin",
       },
       {
@@ -184,8 +183,24 @@ export const ADMIN_SECTIONS: NavSection[] = [
         label: "게시판 관리 →",
         href: "/board",
         icon: MessageSquare,
-        role: "admin",
+        role: "siteAdmin",
       },
+      {
+        key: "to-catalog",
+        label: "토레카 카탈로그 →",
+        href: "/catalog",
+        icon: ArrowRight,
+        role: "siteAdmin",
+      },
+    ],
+  },
+];
+
+// 배송 관리 — 배송 정책. site admin + delivery 부분 권한.
+export const DELIVERY_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { key: "policy", label: "배송 정책", href: "/delivery", icon: Truck, role: "delivery" },
     ],
   },
 ];
@@ -195,7 +210,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
 export const BOARD_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/board", icon: LayoutDashboard, role: "boardManager" },
+      { key: "home", label: "홈", href: "/board", icon: LayoutDashboard, role: "community" },
     ],
   },
   {
@@ -207,7 +222,7 @@ export const BOARD_SECTIONS: NavSection[] = [
         href: "/board/posts",
         icon: MessageSquare,
         matchPrefix: "/board/posts",
-        role: "boardManager",
+        role: "community",
       },
       {
         key: "notices",
@@ -215,7 +230,7 @@ export const BOARD_SECTIONS: NavSection[] = [
         href: "/board/notices",
         icon: Megaphone,
         matchPrefix: "/board/notices",
-        role: "boardManager",
+        role: "community",
       },
       {
         key: "users",
@@ -223,19 +238,6 @@ export const BOARD_SECTIONS: NavSection[] = [
         href: "/board/users",
         icon: UserCog,
         matchPrefix: "/board/users",
-        role: "admin",
-      },
-    ],
-  },
-  {
-    title: "바로가기",
-    items: [
-      { key: "to-admin", label: "운영 관리자 →", href: "/admin", icon: ArrowRight, role: "siteAdmin" },
-      {
-        key: "to-catalog",
-        label: "토레카 카탈로그 →",
-        href: "/catalog",
-        icon: ArrowRight,
         role: "siteAdmin",
       },
     ],
@@ -247,7 +249,7 @@ export const BOARD_SECTIONS: NavSection[] = [
 export const CATALOG_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "home", label: "홈", href: "/catalog", icon: LayoutDashboard, role: "siteAdmin" },
+      { key: "home", label: "홈", href: "/catalog", icon: LayoutDashboard, role: "catalog" },
     ],
   },
   {
@@ -259,7 +261,7 @@ export const CATALOG_SECTIONS: NavSection[] = [
         href: "/catalog/cards",
         icon: WalletCards,
         matchPrefix: "/catalog/cards",
-        role: "siteAdmin",
+        role: "catalog",
       },
       {
         key: "series",
@@ -267,7 +269,7 @@ export const CATALOG_SECTIONS: NavSection[] = [
         href: "/catalog/series",
         icon: Layers,
         matchPrefix: "/catalog/series",
-        role: "siteAdmin",
+        role: "catalog",
       },
       {
         key: "kinds",
@@ -275,7 +277,7 @@ export const CATALOG_SECTIONS: NavSection[] = [
         href: "/catalog/kinds",
         icon: Tag,
         matchPrefix: "/catalog/kinds",
-        role: "siteAdmin",
+        role: "catalog",
       },
       {
         key: "teams",
@@ -283,7 +285,7 @@ export const CATALOG_SECTIONS: NavSection[] = [
         href: "/catalog/teams",
         icon: Users,
         matchPrefix: "/catalog/teams",
-        role: "siteAdmin",
+        role: "catalog",
       },
       {
         key: "members",
@@ -291,19 +293,7 @@ export const CATALOG_SECTIONS: NavSection[] = [
         href: "/catalog/members",
         icon: User,
         matchPrefix: "/catalog/members",
-        role: "siteAdmin",
-      },
-    ],
-  },
-  {
-    title: "바로가기",
-    items: [
-      {
-        key: "to-admin",
-        label: "운영 관리자 →",
-        href: "/admin",
-        icon: ArrowRight,
-        role: "siteAdmin",
+        role: "catalog",
       },
     ],
   },

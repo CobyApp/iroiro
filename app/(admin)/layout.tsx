@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
-import { isBoardManager } from "@/modules/admin/lib/roles";
+import { primaryAdminHref } from "@/modules/admin/lib/adminRoles";
 import { PageTransition } from "@/components/PageTransition";
 import { APP_NAMES, appDisplayName, isDevDeploy } from "@/lib/app-name";
 
@@ -45,12 +45,12 @@ export default async function AdminLayout({
 }) {
   await connection();
 
-  // 권한 가드 (룰 3) — 운영 관리자(/admin)는 site admin 전용. 게시판 관리는 /board 로 분리했다.
-  // moderator(게시판 관리자지만 site admin 아님)는 게시판 공간으로 보낸다.
-  // Server Action은 layout과 별개로 requireAdmin/requireBoardManager에서 재검증.
+  // 권한 가드 (룰 3) — 메인 운영 관리자(/admin)는 site admin 전용. 부분 관리자는 각자 공간으로.
+  // (배송·중고·커뮤니티·토레카) 부분 권한만 있으면 가진 권한의 첫 공간으로 보낸다.
+  // Server Action은 layout과 별개로 requireAdmin/requireAdminSpace에서 재검증.
   const account = await getCurrentAccount();
   if (!account) redirect("/login?returnTo=/admin");
-  if (!isAdmin(account)) redirect(isBoardManager(account) ? "/board" : "/");
+  if (!isAdmin(account)) redirect(primaryAdminHref(account) ?? "/");
 
   return (
     <AdminShell
@@ -58,7 +58,6 @@ export default async function AdminLayout({
       appName={appDisplayName(APP_NAMES.admin)}
       isDev={isDevDeploy()}
       isSiteAdmin
-      isBoardManager
     >
       <PageTransition>{children}</PageTransition>
     </AdminShell>

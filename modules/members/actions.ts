@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { catalogDb } from "@/lib/catalog-db";
 import { isNotFoundError } from "@/lib/prisma-errors";
 import type { TeamMember } from "@/modules/team-members/types";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import { formatKstDate, todayKstYmd } from "@/lib/datetime";
 import {
   memberCreateSchema,
@@ -122,7 +122,7 @@ export async function createMember(
   input: MemberCreateInput,
 ): Promise<ActionResult<MemberWithTeams>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(memberCreateSchema, input);
     ensureActiveUniqueWithinMembership(data.memberships);
     return insertMember(data);
@@ -135,7 +135,7 @@ export async function quickCreateMember(
   input: MemberQuickCreateInput,
 ): Promise<ActionResult<MemberWithTeams>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(memberQuickCreateSchema, input);
     const agg = await catalogDb.teamMember.aggregate({
       where: { teamId: BigInt(data.teamId) },
@@ -164,7 +164,7 @@ export async function updateMember(
   input: MemberUpdateInput,
 ): Promise<ActionResult<Member>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
     const data = parseActionInput(memberUpdateSchema, input);
     if (data.memberships !== undefined) {
       ensureActiveUniqueWithinMembership(data.memberships);
@@ -216,7 +216,7 @@ export async function updateMember(
 
 export async function deleteMember(id: number): Promise<ActionResult> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireCatalogManager();
 
     if (!Number.isInteger(id) || id <= 0) {
       throw new DomainError("유효하지 않은 멤버 ID 입니다");

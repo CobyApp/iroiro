@@ -2,10 +2,11 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, ShieldCheck, ShieldPlus, ShieldMinus, Undo2 } from "lucide-react";
+import { Ban, ShieldMinus, ShieldPlus, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -14,19 +15,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { setBoardRole, setPostingBan, setSiteAdmin } from "../actions/users";
+import { setAdminRole, setPostingBan, setSiteAdmin } from "../actions/users";
+import { ADMIN_SPACES, ADMIN_SPACE_LABEL } from "../lib/adminRoles";
 import type { AdminUserRow } from "../lib/users";
 
-// 회원 목록 — md+ 는 표, 폰은 카드. 등급 배지·작성 상태·액션 버튼은 두 뷰가 같은 헬퍼를 쓴다.
+// 회원 목록·권한 부여 — md+ 는 표, 폰은 카드. 부분 관리 권한(배송·중고·커뮤니티·토레카)을
+// 토글 칩으로 켜고 끄고, 사이트 관리자 지정·작성 제재도 여기서 한다. 전부 site admin 전용 화면.
 export function UsersTable({
   users,
-  canManageRoles,
   currentAccountId,
 }: {
   users: AdminUserRow[];
-  /** 등급 변경 노출 — site admin만. moderator는 제재만 가능. */
-  canManageRoles: boolean;
-  /** 현재 로그인한 관리자 id — 본인 행에는 등급/관리자 버튼을 숨긴다. */
+  /** 현재 로그인한 관리자 id — 본인 행에는 권한/관리자 버튼을 숨긴다. */
   currentAccountId: string;
 }) {
   const router = useRouter();
@@ -44,40 +44,22 @@ export function UsersTable({
     });
   }
 
-  function toggleRole(u: AdminUserRow) {
-    const next = u.boardRole === "moderator" ? "member" : "moderator";
+  function toggleSpace(u: AdminUserRow, space: (typeof ADMIN_SPACES)[number]) {
+    const granted = !u.adminRoles.includes(space);
     run(
-      () => setBoardRole({ accountId: u.id, boardRole: next }),
-      next === "moderator" ? "모더레이터로 지정했어요" : "일반 회원으로 내렸어요",
+      () => setAdminRole({ accountId: u.id, space, granted }),
+      granted ? `${ADMIN_SPACE_LABEL[space]} 권한을 부여했어요` : `${ADMIN_SPACE_LABEL[space]} 권한을 회수했어요`,
     );
   }
 
-  // 사이트 관리자 지정/해제 — 최고 권한이라 확인 후 실행.
   function toggleAdmin(u: AdminUserRow) {
-    if (u.isAdmin) {
-      if (
-        !window.confirm(
-          `${u.displayName}님의 관리자 권한을 해제할까요? 관리자 페이지 접근이 막힙니다.`,
-        )
-      ) {
-        return;
-      }
-      run(
-        () => setSiteAdmin({ accountId: u.id, isAdmin: false }),
-        "관리자 권한을 해제했어요",
-      );
-      return;
-    }
-    if (
-      !window.confirm(
-        `${u.displayName}님을 사이트 관리자로 지정할까요? 상품·주문·회원 등 모든 관리 기능에 접근할 수 있게 됩니다.`,
-      )
-    ) {
-      return;
-    }
+    const msg = u.isAdmin
+      ? `${u.displayName}님의 사이트 관리자 권한을 해제할까요?`
+      : `${u.displayName}님을 사이트 관리자로 지정할까요? 모든 관리 공간에 접근할 수 있게 됩니다.`;
+    if (!window.confirm(msg)) return;
     run(
-      () => setSiteAdmin({ accountId: u.id, isAdmin: true }),
-      "사이트 관리자로 지정했어요",
+      () => setSiteAdmin({ accountId: u.id, isAdmin: !u.isAdmin }),
+      u.isAdmin ? "관리자 권한을 해제했어요" : "사이트 관리자로 지정했어요",
     );
   }
 
@@ -101,74 +83,62 @@ export function UsersTable({
     );
   }
 
-  function roleBadge(u: AdminUserRow) {
-    if (u.isAdmin) {
-      return (
-        <Badge className="whitespace-nowrap bg-foreground text-background hover:bg-foreground">
-          관리자
-        </Badge>
-      );
-    }
-    if (u.boardRole === "moderator") {
-      return <Badge className="whitespace-nowrap">모더레이터</Badge>;
-    }
+  // 부분 권한 토글 칩 묶음 — site admin 이면 전부 켜진 것으로 보이고 개별 토글은 잠근다.
+  function roleChips(u: AdminUserRow) {
+    const isSelf = u.id === currentAccountId;
     return (
-      <Badge variant="outline" className="whitespace-nowrap font-normal">
-        일반
-      </Badge>
+      <div className="flex flex-wrap gap-1">
+        {ADMIN_SPACES.map((space) => {
+          const on = u.isAdmin || u.adminRoles.includes(space);
+          return (
+            <button
+              key={space}
+              type="button"
+              disabled={pending || isSelf || u.isAdmin}
+              onClick={() => toggleSpace(u, space)}
+              aria-pressed={on}
+              title={u.isAdmin ? "사이트 관리자는 모든 권한 보유" : undefined}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-60",
+                on
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {ADMIN_SPACE_LABEL[space]}
+            </button>
+          );
+        })}
+      </div>
     );
   }
 
   function banStatus(u: AdminUserRow) {
     return u.postingBanned ? (
-      <span className="text-sm text-destructive">
+      <span className="text-xs text-destructive">
         제재됨{u.postingBanReason ? ` · ${u.postingBanReason}` : ""}
       </span>
     ) : (
-      <span className="text-sm text-muted-foreground">정상</span>
+      <span className="text-xs text-muted-foreground">정상</span>
     );
   }
 
-  // 액션 버튼 묶음 — 폰에서 줄바꿈되도록 flex-wrap.
-  function actions(u: AdminUserRow) {
+  function accountActions(u: AdminUserRow) {
     const isSelf = u.id === currentAccountId;
+    if (isSelf) return <span className="text-xs text-muted-foreground">본인</span>;
     return (
       <div className="flex flex-wrap items-center justify-end gap-1">
-        {isSelf ? <span className="text-xs text-muted-foreground">본인</span> : null}
-        {canManageRoles && !isSelf && (
-          <Button
-            variant={u.isAdmin ? "outline" : "default"}
-            size="sm"
-            className="h-8 gap-1 px-2 text-xs"
-            disabled={pending}
-            onClick={() => toggleAdmin(u)}
-          >
-            {u.isAdmin ? (
-              <>
-                <ShieldMinus className="h-3.5 w-3.5" />
-                관리자 해제
-              </>
-            ) : (
-              <>
-                <ShieldPlus className="h-3.5 w-3.5" />
-                관리자 지정
-              </>
-            )}
-          </Button>
-        )}
-        {canManageRoles && !u.isAdmin && !isSelf && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1 px-2 text-xs"
-            disabled={pending}
-            onClick={() => toggleRole(u)}
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {u.boardRole === "moderator" ? "모더 해제" : "모더 지정"}
-          </Button>
-        )}
-        {!u.isAdmin && u.boardRole !== "moderator" && !isSelf && (
+        <Button
+          variant={u.isAdmin ? "outline" : "default"}
+          size="sm"
+          className="h-8 gap-1 px-2 text-xs"
+          disabled={pending}
+          onClick={() => toggleAdmin(u)}
+        >
+          {u.isAdmin ? <ShieldMinus className="h-3.5 w-3.5" /> : <ShieldPlus className="h-3.5 w-3.5" />}
+          {u.isAdmin ? "관리자 해제" : "관리자 지정"}
+        </Button>
+        {!u.isAdmin && u.adminRoles.length === 0 && (
           <Button
             variant={u.postingBanned ? "outline" : "destructive"}
             size="sm"
@@ -176,18 +146,25 @@ export function UsersTable({
             disabled={pending}
             onClick={() => toggleBan(u)}
           >
-            {u.postingBanned ? (
-              <>
-                <Undo2 className="h-3.5 w-3.5" />
-                제재 해제
-              </>
-            ) : (
-              <>
-                <Ban className="h-3.5 w-3.5" />
-                작성 제재
-              </>
-            )}
+            {u.postingBanned ? <Undo2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+            {u.postingBanned ? "제재 해제" : "작성 제재"}
           </Button>
+        )}
+      </div>
+    );
+  }
+
+  function nameCell(u: AdminUserRow) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-foreground">{u.displayName}</p>
+          <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
+        </div>
+        {u.isAdmin && (
+          <Badge className="shrink-0 whitespace-nowrap bg-foreground text-background hover:bg-foreground">
+            관리자
+          </Badge>
         )}
       </div>
     );
@@ -201,23 +178,20 @@ export function UsersTable({
           <TableHeader>
             <TableRow>
               <TableHead>회원</TableHead>
-              <TableHead>등급</TableHead>
-              <TableHead>작성 상태</TableHead>
-              <TableHead className="w-56 text-right">
-                <span className="sr-only">작업</span>
+              <TableHead>관리 권한</TableHead>
+              <TableHead>작성</TableHead>
+              <TableHead className="w-44 text-right">
+                <span className="sr-only">계정</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((u) => (
               <TableRow key={u.id}>
-                <TableCell>
-                  <p className="font-medium text-foreground">{u.displayName}</p>
-                  <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
-                </TableCell>
-                <TableCell>{roleBadge(u)}</TableCell>
+                <TableCell>{nameCell(u)}</TableCell>
+                <TableCell>{roleChips(u)}</TableCell>
                 <TableCell>{banStatus(u)}</TableCell>
-                <TableCell>{actions(u)}</TableCell>
+                <TableCell>{accountActions(u)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -227,19 +201,13 @@ export function UsersTable({
       {/* 모바일 — 카드 리스트 */}
       <ul className="space-y-2 md:hidden">
         {users.map((u) => (
-          <li
-            key={u.id}
-            className="space-y-2 rounded-md border border-border bg-card p-3 shadow-card"
-          >
+          <li key={u.id} className="space-y-2.5 rounded-md border border-border bg-card p-3 shadow-card">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">{u.displayName}</p>
-                <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
-              </div>
-              {roleBadge(u)}
+              {nameCell(u)}
+              {banStatus(u)}
             </div>
-            <div className="break-words">{banStatus(u)}</div>
-            {actions(u)}
+            {roleChips(u)}
+            {accountActions(u)}
           </li>
         ))}
       </ul>

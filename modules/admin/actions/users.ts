@@ -11,23 +11,38 @@ import {
 } from "@/lib/action-result";
 import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
 import { requireBoardManager } from "@/modules/admin/lib/requireBoardManager";
+import { ADMIN_SPACES } from "@/modules/admin/lib/adminRoles";
 
-// 게시판 등급 설정 — site admin 전용(moderator 임명은 admin만).
-const setRoleSchema = z.object({
+// 부분 관리 권한 부여·회수 — site admin 전용. 한 번에 한 권한(space)을 켜고 끈다.
+// 배송·중고·커뮤니티·토레카 관리 권한은 복수로 가질 수 있다(account.admin_roles 배열).
+const setAdminRoleSchema = z.object({
   accountId: z.string().uuid(),
-  boardRole: z.enum(["member", "moderator"]),
+  space: z.enum(ADMIN_SPACES),
+  granted: z.boolean(),
 });
 
-export async function setBoardRole(input: unknown): Promise<ActionResult> {
+export async function setAdminRole(input: unknown): Promise<ActionResult> {
   return runAction(async () => {
     const admin = await requireAdmin();
-    const data = parseActionInput(setRoleSchema, input);
+    const data = parseActionInput(setAdminRoleSchema, input);
     if (data.accountId === admin.id) {
-      throw new DomainError("본인 등급은 변경할 수 없습니다");
+      throw new DomainError("본인 권한은 변경할 수 없습니다");
     }
+    const target = await db.account.findUnique({
+      where: { id: data.accountId },
+      select: { deletedAt: true, adminRoles: true },
+    });
+    if (!target || target.deletedAt) throw new DomainError("회원을 찾을 수 없습니다");
+    const current = new Set((target.adminRoles as string[]).filter((r) => ADMIN_SPACES.includes(r as never)));
+    if (data.granted) current.add(data.space);
+    else current.delete(data.space);
     await db.account.update({
       where: { id: data.accountId },
-      data: { boardRole: data.boardRole, updatedAt: new Date() },
+      // 정의된 순서로 정규화해 저장(표시 일관성).
+      data: {
+        adminRoles: ADMIN_SPACES.filter((s) => current.has(s)),
+        updatedAt: new Date(),
+      },
     });
     revalidatePath("/board/users");
   });
@@ -81,14 +96,14 @@ export async function setPostingBan(input: unknown): Promise<ActionResult> {
     if (data.accountId === manager.id) {
       throw new DomainError("본인 계정은 제재할 수 없습니다");
     }
-    // 관리자 계정은 제재 대상에서 제외(권한 오남용 방지).
+    // 관리 권한을 가진 계정은 제재 대상에서 제외(권한 오남용 방지).
     const target = await db.account.findUnique({
       where: { id: data.accountId },
-      select: { isAdmin: true, boardRole: true },
+      select: { isAdmin: true, adminRoles: true },
     });
     if (!target) throw new DomainError("회원을 찾을 수 없습니다");
-    if (data.banned && (target.isAdmin || target.boardRole === "moderator")) {
-      throw new DomainError("관리자·모더레이터는 작성 제재할 수 없습니다");
+    if (data.banned && (target.isAdmin || (target.adminRoles as string[]).length > 0)) {
+      throw new DomainError("관리자·부분 관리자는 작성 제재할 수 없습니다");
     }
     await db.account.update({
       where: { id: data.accountId },

@@ -5,11 +5,18 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandMark } from "@/modules/ui/components/BrandMark";
-import { ADMIN_SECTIONS, BOARD_SECTIONS, CATALOG_SECTIONS, type NavSection } from "../lib/nav";
+import {
+  ADMIN_SECTIONS,
+  BOARD_SECTIONS,
+  CATALOG_SECTIONS,
+  DELIVERY_SECTIONS,
+  type NavSection,
+} from "../lib/nav";
+import type { AdminSpace } from "../lib/adminRoles";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-export type AdminShellScope = "admin" | "catalog" | "board";
+export type AdminShellScope = "admin" | "catalog" | "board" | "delivery";
 
 const SCOPE: Record<
   AdminShellScope,
@@ -39,6 +46,14 @@ const SCOPE: Record<
     sections: BOARD_SECTIONS,
     navLabel: "게시판 관리 메뉴",
   },
+  delivery: {
+    title: "배송 관리",
+    badge: "DELIVERY",
+    badgeClassName: "bg-cyan/25 text-ink",
+    homeHref: "/delivery",
+    sections: DELIVERY_SECTIONS,
+    navLabel: "배송 관리 메뉴",
+  },
 };
 
 // 관리자(/admin)·카탈로그(/catalog) 공용 셸 — 상단 고정 헤더 + 사이드바(데스크톱 접기 / 모바일 드로어) + 본문.
@@ -50,7 +65,7 @@ export function AdminShell({
   appName,
   isDev = false,
   isSiteAdmin = true,
-  isBoardManager = true,
+  spaces = [],
 }: {
   children: React.ReactNode;
   scope?: AdminShellScope;
@@ -59,10 +74,12 @@ export function AdminShell({
   /** dev 배포 표시 배지. */
   isDev?: boolean;
   isSiteAdmin?: boolean;
-  isBoardManager?: boolean;
+  /** 보유한 부분 관리 권한(site admin 이 아니면 사이드바 메뉴 필터에 쓴다). */
+  spaces?: AdminSpace[];
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const config = SCOPE[scope];
+  const viewer = { isSiteAdmin, spaces: new Set(spaces) };
 
   return (
     <div
@@ -106,7 +123,7 @@ export function AdminShell({
           mobileOpen={mobileOpen}
           onClose={() => setMobileOpen(false)}
           sections={config.sections}
-          viewer={{ isSiteAdmin, isBoardManager }}
+          viewer={viewer}
           ariaLabel={config.navLabel}
         />
         <main className="min-w-0 flex-1">{children}</main>

@@ -16,6 +16,7 @@ function account(overrides: Partial<Account> = {}): Account {
     deletedAt: null,
     isAdmin: false,
     boardRole: "member",
+    adminRoles: [],
     postingBannedAt: null,
     postingBanReason: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),

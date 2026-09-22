@@ -41,4 +41,6 @@ export const APP_NAMES = {
   admin: "이로이로 관리자",
   catalog: "이로이로 토레카",
   board: "이로이로 게시판",
+  delivery: "이로이로 배송",
+  market: "이로이로 중고거래",
 } as const;

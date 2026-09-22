@@ -11,9 +11,9 @@ vi.mock("@/lib/catalog-db", async () => {
   const { Prisma } = await import("@/lib/generated/catalog-client");
   return { CatalogPrisma: Prisma, catalogDb: m };
 });
-vi.mock("@/modules/admin/lib/requireAdmin", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({ requireCatalogManager: vi.fn() }));
 
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import { createSeries, updateSeries } from "@/modules/series/actions";
 
 function seriesRow(data: Record<string, unknown> = {}) {
@@ -31,7 +31,7 @@ function seriesRow(data: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireAdmin).mockResolvedValue({ id: "admin" } as never);
+  vi.mocked(requireCatalogManager).mockResolvedValue({ id: "admin" } as never);
   m.series.findUnique.mockResolvedValue(null);
   m.series.create.mockImplementation(async ({ data }) => seriesRow(data));
   m.series.update.mockResolvedValue({});
@@ -46,7 +46,7 @@ const base = {
 
 describe("createSeries", () => {
   it("관리자가 아니면 requireAdmin 오류를 그대로 던진다", async () => {
-    vi.mocked(requireAdmin).mockRejectedValue(new Error("관리자 권한이 필요합니다"));
+    vi.mocked(requireCatalogManager).mockRejectedValue(new Error("관리자 권한이 필요합니다"));
     await expect(createSeries({ ...base, sku: "EV-xmas" })).rejects.toThrow("관리자 권한");
     expect(m.series.create).not.toHaveBeenCalled();
   });
