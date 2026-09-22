@@ -24,7 +24,9 @@ type SearchParams = Promise<{ team?: string }>;
 // 카드·상품 연결 수로 삭제 가능 여부를 바로 알 수 있다.
 export default async function CatalogSeriesPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const teamFilter = Number(sp.team) > 0 ? Number(sp.team) : undefined;
+  // 기본은 첫 그룹만 — 모든 그룹을 한 페이지에 쌓지 않아 스크롤을 줄인다. team=all 이면 전체.
+  const showAll = sp.team === "all";
+  const explicitTeam = Number(sp.team) > 0 ? Number(sp.team) : undefined;
 
   const [teams, rows, kinds] = await Promise.all([
     listTeams(),
@@ -34,13 +36,16 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
   const kindLabel = buildKindLabelMap(kinds);
   const kindOptions = kinds.map((k) => ({ key: k.key, label: k.label }));
 
+  // 선택 그룹 결정: 명시 그룹 > (전체 아님이면) 첫 그룹. team=all 이면 전체 노출.
+  const teamFilter = explicitTeam ?? (showAll ? undefined : teams[0]?.id);
+
   const sections = teams
     .filter((t) => teamFilter === undefined || t.id === teamFilter)
     .map((team) => ({
       team,
       series: sortByKind(rows.filter((s) => s.teamId === team.id)),
     }));
-  const orphan = teamFilter === undefined ? sortByKind(rows.filter((s) => s.teamId === null)) : [];
+  const orphan = showAll ? sortByKind(rows.filter((s) => s.teamId === null)) : [];
 
   function sortByKind(list: SeriesRow[]): SeriesRow[] {
     const order = sortKindKeys([...new Set(list.map((s) => s.kind))], kinds);
@@ -75,7 +80,7 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
       />
 
       <div className="scroll-x scroll-x-fade flex gap-1.5 overflow-x-auto pb-1">
-        <Link href="/catalog/series" className={chip(teamFilter === undefined)}>
+        <Link href="/catalog/series?team=all" className={chip(showAll)}>
           모든 그룹
         </Link>
         {teams.map((t) => (
