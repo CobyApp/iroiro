@@ -60,7 +60,10 @@ const COMMUNITY: SearchMode = {
 type Leading =
   | SearchMode
   | { kind: "back"; fallback: string }
-  | { kind: "logo" };
+  | { kind: "logo" }
+  | { kind: "account" };
+
+export type HeaderAccount = { displayName: string; avatarUrl: string | null };
 
 function resolveLeading(pathname: string): Leading {
   if (pathname === "/") return PRODUCT;
@@ -84,8 +87,11 @@ function resolveLeading(pathname: string): Leading {
     case "/messages":
     case "/orders":
       return { kind: "back", fallback: "/" };
+    // 마이 탭 — 로고 대신 내 계정 정보를 보여준다(계정 없으면 로고 폴백).
+    case "/mypage":
+      return { kind: "account" };
     default:
-      // 찜·마이 등 상위 탭 루트 — 로고.
+      // 찜 등 상위 탭 루트 — 로고.
       return { kind: "logo" };
   }
 }
@@ -101,15 +107,38 @@ const EMPTY_FACETS: SearchTagFacets = {
 export function HeaderLeading({
   teams = [],
   tagFacets = EMPTY_FACETS,
+  account = null,
 }: {
   teams?: TeamOption[];
   tagFacets?: SearchTagFacets;
+  account?: HeaderAccount | null;
 }) {
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
 
   if (leading.kind === "back") return <BackButton fallback={leading.fallback} />;
-  if (leading.kind === "logo") {
+  if (leading.kind === "account" && account) {
+    // 마이 탭 — 로고 자리에 내 계정 정보(모바일). 데스크톱은 레이아웃 로고가 이미 있다.
+    const initial = (account.displayName.trim()[0] ?? "?").toUpperCase();
+    return (
+      <div className="flex min-w-0 flex-1 items-center sm:hidden">
+        <Link href="/mypage/edit" className="flex min-w-0 items-center gap-2">
+          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-lemon text-sm font-display text-ink">
+            {account.avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- R2 외부 호스트 */
+              <img src={account.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initial
+            )}
+          </span>
+          <span className="truncate text-sm font-semibold text-foreground">
+            {account.displayName}
+          </span>
+        </Link>
+      </div>
+    );
+  }
+  if (leading.kind === "logo" || leading.kind === "account") {
     // 데스크톱은 레이아웃의 상시 로고가 이미 있으니 모바일에서만 로고를 보여준다.
     return (
       <div className="flex min-w-0 flex-1 items-center sm:hidden">
