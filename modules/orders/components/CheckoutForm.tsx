@@ -27,11 +27,14 @@ function formatWon(amount: number): string {
 }
 
 export function CheckoutForm({
+  cartItemIds = [],
   summary,
   pointBalance = 0,
   freeShippingCoupons = 0,
   defaultAddress = null,
 }: {
+  /** 이번 주문 대상 장바구니 항목 id — 장바구니에서 고른 것만 결제·차감. */
+  cartItemIds?: number[];
   summary: OrderSummary;
   pointBalance?: number;
   freeShippingCoupons?: number;
@@ -99,6 +102,7 @@ export function CheckoutForm({
         expectedTotalAmount: totalAmount,
         usePoints,
         useFreeShippingCoupon: couponApplies,
+        cartItemIds,
       });
       if (!result.ok) {
         toast.error(result.message);

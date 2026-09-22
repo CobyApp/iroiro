@@ -14,6 +14,9 @@ export const checkoutSchema = z.object({
   usePoints: z.number().int().nonnegative().default(0),
   // 무료배송 쿠폰 사용 — 서버가 보유 쿠폰 중 가장 오래된 것을 골라 소진한다.
   useFreeShippingCoupon: z.boolean().default(false),
+  // 주문할 장바구니 항목 id — 사용자가 장바구니에서 고른 것만 결제·차감·비운다.
+  // 비우거나 생략하면(구버전 클라이언트) 장바구니 전체를 대상으로 한다.
+  cartItemIds: z.array(z.number().int().positive()).default([]),
 });
 
 // z.input — usePoints/useFreeShippingCoupon는 default가 있어 호출자는 생략 가능.
