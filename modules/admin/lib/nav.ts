@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import type { AdminSpace } from "./adminRoles";
 import {
   ArrowRight,
-  Calculator,
   Coins,
   ImageIcon,
   Layers,
@@ -249,14 +248,6 @@ export const DELIVERY_SECTIONS: NavSection[] = [
         href: "/delivery/orders",
         icon: ShoppingBag,
         matchPrefix: "/delivery/orders",
-        role: "delivery",
-      },
-      {
-        key: "settlement",
-        label: "정산",
-        href: "/delivery/settlement",
-        icon: Calculator,
-        matchPrefix: "/delivery/settlement",
         role: "delivery",
       },
     ],

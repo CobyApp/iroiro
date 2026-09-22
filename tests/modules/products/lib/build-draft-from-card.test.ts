@@ -20,7 +20,6 @@ describe("buildDraftProductFromCard", () => {
       rate100: 950,
       useRateForSalePrice: true,
       photoR2Key: "products/x.jpg",
-      today: "2026-09-22",
     });
     expect(draft.salePrice).toBe(7500);
     expect(draft.regularPrice).toBe(7500);
@@ -38,7 +37,6 @@ describe("buildDraftProductFromCard", () => {
       rate100: 950,
       useRateForSalePrice: false,
       photoR2Key: "products/x.jpg",
-      today: "2026-09-22",
     });
     expect(draft.salePrice).toBe(0);
     expect(draft.regularPrice).toBe(0);
@@ -49,19 +47,16 @@ describe("buildDraftProductFromCard", () => {
       rate100: 950,
       useRateForSalePrice: true,
       photoR2Key: "products/x.jpg",
-      today: "2026-09-22",
     });
     expect(() => productCreateSchema.parse(draft)).not.toThrow();
   });
 
-  it("환율이 0이어도 매입환율은 양수(스키마 요구)를 보장한다", () => {
+  it("환율이 0이어도 스키마를 통과하는 초안을 만든다(가격 0)", () => {
     const draft = buildDraftProductFromCard(card, {
       rate100: 0,
       useRateForSalePrice: true,
       photoR2Key: "products/x.jpg",
-      today: "2026-09-22",
     });
-    expect(draft.purchaseExchangeRate).toBeGreaterThan(0);
     expect(draft.salePrice).toBe(0);
     expect(() => productCreateSchema.parse(draft)).not.toThrow();
   });

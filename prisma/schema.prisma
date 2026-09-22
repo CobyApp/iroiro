@@ -19,16 +19,18 @@ model Product {
   teamId               BigInt?  @map("team_id")
   memberId             BigInt?  @map("member_id")
   name                 String
+  // 매입 원가·부대비용·부가정보(설명/컨디션)·매입정보는 스토어 상품에서 제거됨(2026-09).
+  // 칼럼은 롤아웃 안전을 위해 남겨두되(옵셔널) 앱은 더 이상 쓰지 않는다 — 이후 마이그레이션에서 DROP.
   description          String?
-  purchasePriceJpy     Int      @map("purchase_price_jpy")
-  purchaseExchangeRate Decimal  @map("purchase_exchange_rate") @db.Decimal(8, 4)
-  purchasePriceKrw     Int      @map("purchase_price_krw")
+  purchasePriceJpy     Int?     @map("purchase_price_jpy")
+  purchaseExchangeRate Decimal? @map("purchase_exchange_rate") @db.Decimal(8, 4)
+  purchasePriceKrw     Int?     @map("purchase_price_krw")
   packagingCostKrw     Int      @default(0) @map("packaging_cost_krw")
   overseasShippingKrw  Int      @default(0) @map("overseas_shipping_krw")
   domesticShippingKrw  Int      @default(0) @map("domestic_shipping_krw")
   otherCostKrw         Int      @default(0) @map("other_cost_krw")
   purchaser            String?  @map("purchaser")
-  purchaseDate         DateTime @map("purchase_date") @db.Date
+  purchaseDate         DateTime? @map("purchase_date") @db.Date
   regularPrice         Int      @map("regular_price")
   salePrice            Int      @map("sale_price")
   condition            String?

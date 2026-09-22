@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calculator, Package, ShoppingBag, Truck } from "lucide-react";
+import { Package, ShoppingBag, Truck } from "lucide-react";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,6 @@ export const metadata: Metadata = { title: "홈" };
 const LINKS = [
   { label: "상품", href: "/delivery/products", icon: Package, hint: "등록·수정·재고·판매상태" },
   { label: "주문", href: "/delivery/orders", icon: ShoppingBag, hint: "결제·발송·상태 관리" },
-  { label: "정산", href: "/delivery/settlement", icon: Calculator, hint: "매출·원가·수익" },
   { label: "배송 정책", href: "/delivery/policy", icon: Truck, hint: "배송비·무료배송 기준" },
 ];
 

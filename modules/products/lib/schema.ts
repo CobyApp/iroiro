@@ -1,10 +1,5 @@
 import { z } from "zod";
-import {
-  ITEM_TYPES,
-  PRODUCT_CONDITIONS,
-  SALE_MODES,
-  SALE_STATUSES,
-} from "../types";
+import { ITEM_TYPES, SALE_MODES, SALE_STATUSES } from "../types";
 
 export const productPhotoInputSchema = z.object({
   r2Key: z.string().min(1),
@@ -31,28 +26,9 @@ const productInputBase = z.object({
   // 등록 출처 카탈로그 카드 id — 일괄 등록의 "미등록만 보기" 판별 키. 수기 등록은 비움(NULL).
   catalogCardId: z.number().int().positive().nullable().optional(),
   name: z.string().min(1, "상품명 필수").max(200),
-  description: z.string().nullable().optional(),
-  purchasePriceJpy: z.number().int().nonnegative(),
-  purchaseExchangeRate: z.number().positive(),
-  purchasePriceKrw: z.number().int().nonnegative(),
-  // 부대비용(KRW) — 회계 원가 분해. 매입일 환율로 환산한 매입가에 더해 총원가 산출.
-  packagingCostKrw: z.number().int().nonnegative().default(0),
-  overseasShippingKrw: z.number().int().nonnegative().default(0),
-  domesticShippingKrw: z.number().int().nonnegative().default(0),
-  otherCostKrw: z.number().int().nonnegative().default(0),
-  // 매입자 — 매입자별 정산용. 빈 문자열은 NULL로 정규화.
-  purchaser: z
-    .string()
-    .trim()
-    .max(100)
-    .nullable()
-    .optional()
-    .transform((value) => (value === "" ? null : value)),
-  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식"),
   regularPrice: z.number().int().nonnegative(),
   // 할인 없으면 regularPrice와 동일. DB CHECK와 동일 invariant를 입력단에서도 강제.
   salePrice: z.number().int().nonnegative(),
-  condition: z.enum(PRODUCT_CONDITIONS).nullable().optional(),
   stockQuantity: z.number().int().nonnegative().default(0),
   saleStatus: z.enum(SALE_STATUSES).default("draft"),
   // 카탈로그 계층·외부 시세 — 임포트가 채우고 관리자 화면에서도 수정 가능.

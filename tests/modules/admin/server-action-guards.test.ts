@@ -107,13 +107,3 @@ describe("상품 액션은 비관리자를 거부한다", () => {
     expect(reject).not.toHaveBeenCalled();
   });
 });
-
-describe("외부 자원을 쓰는 액션은 호출 전에 거부한다", () => {
-  it("getExchangeRateForDate — 외부 환율 API 호출 이전에 차단", async () => {
-    const { getExchangeRateForDate } = await import(
-      "@/modules/products/actions"
-    );
-    await expect(getExchangeRateForDate("2026-01-01")).rejects.toThrow(DENIED);
-    expect(reject).not.toHaveBeenCalled();
-  });
-});

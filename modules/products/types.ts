@@ -117,16 +117,8 @@ export type Product = {
   teamId: number | null;
   memberId: number | null;
   name: string;
+  // 설명·컨디션은 신규 스토어 상품 폼에서 더 이상 입력받지 않는다(부가정보 제거). DB 레거시 값 표시용으로만 유지.
   description: string | null;
-  purchasePriceJpy: number;
-  purchaseExchangeRate: number;
-  purchasePriceKrw: number;
-  packagingCostKrw: number;
-  overseasShippingKrw: number;
-  domesticShippingKrw: number;
-  otherCostKrw: number;
-  purchaser: string | null;
-  purchaseDate: string;
   regularPrice: number;
   /**
    * 실판매가 (KRW). DB CHECK 제약으로 항상 `salePrice <= regularPrice`.

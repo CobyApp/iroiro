@@ -4,7 +4,6 @@ import type {
   Product as PrismaProduct,
   ProductPhoto as PrismaProductPhoto,
 } from "@prisma/client";
-import { formatKstDate } from "@/lib/datetime";
 import type {
   AuctionStatus,
   ItemType,
@@ -24,15 +23,6 @@ export function toProduct(row: PrismaProduct): Product {
     memberId: row.memberId !== null ? Number(row.memberId) : null,
     name: row.name,
     description: row.description,
-    purchasePriceJpy: row.purchasePriceJpy,
-    purchaseExchangeRate: Number(row.purchaseExchangeRate),
-    purchasePriceKrw: row.purchasePriceKrw,
-    packagingCostKrw: row.packagingCostKrw,
-    overseasShippingKrw: row.overseasShippingKrw,
-    domesticShippingKrw: row.domesticShippingKrw,
-    otherCostKrw: row.otherCostKrw,
-    purchaser: row.purchaser,
-    purchaseDate: formatKstDate(row.purchaseDate),
     regularPrice: row.regularPrice,
     salePrice: row.salePrice,
     condition: row.condition as ProductCondition | null,

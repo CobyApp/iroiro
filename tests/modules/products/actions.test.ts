@@ -113,24 +113,18 @@ describe("product actions", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("updateProduct에서 nullable 필드를 명시적으로 null로 비울 수 있다", async () => {
+  it("updateProduct에서 nullable 필드(memberId)를 명시적으로 null로 비울 수 있다", async () => {
     const { updateProduct } = await import("@/modules/products/actions");
 
     const result = await updateProduct({
       id: 2,
       memberId: null,
-      description: null,
-      condition: null,
     });
 
     if (!result.ok) throw new Error(`expected ok, got: ${result.message}`);
     const patch = update.mock.calls[0][0].data;
     expect(patch.memberId).toBeNull();
-    expect(patch.description).toBeNull();
-    expect(patch.condition).toBeNull();
     expect(result.data.memberId).toBeNull();
-    expect(result.data.description).toBeNull();
-    expect(result.data.condition).toBeNull();
   });
 
   it("updateProduct에서 salePrice를 정가와 같게 되돌릴 수 있다 (할인 해제)", async () => {
@@ -166,7 +160,7 @@ describe("product actions", () => {
     expect(result).toMatchObject({ ok: false, code: "invalid_input" });
   });
 
-  it("도메인 오류 — 아이템 코드·구분·컨디션 조합이 중복되면 throw가 아니라 ok:false 결과로 반환한다", async () => {
+  it("도메인 오류 — 아이템 코드·구분 조합이 중복되면 throw가 아니라 ok:false 결과로 반환한다", async () => {
     update.mockRejectedValueOnce(p2002(["item_code"]));
     const { updateProduct } = await import("@/modules/products/actions");
 
@@ -174,7 +168,7 @@ describe("product actions", () => {
 
     expect(result).toEqual({
       ok: false,
-      message: "같은 아이템 코드·구분·컨디션 조합의 상품이 이미 있습니다",
+      message: "같은 아이템 코드·구분의 상품이 이미 있습니다",
       code: undefined,
     });
   });
