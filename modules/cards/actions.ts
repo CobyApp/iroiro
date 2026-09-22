@@ -175,9 +175,21 @@ export async function createCardAdmin(
         ...analysis,
       },
     });
+    // 카탈로그가 곧 상품 — 새 카드는 상품 목록에 임시저장(draft)으로 자동 편입(베스트에포트, 실패해도 카드 생성은 유지).
+    await autoDraftProduct(Number(row.id));
     revalidateCards();
     return { id: Number(row.id) };
   });
+}
+
+// 카드 → 임시저장 상품 자동 생성(커머스 DB·R2, 카탈로그와 별개 트랜잭션이라 best-effort).
+async function autoDraftProduct(cardId: number): Promise<void> {
+  try {
+    const { createDraftProductForCard } = await import("@/modules/products/actions");
+    await createDraftProductForCard(cardId);
+  } catch (error) {
+    console.error("[catalog] draft product 자동 생성 실패", cardId, error);
+  }
 }
 
 // 관리자 — 수정 (이미지 교체 포함, 이미지 없는 external 카드도 메타는 수정 가능).
@@ -346,6 +358,8 @@ export async function reviewCard(
     ) {
       await grantCardReportPoints(row.submittedByAccountId!, row.id);
     }
+    // 승인으로 공개(active)된 카드도 상품 목록에 임시저장으로 자동 편입.
+    if (decision === "approve") await autoDraftProduct(Number(row.id));
     revalidateCards();
   });
 }
@@ -564,6 +578,8 @@ export async function approveCards(
       if (!isRewardableHere(target)) continue;
       await grantCardReportPoints(target.submittedByAccountId!, target.id);
     }
+    // 승인된 카드들을 상품 목록에 임시저장으로 자동 편입(각각 best-effort).
+    for (const t of targets) await autoDraftProduct(Number(t.id));
     revalidateCards();
     return { approved: targets.length };
   });
