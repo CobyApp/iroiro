@@ -13,7 +13,7 @@ export default async function AdminNoticesPage() {
     <AdminPage>
       <AdminPageHeader title="공지사항" count={notices.length}>
         <Button asChild>
-          <Link href="/admin/notices/new">
+          <Link href="/board/notices/new">
             <Plus aria-hidden className="mr-0.5 h-4 w-4" />
             신규 공지
           </Link>

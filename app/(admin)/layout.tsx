@@ -45,19 +45,19 @@ export default async function AdminLayout({
 }) {
   await connection();
 
-  // 권한 가드 (룰 3) — 자체 세션 검증. 비로그인은 로그인으로, 권한 없으면 홈으로.
-  // site admin은 전체, 게시판 moderator는 커뮤니티 관리 섹션만(사이드바에서 필터).
+  // 권한 가드 (룰 3) — 운영 관리자(/admin)는 site admin 전용. 게시판 관리는 /board 로 분리했다.
+  // moderator(게시판 관리자지만 site admin 아님)는 게시판 공간으로 보낸다.
   // Server Action은 layout과 별개로 requireAdmin/requireBoardManager에서 재검증.
   const account = await getCurrentAccount();
   if (!account) redirect("/login?returnTo=/admin");
-  if (!isBoardManager(account)) redirect("/");
+  if (!isAdmin(account)) redirect(isBoardManager(account) ? "/board" : "/");
 
   return (
     <AdminShell
       scope="admin"
       appName={appDisplayName(APP_NAMES.admin)}
       isDev={isDevDeploy()}
-      isSiteAdmin={isAdmin(account)}
+      isSiteAdmin
       isBoardManager
     >
       <PageTransition>{children}</PageTransition>

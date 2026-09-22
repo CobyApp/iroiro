@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_SECTIONS,
+  BOARD_SECTIONS,
   CATALOG_SECTIONS,
   isNavItemActive,
   visibleSections,
@@ -78,23 +79,45 @@ describe("isNavItemActive", () => {
   });
 });
 
-describe("ADMIN_SECTIONS / CATALOG_SECTIONS", () => {
-  it("a non-admin board manager gets only the 커뮤니티 section, without the dashboard", () => {
-    const result = visibleSections(ADMIN_SECTIONS, { isSiteAdmin: false, isBoardManager: true });
-    expect(result.map((s) => s.title)).toEqual(["커뮤니티"]);
-    expect(result.flatMap((s) => s.items.map((i) => i.href))).not.toContain("/admin");
+describe("ADMIN_SECTIONS / BOARD_SECTIONS / CATALOG_SECTIONS", () => {
+  it("게시판 관리는 /admin 이 아니라 BOARD_SECTIONS 로 분리됐다 — /admin 에는 커뮤니티 메뉴가 없다", () => {
+    const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(adminHrefs).not.toContain("/board/posts");
+    expect(adminHrefs).not.toContain("/board/notices");
+    // moderator(비-admin)는 운영 관리자(/admin)에서 볼 수 있는 메뉴가 없다 → /board 로 유도.
+    expect(visibleSections(ADMIN_SECTIONS, { isSiteAdmin: false, isBoardManager: true })).toEqual([]);
   });
 
-  it("admin sections link across to the catalog and vice versa, with no 검수 entry", () => {
-    const adminHrefs = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    const catalogHrefs = CATALOG_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-    expect(adminHrefs).toContain("/catalog");
-    expect(catalogHrefs).toContain("/admin");
-    expect(catalogHrefs.some((h) => h.includes("view=pending"))).toBe(false);
+  it("board manager(비-admin)는 게시판 홈·게시판/신고·공지는 보되 회원·등급(admin 전용)은 못 본다", () => {
+    const result = visibleSections(BOARD_SECTIONS, { isSiteAdmin: false, isBoardManager: true });
+    const hrefs = result.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/board");
+    expect(hrefs).toContain("/board/posts");
+    expect(hrefs).toContain("/board/notices");
+    expect(hrefs).not.toContain("/board/users"); // 회원·등급 = site admin 전용
+    expect(hrefs).not.toContain("/admin"); // 바로가기(siteAdmin)도 안 보임
+  });
+
+  it("site admin 은 BOARD_SECTIONS 전체(회원·등급·바로가기 포함)를 본다", () => {
+    const hrefs = visibleSections(BOARD_SECTIONS, { isSiteAdmin: true, isBoardManager: true })
+      .flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).toContain("/board/users");
+    expect(hrefs).toContain("/admin");
+    expect(hrefs).toContain("/catalog");
+  });
+
+  it("세 공간이 서로 바로가기로 이어진다", () => {
+    const admin = ADMIN_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    const board = BOARD_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    const catalog = CATALOG_SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(admin).toContain("/catalog");
+    expect(admin).toContain("/board");
+    expect(board).toContain("/admin");
+    expect(catalog).toContain("/admin");
   });
 
   it("item keys are unique within each section list", () => {
-    for (const sections of [ADMIN_SECTIONS, CATALOG_SECTIONS]) {
+    for (const sections of [ADMIN_SECTIONS, BOARD_SECTIONS, CATALOG_SECTIONS]) {
       const keys = sections.flatMap((s) => s.items.map((i) => i.key));
       expect(new Set(keys).size).toBe(keys.length);
     }

@@ -67,7 +67,7 @@ describe("hidePost 액션", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts");
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts/post-code");
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts/my");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/posts");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/board/posts");
   });
 
   it("도메인 오류 — 숨길 수 없는 글은 throw가 아니라 ok:false 결과로 반환(프로덕션 메시지 보존)", async () => {
@@ -111,7 +111,7 @@ describe("unhidePost 액션", () => {
     expect(postUpdateMany).toHaveBeenCalledTimes(1);
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts");
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts/post-code");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/posts");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/board/posts");
   });
 
   it("권한 거부 — admin이 아니면 mutation 전에 거부된다", async () => {
@@ -147,7 +147,7 @@ describe("hideComment 액션", () => {
     expect(commentUpdateMany).toHaveBeenCalledTimes(1);
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts");
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts/post-code");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/posts");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/board/posts");
   });
 
   it("권한 거부 — admin이 아니면 mutation 전에 거부된다", async () => {
@@ -183,7 +183,7 @@ describe("unhideComment 액션", () => {
     expect(commentUpdateMany).toHaveBeenCalledTimes(1);
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts");
     expect(revalidatePathMock).toHaveBeenCalledWith("/posts/post-code");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/posts");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/board/posts");
   });
 
   it("권한 거부 — admin이 아니면 mutation 전에 거부된다", async () => {
@@ -216,7 +216,7 @@ describe("dismissReport 액션", () => {
     await dismissReport(input);
 
     expect(postReportUpdateMany).toHaveBeenCalledTimes(1);
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/posts");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/board/posts");
     expect(revalidatePathMock).not.toHaveBeenCalledWith("/posts");
   });
 

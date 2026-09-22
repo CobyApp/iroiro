@@ -22,7 +22,7 @@ export function NoticesTable({ notices }: Props) {
   const router = useRouter();
 
   function navigateTo(id: number) {
-    router.push(`/admin/notices/${id}/edit`);
+    router.push(`/board/notices/${id}/edit`);
   }
 
   return (

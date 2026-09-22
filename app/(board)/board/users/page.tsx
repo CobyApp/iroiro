@@ -29,7 +29,7 @@ export default async function AdminUsersPage({
         count={users.length}
         description="사이트 관리자·게시판 모더레이터를 지정하거나, 신고 누적 회원의 작성을 제재해요."
       >
-        <form action="/admin/users" className="w-full sm:w-72">
+        <form action="/board/users" className="w-full sm:w-72">
           <input
             type="search"
             name="q"

@@ -76,7 +76,7 @@ export function HiddenComments({ items, total, page, pageSize }: Props) {
           <PaginationContent>
             {page > 1 && (
               <PaginationItem>
-                <PaginationPrevious href={`/admin/posts?tab=hidden-comments&page=${page - 1}`} />
+                <PaginationPrevious href={`/board/posts?tab=hidden-comments&page=${page - 1}`} />
               </PaginationItem>
             )}
             <PaginationItem>
@@ -86,7 +86,7 @@ export function HiddenComments({ items, total, page, pageSize }: Props) {
             </PaginationItem>
             {page < totalPages && (
               <PaginationItem>
-                <PaginationNext href={`/admin/posts?tab=hidden-comments&page=${page + 1}`} />
+                <PaginationNext href={`/board/posts?tab=hidden-comments&page=${page + 1}`} />
               </PaginationItem>
             )}
           </PaginationContent>

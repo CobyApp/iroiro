@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandMark } from "@/modules/ui/components/BrandMark";
-import { ADMIN_SECTIONS, CATALOG_SECTIONS, type NavSection } from "../lib/nav";
+import { ADMIN_SECTIONS, BOARD_SECTIONS, CATALOG_SECTIONS, type NavSection } from "../lib/nav";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 
-export type AdminShellScope = "admin" | "catalog";
+export type AdminShellScope = "admin" | "catalog" | "board";
 
 const SCOPE: Record<
   AdminShellScope,
@@ -30,6 +30,14 @@ const SCOPE: Record<
     homeHref: "/catalog",
     sections: CATALOG_SECTIONS,
     navLabel: "카탈로그 메뉴",
+  },
+  board: {
+    title: "게시판 관리",
+    badge: "COMMUNITY",
+    badgeClassName: "bg-mint/40 text-ink",
+    homeHref: "/board",
+    sections: BOARD_SECTIONS,
+    navLabel: "게시판 관리 메뉴",
   },
 };
 
