@@ -149,14 +149,14 @@ export function PushToggle({
             onClick={state === "on" ? disable : enable}
             disabled={pending}
             className={
-              "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 " +
+              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full px-0.5 transition-colors disabled:opacity-50 " +
               (state === "on" ? "bg-primary" : "bg-muted-foreground/30")
             }
           >
             <span
               className={
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform " +
-                (state === "on" ? "translate-x-[22px]" : "translate-x-0.5")
+                "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform " +
+                (state === "on" ? "translate-x-5" : "translate-x-0")
               }
             />
             <span className="sr-only">푸시 알림 {state === "on" ? "끄기" : "켜기"}</span>
