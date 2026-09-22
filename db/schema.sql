@@ -2785,3 +2785,18 @@ ALTER TABLE used_bundle
 COMMENT ON COLUMN used_bundle.status IS '상태 — pending(결제대기)/paid/shipped/completed/canceled';
 
 -- ============================================================================
+-- [20261001000000_message_image]
+-- ============================================================================
+
+-- 쪽지에 이미지 1장 첨부 — 비공개 UGC 버킷의 최종 키(messages/<uuid>.<ext>)를 저장한다.
+-- 서빙은 서명 GET(getSignedUgcGetUrl). 본문(body)만·이미지만·둘 다 허용(앱에서 검증).
+-- GRANT 는 이미 message 에 SELECT/INSERT 로 부여돼 새 컬럼도 커버된다(body 를 NULL 허용으로 완화).
+ALTER TABLE message
+    ADD COLUMN IF NOT EXISTS image_r2_key TEXT;
+ALTER TABLE message
+    ALTER COLUMN body DROP NOT NULL;
+
+COMMENT ON COLUMN message.image_r2_key IS '첨부 이미지 R2 키(비공개 UGC) — 없으면 NULL';
+COMMENT ON COLUMN message.body IS '내용(이미지만 보낼 땐 NULL 가능)';
+
+-- ============================================================================

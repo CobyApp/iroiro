@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { getSignedUgcGetUrl } from "@/lib/r2/ugc";
 import type {
   MessageThreadSummary,
   MessageThreadView,
@@ -49,7 +50,7 @@ export async function listThreads(
         db.message.findFirst({
           where: { threadId: t.id },
           orderBy: { createdAt: "desc" },
-          select: { body: true },
+          select: { body: true, imageR2Key: true },
         }),
       ),
     ),
@@ -76,7 +77,9 @@ export async function listThreads(
       otherAccountId,
       otherName: nameBy.get(otherAccountId) ?? "탈퇴한 회원",
       lastMessageAt: t.lastMessageAt.toISOString(),
-      lastBody: lastMessages[i]?.body ?? null,
+      lastBody:
+        lastMessages[i]?.body ??
+        (lastMessages[i]?.imageR2Key ? "사진" : null),
       unread: unreadCounts[i],
     };
   });
@@ -134,14 +137,22 @@ export async function getThreadForViewer(
     }),
   ]);
 
+  // 첨부 이미지는 비공개 UGC — 참여자에게만 서명 GET URL 을 발급한다(여기서 스레드 접근 확인 완료).
+  const imageUrls = await Promise.all(
+    messages.map((m) =>
+      m.imageR2Key ? getSignedUgcGetUrl(m.imageR2Key) : Promise.resolve(null),
+    ),
+  );
+
   return {
     id: Number(thread.id),
     otherAccountId,
     otherName: other?.displayName ?? "탈퇴한 회원",
-    messages: messages.map((m) => ({
+    messages: messages.map((m, i) => ({
       id: Number(m.id),
       senderAccountId: m.senderAccountId,
-      body: m.body,
+      body: m.body ?? "",
+      imageUrl: imageUrls[i],
       createdAt: m.createdAt.toISOString(),
       mine: m.senderAccountId === me,
     })),
