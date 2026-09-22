@@ -54,7 +54,7 @@ describe("approveUsedTradePayment", () => {
     approve.mockResolvedValue({ ok: true, approvedAmount: 12000 });
     tradeUpdateMany.mockResolvedValue({ count: 1 });
 
-    const result = await approveUsedTradePayment(1, "pg_token");
+    const result = await approveUsedTradePayment(1, "pg_token", "buyer");
 
     expect(result).toEqual({ ok: true, listingId: 10 });
     expect(approve).toHaveBeenCalledWith(
@@ -76,7 +76,7 @@ describe("approveUsedTradePayment", () => {
       pointsUsed: 0,
     });
 
-    const result = await approveUsedTradePayment(1, "pg_token");
+    const result = await approveUsedTradePayment(1, "pg_token", "buyer");
 
     expect(result).toEqual({ ok: true, listingId: 10 });
     expect(approve).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("approveUsedTradePayment", () => {
     });
     approve.mockResolvedValue({ ok: false, failMessage: "expired" });
 
-    const result = await approveUsedTradePayment(1, "bad");
+    const result = await approveUsedTradePayment(1, "bad", "buyer");
 
     expect(result.ok).toBe(false);
     expect(tradeUpdateMany).not.toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe("approveUsedTradePayment", () => {
 
   it("거래가 없으면 실패", async () => {
     tradeFindUnique.mockResolvedValue(null);
-    const result = await approveUsedTradePayment(9, "x");
+    const result = await approveUsedTradePayment(9, "x", "buyer");
     expect(result.ok).toBe(false);
   });
 });
@@ -112,10 +112,11 @@ describe("failUsedTradePayment", () => {
       id: 1n,
       listingId: 10n,
       status: "pending",
+      buyerAccountId: "buyer",
     });
     tradeUpdateMany.mockResolvedValue({ count: 1 });
 
-    const result = await failUsedTradePayment(1);
+    const result = await failUsedTradePayment(1, "buyer");
 
     expect(result).toEqual({ listingId: 10 });
     expect(tradeUpdateMany.mock.calls[0][0].data.status).toBe("canceled");
@@ -123,8 +124,25 @@ describe("failUsedTradePayment", () => {
   });
 
   it("pending 이 아니면 아무 것도 바꾸지 않는다", async () => {
-    tradeFindUnique.mockResolvedValue({ id: 1n, listingId: 10n, status: "paid" });
-    const result = await failUsedTradePayment(1);
+    tradeFindUnique.mockResolvedValue({
+      id: 1n,
+      listingId: 10n,
+      status: "paid",
+      buyerAccountId: "buyer",
+    });
+    const result = await failUsedTradePayment(1, "buyer");
+    expect(result).toEqual({ listingId: 10 });
+    expect(tradeUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("구매자가 아니면 취소하지 않는다(그리핑 차단)", async () => {
+    tradeFindUnique.mockResolvedValue({
+      id: 1n,
+      listingId: 10n,
+      status: "pending",
+      buyerAccountId: "buyer",
+    });
+    const result = await failUsedTradePayment(1, "attacker");
     expect(result).toEqual({ listingId: 10 });
     expect(tradeUpdateMany).not.toHaveBeenCalled();
   });

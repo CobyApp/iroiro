@@ -360,7 +360,7 @@ export async function buyUsedListing(
     });
     if (!ready.ok) {
       // 준비 실패 — pending 취소하고 매물을 다시 판매중으로 되돌린다.
-      await failUsedTradePayment(tradeId);
+      await failUsedTradePayment(tradeId, account.id);
       throw new DomainError(ready.failMessage || "결제 준비에 실패했어요");
     }
     await db.usedTrade.update({

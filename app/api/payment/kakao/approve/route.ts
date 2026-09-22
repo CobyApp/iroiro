@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { publicUrl } from "@/lib/public-origin";
+import { getCurrentAccount } from "@/modules/auth/dal";
 import { approveUsedTradePayment } from "@/modules/used/lib/checkout";
 
 export const runtime = "nodejs";
@@ -10,12 +11,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const tradeId = Number(request.nextUrl.searchParams.get("trade"));
   const pgToken = request.nextUrl.searchParams.get("pg_token");
+  const account = await getCurrentAccount();
 
-  if (!Number.isInteger(tradeId) || tradeId <= 0 || !pgToken) {
+  if (!account || !Number.isInteger(tradeId) || tradeId <= 0 || !pgToken) {
     return NextResponse.redirect(publicUrl(request, "/used?payfail=1"));
   }
 
-  const result = await approveUsedTradePayment(tradeId, pgToken);
+  const result = await approveUsedTradePayment(tradeId, pgToken, account.id);
   const base = result.listingId ? `/used/${result.listingId}` : "/mypage/used";
   return NextResponse.redirect(
     publicUrl(request, result.ok ? `${base}?paid=1` : `${base}?payfail=1`),

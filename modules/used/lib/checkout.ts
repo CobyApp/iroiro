@@ -18,9 +18,14 @@ export type ApproveResult = {
 export async function approveUsedTradePayment(
   tradeId: number,
   pgToken: string,
+  buyerAccountId: string,
 ): Promise<ApproveResult> {
   const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });
   if (!trade) return { ok: false, message: "거래를 찾을 수 없어요" };
+  // 소유권 검증 — 콜백 세션 계정이 이 거래의 구매자여야 한다(남의 거래 승인·조작 차단).
+  if (trade.buyerAccountId !== buyerAccountId) {
+    return { ok: false, message: "권한이 없어요" };
+  }
   const listingId = Number(trade.listingId);
   if (trade.status === "paid") return { ok: true, listingId }; // 멱등 — 이미 승인됨
   if (trade.status !== "pending") {
@@ -68,10 +73,13 @@ export async function approveUsedTradePayment(
 /** pending 거래 실패/취소 — canceled 로 전이하고 예약된 매물을 다시 판매중으로 되돌린다. */
 export async function failUsedTradePayment(
   tradeId: number,
+  buyerAccountId: string,
 ): Promise<{ listingId?: number }> {
   const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });
   if (!trade) return {};
   const listingId = Number(trade.listingId);
+  // 소유권 검증 — 제3자가 tradeId 만으로 남의 결제대기 거래를 취소(그리핑)하지 못하게.
+  if (trade.buyerAccountId !== buyerAccountId) return { listingId };
   if (trade.status !== "pending") return { listingId };
 
   await db.$transaction(async (tx) => {
