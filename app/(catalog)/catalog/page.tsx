@@ -8,8 +8,7 @@ import {
   Tag,
   User,
   Users,
-  WalletCards,
-} from "lucide-react";
+  WalletCards, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatKstDateTime, formatKstRelative } from "@/lib/datetime";
@@ -76,7 +75,16 @@ export default async function CatalogHomePage() {
         eyebrow="TRADING CARD ARCHIVE"
         title="카탈로그 홈"
         description="토레카 마스터 데이터 — 검수할 제보, AI 분석 현황, 그룹별 도감을 한 화면에서 살펴요."
-      />
+      >
+        {/* 사진 포함 전체 내보내기 — catalog.json + cards.csv + images/ 를 ZIP 으로. */}
+        <a
+          href="/catalog/export"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+        >
+          <Download className="h-3.5 w-3.5" aria-hidden />
+          전체 내보내기 (사진 포함)
+        </a>
+      </AdminPageHeader>
 
       {/* 요약 타일 — 폰에서는 3열 두 줄(≈110px)로 압축, lg 부터 한 줄 */}
       <section className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">

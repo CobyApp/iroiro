@@ -1,4 +1,4 @@
-import { kindLabelOf, sortKindKeys, type KindOption } from "@/modules/series/lib/kind-options";
+import { compareSeriesLabel, kindLabelOf, sortKindKeys, type KindOption } from "@/modules/series/lib/kind-options";
 
 // 커버리지 매트릭스의 순수 계산 — 서버 컴포넌트·테스트 양쪽에서 쓴다(DB 접근 없음).
 // 행 = 그룹 멤버(표시 순서), 열 = 그룹 시리즈(종류별 묶음), 셀 = 공개 카드 수.
@@ -44,7 +44,7 @@ export function groupSeriesByKind(
     label: kindLabelOf(kinds, kind),
     series: series
       .filter((s) => s.kind === kind)
-      .sort((a, b) => a.label.localeCompare(b.label, "ja")),
+      .sort((a, b) => compareSeriesLabel(a.label, b.label)),
   }));
 }
 

@@ -12,6 +12,7 @@ import {
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listSeriesWithCounts, type SeriesRow } from "@/modules/series/lib/queries";
 import { buildKindLabelMap, listSeriesKinds, sortKindKeys } from "@/modules/series/lib/kinds-queries";
+import { compareSeriesLabel } from "@/modules/series/lib/kind-options";
 import { SeriesCreateButton, SeriesRowActions } from "@/modules/series/components/SeriesManage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
@@ -45,7 +46,7 @@ export default async function CatalogSeriesPage({ searchParams }: { searchParams
     const order = sortKindKeys([...new Set(list.map((s) => s.kind))], kinds);
     const rank = new Map(order.map((k, i) => [k, i]));
     return [...list].sort(
-      (a, b) => (rank.get(a.kind) ?? 0) - (rank.get(b.kind) ?? 0) || a.label.localeCompare(b.label, "ja"),
+      (a, b) => (rank.get(a.kind) ?? 0) - (rank.get(b.kind) ?? 0) || compareSeriesLabel(a.label, b.label),
     );
   }
 

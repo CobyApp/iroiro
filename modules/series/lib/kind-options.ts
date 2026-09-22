@@ -33,3 +33,9 @@ export function kindSelectOptions(kinds: KindOption[]): { key: string; label: st
   }
   return kinds.map((k) => ({ key: k.key, label: k.label }));
 }
+
+// 시리즈 라벨 자연 정렬 — ver.1·ver.2·…·ver.10·ver.15 처럼 숫자를 사전순이 아닌 값 순으로.
+// localeCompare 의 numeric 옵션이 "ver.10" 이 "ver.2" 뒤에 오도록 처리한다.
+export function compareSeriesLabel(a: string, b: string): number {
+  return a.localeCompare(b, "ja", { numeric: true, sensitivity: "base" });
+}
