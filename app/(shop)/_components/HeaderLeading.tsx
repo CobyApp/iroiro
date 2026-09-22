@@ -8,6 +8,7 @@ import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import { ITEM_TYPE_LABEL, SALE_MODE_LABEL } from "@/modules/products/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
+import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
 
 // 상단 헤더 왼쪽 영역 — 현재 화면에 맞춰 셋 중 하나를 보여준다.
 //  · 검색   스토어(/·/products)·중고(/used)·커뮤니티(/posts) 목록 → 탭에 맞는 검색 + 필터 태그 패널
@@ -74,6 +75,10 @@ function resolveLeading(pathname: string): Leading {
       return USED;
     case "/posts":
       return COMMUNITY;
+    // 찜·장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
+    case "/wishlist":
+    case "/cart":
+      return PRODUCT;
     // 메뉴에서 진입하는 leaf 페이지 — 자체 상위 탭이 없으니 뒤로가기.
     case "/messages":
     case "/orders":
@@ -84,7 +89,20 @@ function resolveLeading(pathname: string): Leading {
   }
 }
 
-export function HeaderLeading({ teams = [] }: { teams?: TeamOption[] }) {
+const EMPTY_FACETS: SearchTagFacets = {
+  storeTeamIds: [],
+  storeItemTypes: [],
+  usedTeamIds: [],
+  usedSaleModes: [],
+};
+
+export function HeaderLeading({
+  teams = [],
+  tagFacets = EMPTY_FACETS,
+}: {
+  teams?: TeamOption[];
+  tagFacets?: SearchTagFacets;
+}) {
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
 
@@ -99,7 +117,7 @@ export function HeaderLeading({ teams = [] }: { teams?: TeamOption[] }) {
       </div>
     );
   }
-  return <SearchField mode={leading} teams={teams} />;
+  return <SearchField mode={leading} teams={teams} tagFacets={tagFacets} />;
 }
 
 function BackButton({ fallback }: { fallback: string }) {
@@ -123,7 +141,15 @@ function BackButton({ fallback }: { fallback: string }) {
   );
 }
 
-function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] }) {
+function SearchField({
+  mode,
+  teams,
+  tagFacets,
+}: {
+  mode: SearchMode;
+  teams: TeamOption[];
+  tagFacets: SearchTagFacets;
+}) {
   const router = useRouter();
   const { recent, push, remove, clear } = useRecentSearches(mode.recentKey);
   const [q, setQ] = useState("");
@@ -153,9 +179,21 @@ function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] })
   }
 
   const typed = q.trim().toLowerCase();
+  // 상품/매물이 있는 그룹만 태그로 — 커뮤니티는 글 검색어라 facet 제한 없이 모두 노출.
+  const teamFacet =
+    mode.key === "product"
+      ? tagFacets.storeTeamIds
+      : mode.key === "used"
+        ? tagFacets.usedTeamIds
+        : null;
+  const teamAllowed = teamFacet ? new Set(teamFacet) : null;
   const matchTeams = teams
+    .filter((t) => (teamAllowed ? teamAllowed.has(t.id) : true))
     .filter((t) => (typed ? t.name.toLowerCase().includes(typed) : true))
     .slice(0, 10);
+  // 결과가 있는 종류·판매방식만.
+  const storeTypes = new Set(tagFacets.storeItemTypes);
+  const usedModes = new Set(tagFacets.usedSaleModes);
 
   return (
     <div ref={rootRef} className="relative min-w-0 flex-1">
@@ -218,10 +256,12 @@ function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] })
             </ChipGroup>
           )}
 
-          {/* 스토어 — 종류 태그 */}
+          {/* 스토어 — 종류 태그(상품이 있는 종류만) */}
           {mode.key === "product" && !typed && (
             <ChipGroup label="종류">
-              {(Object.keys(ITEM_TYPE_LABEL) as (keyof typeof ITEM_TYPE_LABEL)[]).map((type) => (
+              {(Object.keys(ITEM_TYPE_LABEL) as (keyof typeof ITEM_TYPE_LABEL)[])
+                .filter((type) => storeTypes.has(type))
+                .map((type) => (
                 <Chip key={type} onClick={() => goFilter(`/products?item=${type}`)}>
                   {ITEM_TYPE_LABEL[type]}
                 </Chip>
@@ -229,10 +269,12 @@ function SearchField({ mode, teams }: { mode: SearchMode; teams: TeamOption[] })
             </ChipGroup>
           )}
 
-          {/* 중고 — 판매 방식 태그 */}
+          {/* 중고 — 판매 방식 태그(매물이 있는 방식만) */}
           {mode.key === "used" && !typed && (
             <ChipGroup label="판매 방식">
-              {(Object.keys(SALE_MODE_LABEL) as (keyof typeof SALE_MODE_LABEL)[]).map((m) => (
+              {(Object.keys(SALE_MODE_LABEL) as (keyof typeof SALE_MODE_LABEL)[])
+                .filter((m) => usedModes.has(m))
+                .map((m) => (
                 <Chip key={m} onClick={() => goFilter(`/used?mode=${m}`)}>
                   {SALE_MODE_LABEL[m]}
                 </Chip>
