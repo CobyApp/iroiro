@@ -110,7 +110,8 @@ model Message {
   id              BigInt   @id @default(autoincrement())
   threadId        BigInt   @map("thread_id")
   senderAccountId String   @map("sender_account_id") @db.Uuid
-  body            String
+  body            String?
+  imageR2Key      String?  @map("image_r2_key")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([threadId, createdAt], map: "message_thread_created_idx")

@@ -14,6 +14,8 @@ export type MessageItem = {
   id: number;
   senderAccountId: string;
   body: string;
+  /** 첨부 이미지 서명 GET URL — 없으면 null. */
+  imageUrl: string | null;
   createdAt: string;
   mine: boolean;
 };
