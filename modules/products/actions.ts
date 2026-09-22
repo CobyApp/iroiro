@@ -406,33 +406,6 @@ export async function bulkUpdateProducts(
   });
 }
 
-// 카드 앞면(clean) 이미지를 상품 버킷으로 복사하고 R2 키를 돌려준다 — 단건/일괄이 공유하는 내부 코어.
-async function copyCatalogCardPhotoToProduct(cardId: number): Promise<string> {
-  const { getCardById } = await import("@/modules/cards/lib/queries");
-  const { fetchCatalogObject, readObjectBytes } = await import("@/lib/r2/catalog");
-  const { cardCleanKey } = await import("@/modules/cards/lib/image-keys");
-  const card = await getCardById(cardId);
-  if (!card?.frontR2Key) throw new DomainError("카드에 이미지가 없습니다");
-  const cleanKey = cardCleanKey(card.frontR2Key) ?? card.frontR2Key;
-  let source: Buffer;
-  try {
-    source = await readObjectBytes(await fetchCatalogObject(cleanKey));
-  } catch {
-    throw new DomainError("카드 이미지를 불러오지 못했습니다");
-  }
-  const variants = await compressImageVariants(source, {
-    maxDim: PRODUCT_PHOTO_MAX_DIM,
-    quality: PRODUCT_PHOTO_QUALITY,
-  });
-  const r2Key = buildR2Key("catalog-card.jpg");
-  const cleanDest = productCleanKey(r2Key)!;
-  await Promise.all([
-    relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
-    relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanDest),
-  ]);
-  return r2Key;
-}
-
 // 카탈로그 카드 1장을 임시저장(draft) 상품으로 자동 생성 — 카드 등록/승인 시점에서 호출.
 // 카탈로그가 곧 상품: 새 카드가 생기면 상품 목록에 draft 로 자동 편입되고, 관리자가 가격·재고를 채워 공개한다.
 // 이미 등록됐거나 이미지가 없으면 조용히 건너뛴다(카드 생성 자체는 막지 않는다).
@@ -460,7 +433,10 @@ export async function createDraftProductForCard(
       rate100 = 0;
     }
 
-    const photoR2Key = await copyCatalogCardPhotoToProduct(cardId);
+    // 카드 이미지를 복사하지 않고 그대로 참조한다(카드=상품, 실시간). 카드 앞면 키는 products
+    // 버킷 cards/wm 에 있어 상품 사진과 같은 공개 베이스로 렌더된다. 목록·상세는 overlayCardDisplay
+    // 가 항상 card.front_r2_key 로 덮어써 카탈로그 이미지 교체가 즉시 반영된다.
+    const photoR2Key = card.frontR2Key;
     const draft = buildDraftProductFromCard(
       {
         id: card.id,
