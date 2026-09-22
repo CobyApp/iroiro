@@ -9,9 +9,9 @@
 #   ./infra/aws/setup.sh github    GitHub environment variables for deploy.yml (+ DEPLOY_ENABLED gate)
 #   ./infra/aws/setup.sh domains   ACM cert (Tokyo) + ALB host rules → prints DNS records for Squarespace
 #   ./infra/aws/setup.sh cron      EventBridge → /api/cron/close-auctions every 10 min
-#   ./infra/aws/setup.sh catalog   Shared catalog (dev+prd): S3 bucket (cards/wm public, cards/clean private),
-#                                  app-user S3 policy (per-env catalog bucket).
-#                                  Then run `ecs` (pushes the new env/secrets) and `domains`.
+#   ./infra/aws/setup.sh catalog   카드 이미지는 products 버킷 cards/(wm public, clean private)로 통합.
+#                                  products 버킷 공개 정책 + 앱 IAM 만 보장. 별도 카탈로그 버킷 없음.
+#                                  Then run `ecs` (pushes CATALOG_BUCKET=products) and `domains`.
 #   ./infra/aws/setup.sh migrate   Fargate task definitions iroiro-migrate-<env> (scripts/db-migrate.mjs)
 #                                  + deploy-role permissions so deploy.yml can run them.
 #   ./infra/aws/setup.sh status    Summary
@@ -56,18 +56,18 @@ service_trust() { echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\
 default_vpc()  { aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text; }
 express_arn()  { aws ecs list-services --cluster "$APP" --query "serviceArns[?ends_with(@, '/${APP}-$1')] | [0]" --output text 2>/dev/null || echo None; }
 
-# Catalog bucket — per environment (토레카 마스터가 환경별 커머스 DB로 분리되며 이미지 버킷도 분리, 2026-09-23).
-catalog_bucket()      { echo "${APP}-kr-catalog-$1"; }               # env
+# 카탈로그 이미지는 products 버킷으로 통합됐다(2026-09-23) — 별도 카탈로그 버킷 없음.
+# 카드 이미지는 products 버킷 cards/wm(공개)·cards/clean(비공개) 프리픽스에 산다.
+catalog_bucket()      { echo "${APP}-kr-products-$1"; }               # env (= products bucket)
 catalog_public_base() { echo "https://$(catalog_bucket "$1").s3.${REGION}.amazonaws.com"; } # env
 
-# Public-read policy for the products bucket — prefix allow-list. products/clean/ (watermark-free originals)
-# stays private and is served only through owner/admin routes; cards/original/ is the legacy card location
-# (public until the catalog bucket cut-over is complete).
+# Public-read policy for the products bucket — prefix allow-list. products/clean/·cards/clean/
+# (watermark-free originals) stay private and are served only through owner/admin routes.
 products_bucket_policy() { # bucket
-  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadPrefixes\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":[\"arn:aws:s3:::$1/products/original/*\",\"arn:aws:s3:::$1/notices/*\",\"arn:aws:s3:::$1/banners/*\",\"arn:aws:s3:::$1/avatars/*\",\"arn:aws:s3:::$1/used/*\",\"arn:aws:s3:::$1/cards/original/*\"]}]}"
+  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadPrefixes\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":[\"arn:aws:s3:::$1/products/original/*\",\"arn:aws:s3:::$1/notices/*\",\"arn:aws:s3:::$1/banners/*\",\"arn:aws:s3:::$1/avatars/*\",\"arn:aws:s3:::$1/used/*\",\"arn:aws:s3:::$1/cards/original/*\",\"arn:aws:s3:::$1/cards/wm/*\"]}]}"
 }
-app_user_s3_policy() { # pub ugc catalog
-  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\",\"arn:aws:s3:::$2\",\"arn:aws:s3:::$2/*\",\"arn:aws:s3:::$3\",\"arn:aws:s3:::$3/*\"]}]}"
+app_user_s3_policy() { # pub ugc  (카드 이미지가 products=pub 에 있어 별도 카탈로그 버킷 불필요)
+  echo "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$1\",\"arn:aws:s3:::$1/*\",\"arn:aws:s3:::$2\",\"arn:aws:s3:::$2/*\"]}]}"
 }
 
 # Express primary container JSON for an environment — single source for `ecs` (create/update).
@@ -358,30 +358,18 @@ phase_cron() {
 }
 
 # ───────────────────────────── catalog ─────────────────────────────
-# Trading-card master images: one S3 bucket PER environment (wm public / clean private).
-# 토레카 마스터 데이터는 환경별 커머스 DB(iroiro)로 병합됐다 — 별도 카탈로그 DB 없음(SSM 불필요).
+# 카탈로그 이미지는 products 버킷으로 통합됐다 — 별도 카탈로그 버킷/DB 없음.
+# 카드 이미지는 products 버킷 cards/wm(공개)·cards/clean(비공개)에 산다. 여기선 products 버킷
+# 공개 정책(cards/wm 포함)과 앱 IAM(products·ugc) 만 보장한다.
 phase_catalog() {
   for e in $ENVS; do
-    local cat; cat="$(catalog_bucket "$e")"
-    say "S3 catalog bucket $cat ($e)"
-    if ! aws s3api head-bucket --bucket "$cat" 2>/dev/null; then
-      aws s3api create-bucket --bucket "$cat" --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
-    fi
-    aws s3api put-bucket-tagging --bucket "$cat" --tagging "TagSet=[{Key=app,Value=$APP},{Key=env,Value=$e}]"
-    aws s3api put-bucket-encryption --bucket "$cat" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-    aws s3api put-public-access-block --bucket "$cat" --public-access-block-configuration \
-      "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-    # Only the watermarked variant is public; clean originals are proxied by /media/catalog-clean (site admin).
-    aws s3api put-bucket-policy --bucket "$cat" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadWatermarked\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${cat}/cards/wm/*\"}]}"
-    ok "$cat (public: cards/wm/* only) → $(catalog_public_base "$e")"
-
     say "App IAM user S3 policy + products bucket prefix policy ($e)"
     local pub="${APP}-kr-products-${e}" ugc="${APP}-kr-ugc-${e}"
-    aws iam put-user-policy --user-name "${APP}-app-${e}" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc" "$cat")"
+    aws iam put-user-policy --user-name "${APP}-app-${e}" --policy-name s3-buckets --policy-document "$(app_user_s3_policy "$pub" "$ugc")"
     aws s3api put-bucket-policy --bucket "$pub" --policy "$(products_bucket_policy "$pub")"
-    ok "${APP}-app-${e} may use $cat; $pub public read limited to prefixes (products/clean private)"
+    ok "$pub public read: prefixes incl cards/wm (products/clean·cards/clean private)"
   done
-  warn "next: run 'ecs' and 'domains'. 토레카 데이터는 커머스 DB 마이그레이션으로 생성됨(별도 카탈로그 DB 없음)"
+  warn "next: run 'ecs' and 'domains' to push CATALOG_BUCKET=products into the task def."
 }
 
 # ───────────────────────────── migrate ─────────────────────────────
