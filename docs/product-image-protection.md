@@ -11,7 +11,7 @@
 
 | 대상 | wm 키(DB 저장) | clean 키(규약 파생) | 규약 |
 |---|---|---|---|
-| 카드 앞면(카탈로그 버킷, dev·prd 공유) | `cards/wm/<uuid>.jpg` | `cards/clean/<uuid>.jpg` | `modules/cards/lib/image-keys.ts` |
+| 카드 앞면(카탈로그 버킷, 환경별) | `cards/wm/<uuid>.jpg` | `cards/clean/<uuid>.jpg` | `modules/cards/lib/image-keys.ts` |
 | 상품 사진(상품 버킷) | `products/original/<uuid>.jpg` | `products/clean/<uuid>.jpg` | `modules/products/lib/photo-keys.ts` |
 
 ## 누가 어느 벌을 보나
@@ -31,7 +31,7 @@
 
 앱 서버는 공개 URL이 아니라 S3 API 서명 GET으로 원본을 읽는다. 공개 읽기는 버킷 정책이 **프리픽스 단위**로 연다.
 
-- 카탈로그 버킷 `iroiro-kr-catalog`: `cards/wm/*`만 public. `cards/clean/*`는 정책에 없음 → 키를 알아도 익명 접근 불가.
+- 카탈로그 버킷 `iroiro-kr-catalog-<env>`(환경별): `cards/wm/*`만 public. `cards/clean/*`는 정책에 없음 → 키를 알아도 익명 접근 불가.
 - 상품 버킷 `iroiro-kr-products-<env>`: `products/original/*`·`notices/*`·`banners/*`·`avatars/*`·`used/*`(+ 컷오버 전 임시 `cards/original/*`)만 public. `products/clean/*`는 비공개.
 - Public Access Block: ACL 차단, 정책만 허용. CDN은 아직 없음(도입 시 clean 프리픽스가 캐시되지 않게 함께 설정).
 

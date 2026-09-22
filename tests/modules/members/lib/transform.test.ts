@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   Member as PrismaMember,
   TeamMember as PrismaTeamMember,
-} from "@/lib/generated/catalog-client";
+} from "@prisma/client";
 import { toMember, withTeams } from "@/modules/members/lib/transform";
 
 const memberRow: PrismaMember = {

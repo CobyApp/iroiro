@@ -50,14 +50,11 @@ jobs:
       - run: npm ci
 
       # Prisma client types are generated, not committed — typecheck needs them.
-      # Two clients: commerce (prisma/schema.prisma) and the shared catalog DB (prisma/catalog.prisma).
-      - name: Generate Prisma clients
+      # 토레카 마스터는 커머스 DB(prisma/schema.prisma)로 병합됨 — 클라이언트 하나.
+      - name: Generate Prisma client
         env:
           DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
-          CATALOG_DATABASE_URL: postgresql://catalog_app:app@localhost:5432/iroiro_catalog
-        run: |
-          npx prisma generate
-          npx prisma generate --config prisma.catalog.config.ts
+        run: npx prisma generate
 
       - name: Validate
         run: npm run lint && npm run typecheck && npm run test
@@ -72,15 +69,10 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -q -f db/schema.sql
           psql -c "ALTER ROLE app WITH LOGIN PASSWORD 'app';"
-          # Catalog DB (shared trading-card master) lives in its own database.
-          psql -d postgres -c "CREATE DATABASE iroiro_catalog;"
-          psql -d iroiro_catalog -v ON_ERROR_STOP=1 -q -f db/catalog-schema.sql
-          psql -d iroiro_catalog -c "ALTER ROLE catalog_app WITH LOGIN PASSWORD 'app';"
 
       - name: Build
         env:
           DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
-          CATALOG_DATABASE_URL: postgresql://catalog_app:app@localhost:5432/iroiro_catalog
           # Build-time placeholders — real values are injected by ECS (SSM secrets) at runtime.
           KAKAO_REST_API_KEY: build-placeholder
           # Inlined into the client bundle, so it must be present at build time.
