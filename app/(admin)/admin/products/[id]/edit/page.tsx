@@ -4,6 +4,7 @@ import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
+import { listSeriesOptions } from "@/modules/series/lib/queries";
 import { ProductForm } from "@/modules/products/components/ProductForm";
 import { getProductById } from "@/modules/products/lib/queries";
 import { DuplicateListingButton } from "@/modules/products/components/DuplicateListingButton";
@@ -17,10 +18,11 @@ export default async function ProductEditPage({
   const productId = Number(id);
   if (!Number.isInteger(productId) || productId <= 0) notFound();
 
-  const [product, teams, members] = await Promise.all([
+  const [product, teams, members, series] = await Promise.all([
     getProductById(productId),
     listTeams(),
     listMembers(),
+    listSeriesOptions(),
   ]);
 
   if (!product) notFound();
@@ -35,7 +37,9 @@ export default async function ProductEditPage({
         product={product}
         teams={teams}
         members={members}
+        series={series}
         publicBaseUrl={env.R2_PUBLIC_BASE}
+        catalogPublicBase={env.CATALOG_PUBLIC_BASE}
       />
     </AdminPage>
   );

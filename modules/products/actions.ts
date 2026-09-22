@@ -482,3 +482,87 @@ export async function duplicateProductAsListing(
   revalidatePath("/admin/products");
   return { id: Number(row.id) };
 }
+
+// ── 카탈로그 토레카 → 상품 등록 연결 ──
+// 관리자가 판매 상품을 등록할 때, 공유 카탈로그(토레카 마스터)에서 실제 카드를 골라
+// 그룹·멤버·시리즈·아이템코드·이름·정가를 한 번에 채운다. 이미지도 카드 앞면(clean)을
+// 상품 사진으로 복사한다. 카탈로그와 커머스는 DB 가 분리돼 있어 id 값만 참조한다.
+
+export type CatalogCardPick = {
+  id: number;
+  itemCode: string | null;
+  itemType: string;
+  teamId: number | null;
+  memberId: number | null;
+  seriesId: number | null;
+  name: string;
+  pose: number;
+  retailPriceJpy: number;
+  frontR2Key: string | null;
+};
+
+// 상품 등록용 카드 검색 — 관리자 전용. 검수 완료(active) 카드만.
+export async function searchCatalogCardsForProduct(input: {
+  q?: string;
+  teamId?: number | null;
+  memberId?: number | null;
+  seriesId?: number | null;
+}): Promise<ActionResult<CatalogCardPick[]>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const { listCards } = await import("@/modules/cards/lib/queries");
+    const { items } = await listCards({
+      q: input.q?.trim() || undefined,
+      teamId: input.teamId ?? undefined,
+      memberId: input.memberId ?? undefined,
+      seriesId: input.seriesId ?? undefined,
+      status: "active",
+      page: 1,
+      pageSize: 60,
+    });
+    return items.map((c) => ({
+      id: c.id,
+      itemCode: c.itemCode,
+      itemType: c.itemType,
+      teamId: c.teamId,
+      memberId: c.memberId,
+      seriesId: c.seriesId,
+      name: c.name,
+      pose: c.pose,
+      retailPriceJpy: c.retailPriceJpy,
+      frontR2Key: c.frontR2Key,
+    }));
+  });
+}
+
+// 선택한 카드의 앞면(clean) 이미지를 상품 버킷으로 복사 — 상품 사진 1장으로 채운다.
+export async function importCatalogCardPhoto(input: {
+  cardId: number;
+}): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
+  return runAction(async () => {
+    await requireAdmin();
+    const { getCardById } = await import("@/modules/cards/lib/queries");
+    const { fetchCatalogObject, readObjectBytes } = await import("@/lib/r2/catalog");
+    const { cardCleanKey } = await import("@/modules/cards/lib/image-keys");
+    const card = await getCardById(input.cardId);
+    if (!card?.frontR2Key) throw new DomainError("카드에 이미지가 없습니다");
+    const cleanKey = cardCleanKey(card.frontR2Key) ?? card.frontR2Key;
+    let source: Buffer;
+    try {
+      source = await readObjectBytes(await fetchCatalogObject(cleanKey));
+    } catch {
+      throw new DomainError("카드 이미지를 불러오지 못했습니다");
+    }
+    const variants = await compressImageVariants(source, {
+      maxDim: PRODUCT_PHOTO_MAX_DIM,
+      quality: PRODUCT_PHOTO_QUALITY,
+    });
+    const r2Key = buildR2Key("catalog-card.jpg");
+    const cleanDest = productCleanKey(r2Key)!;
+    await Promise.all([
+      relayUploadToR2(new Blob([new Uint8Array(variants.wm)], { type: "image/jpeg" }), r2Key),
+      relayUploadToR2(new Blob([new Uint8Array(variants.clean)], { type: "image/jpeg" }), cleanDest),
+    ]);
+    return { r2Key, previewUrl: getPublicUrl(r2Key) };
+  });
+}
