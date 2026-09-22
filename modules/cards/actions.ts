@@ -112,6 +112,11 @@ function parse(input: CardInput) {
 function revalidateCards() {
   revalidatePath("/catalog/cards");
   revalidatePath("/cards/new");
+  // 토레카=상품이라 카드 변경(생성·수정·삭제)은 상품 목록·스토어에도 즉시 반영돼야 한다.
+  // 상세(이름·이미지)는 overlayCardDisplay 가 card 를 실시간 조회하므로, 여기선 목록 캐시를 무효화한다.
+  revalidatePath("/delivery/products");
+  revalidatePath("/products");
+  revalidatePath("/");
 }
 
 // 앞면 이미지 업로드 — 서버 경유. 토레카는 앞면만 보관한다. 저장 직전에 서버가 규격으로
@@ -240,6 +245,8 @@ export async function updateCard(
         updatedAt: new Date(),
       },
     });
+    // 이미지가 이번 수정에서 처음 채워졌다면 상품이 아직 없을 수 있다 — 멱등 자동 생성(이미 있으면 skip).
+    await autoDraftProduct(id);
     revalidateCards();
   });
 }
@@ -247,6 +254,18 @@ export async function updateCard(
 export async function deleteCard(id: number): Promise<ActionResult> {
   return runAction(async () => {
     await requireCatalogManager();
+    // 카드=상품 1:1 — 카드를 지우면 연결된 상품(+사진)도 함께 제거한다(dangling 방지).
+    // 같은 커머스 DB 라 함께 정리 가능. 상품에 주문/장바구니가 걸려 있으면 삭제가 막혀
+    // 카드 삭제까지 롤백되므로, 먼저 상품을 지우고 카드를 지운다.
+    const linked = await db.product.findMany({
+      where: { catalogCardId: BigInt(id) },
+      select: { id: true },
+    });
+    if (linked.length > 0) {
+      const ids = linked.map((p) => p.id);
+      await db.productPhoto.deleteMany({ where: { productId: { in: ids } } });
+      await db.product.deleteMany({ where: { id: { in: ids } } });
+    }
     await catalogDb.card.delete({ where: { id: BigInt(id) } });
     revalidateCards();
   });
