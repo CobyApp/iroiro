@@ -8,7 +8,7 @@ import { adminRolesOf, hasAdminSpace } from "@/modules/admin/lib/adminRoles";
 import { APP_NAMES, appDisplayName, isDevDeploy } from "@/lib/app-name";
 import { PageTransition } from "@/components/PageTransition";
 
-// 배송 관리 전용 공간 — 배송 정책(배송비·무료배송 기준). site admin 또는 delivery 부분 권한만.
+// 스토어·배송 관리 전용 공간 — 스토어 상품·주문·정산 + 배송 정책.
 // 셸은 공용 AdminShell(scope="delivery") — 메뉴 정의만 다르다(nav.ts DELIVERY_SECTIONS).
 
 export async function generateMetadata(): Promise<Metadata> {

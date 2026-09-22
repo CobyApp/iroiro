@@ -86,41 +86,13 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
   return pathname === item.href;
 }
 
-// 운영 관리자 — 홈 / 판매 / 커뮤니티 / 콘텐츠 / 회원 / 스토어 / 바로가기.
+// 운영 관리자 — 홈 / 콘텐츠 / 회원 / 스토어 / 바로가기.
+// 스토어 상품·주문·정산·배송은 스토어·배송 공간(/delivery)으로 분리됐다(바로가기로 진입).
 // 계정(로그아웃)은 헤더 우측 AdminAccountMenu로.
 export const ADMIN_SECTIONS: NavSection[] = [
   {
     items: [
       { key: "dashboard", label: "대시보드", href: "/admin", icon: LayoutDashboard, role: "siteAdmin" },
-    ],
-  },
-  {
-    title: "판매",
-    items: [
-      {
-        key: "products",
-        label: "상품",
-        href: "/admin/products",
-        icon: Package,
-        matchPrefix: "/admin/products",
-        role: "siteAdmin",
-      },
-      {
-        key: "orders",
-        label: "주문",
-        href: "/admin/orders",
-        icon: ShoppingBag,
-        matchPrefix: "/admin/orders",
-        role: "siteAdmin",
-      },
-      {
-        key: "settlement",
-        label: "정산",
-        href: "/admin/settlement",
-        icon: Calculator,
-        matchPrefix: "/admin/settlement",
-        role: "siteAdmin",
-      },
     ],
   },
   {
@@ -148,6 +120,14 @@ export const ADMIN_SECTIONS: NavSection[] = [
     title: "회원",
     items: [
       {
+        key: "users",
+        label: "회원 · 등급",
+        href: "/admin/users",
+        icon: UserCog,
+        matchPrefix: "/admin/users",
+        role: "siteAdmin",
+      },
+      {
         key: "points",
         label: "포인트 · 쿠폰",
         href: "/admin/points",
@@ -173,10 +153,10 @@ export const ADMIN_SECTIONS: NavSection[] = [
   {
     title: "바로가기",
     items: [
-      // 배송·중고·게시판·토레카는 각각 별도 공간에서 — 메인에서는 진입 링크만(역방향은 없음).
+      // 스토어·배송·중고·게시판·토레카는 각각 별도 공간에서 — 메인에서는 진입 링크만(역방향은 없음).
       {
         key: "to-delivery",
-        label: "배송 관리 →",
+        label: "스토어 · 배송 관리 →",
         href: "/delivery",
         icon: Truck,
         role: "siteAdmin",
@@ -245,17 +225,59 @@ export const MARKET_SECTIONS: NavSection[] = [
   },
 ];
 
-// 배송 관리 — 배송 정책. site admin + delivery 부분 권한.
+// 스토어·배송 관리 — 스토어 상품·주문·정산 + 배송 정책. site admin + delivery 부분 권한.
 export const DELIVERY_SECTIONS: NavSection[] = [
   {
     items: [
-      { key: "policy", label: "배송 정책", href: "/delivery", icon: Truck, role: "delivery" },
+      { key: "home", label: "홈", href: "/delivery", icon: LayoutDashboard, role: "delivery" },
+    ],
+  },
+  {
+    title: "판매",
+    items: [
+      {
+        key: "products",
+        label: "상품",
+        href: "/delivery/products",
+        icon: Package,
+        matchPrefix: "/delivery/products",
+        role: "delivery",
+      },
+      {
+        key: "orders",
+        label: "주문",
+        href: "/delivery/orders",
+        icon: ShoppingBag,
+        matchPrefix: "/delivery/orders",
+        role: "delivery",
+      },
+      {
+        key: "settlement",
+        label: "정산",
+        href: "/delivery/settlement",
+        icon: Calculator,
+        matchPrefix: "/delivery/settlement",
+        role: "delivery",
+      },
+    ],
+  },
+  {
+    title: "배송",
+    items: [
+      {
+        key: "policy",
+        label: "배송 정책",
+        href: "/delivery/policy",
+        icon: Truck,
+        matchPrefix: "/delivery/policy",
+        role: "delivery",
+      },
     ],
   },
 ];
 
 // 게시판 관리 — 별도 설치형 공간. site admin + 게시판 moderator 진입.
-// 공지·게시판/신고는 moderator+admin, 회원·등급(권한 부여·제재)은 site admin 전용.
+// 공지·게시판/신고를 처리한다. 회원·등급(권한 부여·제재)은 메인 관리자(/admin/users)로 이동했다.
 export const BOARD_SECTIONS: NavSection[] = [
   {
     items: [
@@ -280,14 +302,6 @@ export const BOARD_SECTIONS: NavSection[] = [
         icon: Megaphone,
         matchPrefix: "/board/notices",
         role: "community",
-      },
-      {
-        key: "users",
-        label: "회원 · 등급",
-        href: "/board/users",
-        icon: UserCog,
-        matchPrefix: "/board/users",
-        role: "siteAdmin",
       },
     ],
   },

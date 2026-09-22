@@ -84,7 +84,7 @@ export function ProductForm({
   // 목록에서 전달한 필터·페이지·정렬 query를 그대로 보존해 돌아갈 URL을 구성.
   function backToList(): string {
     const qs = searchParams.toString();
-    return `/admin/products${qs ? `?${qs}` : ""}`;
+    return `/delivery/products${qs ? `?${qs}` : ""}`;
   }
   const teams = initialTeams;
   const members = initialMembers;

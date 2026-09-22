@@ -17,7 +17,7 @@ export function DuplicateListingButton({ productId }: { productId: number }) {
       try {
         const { id } = await duplicateProductAsListing(productId);
         toast.success("새 매물 초안을 만들었어요 — 컨디션·가격을 수정하세요");
-        router.push(`/admin/products/${id}/edit`);
+        router.push(`/delivery/products/${id}/edit`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "복제 실패");
       }

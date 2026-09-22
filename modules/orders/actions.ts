@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { todayKstYmd } from "@/lib/datetime";
 import { getPaymentGateway } from "@/lib/payments";
 import { getCurrentAccount } from "@/modules/auth/dal";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
 import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import { notify } from "@/modules/notifications/lib/notify";
 // 교차 도메인: 주문 생성은 재고 스냅샷·장바구니 비우기를 한 트랜잭션에서 해야 하므로
@@ -551,7 +550,7 @@ export async function advanceOrderStatus(input: {
   orderNo: string;
 }): Promise<ActionResult<{ status: string }>> {
   return runAction(async () => {
-    await requireAdmin();
+    await requireDeliveryManager();
     const data = parseActionInput(cancelOrderSchema, input);
 
     const order = await db.order.findFirst({
@@ -593,7 +592,7 @@ export async function advanceOrderStatus(input: {
           },
     );
     revalidateOrder(order.orderNo);
-    revalidatePath("/admin/orders");
+    revalidatePath("/delivery/orders");
     return { status: next };
   });
 }

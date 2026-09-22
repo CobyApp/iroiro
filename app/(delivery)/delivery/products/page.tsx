@@ -19,7 +19,7 @@ import {
 } from "@/modules/products/lib/filters";
 import { listProducts } from "@/modules/products/lib/queries";
 
-const ADMIN_PRODUCTS_PATH = "/admin/products";
+const ADMIN_PRODUCTS_PATH = "/delivery/products";
 
 export default async function ProductsListPage({
   searchParams,
@@ -39,7 +39,7 @@ export default async function ProductsListPage({
           <BulkImportSlot />
         </Suspense>
         <Button asChild>
-          <Link href="/admin/products/new">
+          <Link href="/delivery/products/new">
             <Plus className="mr-0.5 h-4 w-4" />
             신규 등록
           </Link>

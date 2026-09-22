@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { Readable } from "node:stream";
 import type archiverType from "archiver";
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/modules/admin/lib/requireAdmin";
+import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import { fetchProductPhotoOriginal } from "@/modules/products/lib/photo-source";
 import {
   buildContentDisposition,
@@ -26,7 +26,7 @@ type Params = {
 };
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  await requireAdmin();
+  await requireDeliveryManager();
   const { id } = await params;
 
   const productId = Number.parseInt(id, 10);
