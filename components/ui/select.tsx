@@ -42,13 +42,15 @@ function SelectContent({
         className={cn(
           // 스티커 팝오버 — 3px 잉크 보더 + 하드 그림자
           "relative z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-card",
+          // 항목이 많아도 화면을 다 덮지 않도록 높이 상한 + 스크롤(가용 높이와 22rem 중 작은 값).
+          "max-h-[min(22rem,var(--radix-select-content-available-height))]",
           position === "popper" && "translate-y-1",
           className,
         )}
         position={position}
         {...props}
       >
-        <SelectPrimitive.Viewport className="p-1.5">
+        <SelectPrimitive.Viewport className="max-h-[inherit] overflow-y-auto p-1.5">
           {children}
         </SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
