@@ -25,7 +25,7 @@ import {
   type ProductUpdateInput,
 } from "./lib/schema";
 import { toProduct } from "./lib/transform";
-import { fetchJpyKrwRate, type ExchangeRateResult } from "./lib/fx";
+import { fetchJpyKrwRate } from "./lib/fx";
 import { buildDraftProductFromCard } from "./lib/build-draft-from-card";
 import { todayKstYmd } from "@/lib/datetime";
 import {
@@ -45,9 +45,7 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error) {
     if (isUniqueViolationOn(error, "item_code")) {
-      throw new DomainError(
-        "같은 아이템 코드·구분·컨디션 조합의 상품이 이미 있습니다",
-      );
+      throw new DomainError("같은 아이템 코드·구분의 상품이 이미 있습니다");
     }
     if (isNotFoundError(error)) {
       throw new DomainError("상품을 찾을 수 없습니다");
@@ -56,16 +54,6 @@ async function mapProductWriteError<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-// 매입일 환율(JPY→KRW, 100¥ 기준) 조회 — 상품 폼에서 매입일 기준 환율 자동 적용.
-export async function getExchangeRateForDate(
-  date: string,
-): Promise<ActionResult<ExchangeRateResult>> {
-  return runAction(async () => {
-    // 어드민 상품 폼 전용 — 무인증 호출로 외부 환율 API를 두드리게 두지 않는다.
-    await requireDeliveryManager();
-    return fetchJpyKrwRate(date);
-  });
-}
 
 const PRESIGN_TTL_SECONDS = 3600;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -166,19 +154,8 @@ async function persistNewProduct(input: ProductCreateInput) {
             ? BigInt(data.memberId)
             : null,
           name: data.name,
-          description: data.description ?? null,
-          purchasePriceJpy: data.purchasePriceJpy,
-          purchaseExchangeRate: data.purchaseExchangeRate,
-          purchasePriceKrw: data.purchasePriceKrw,
-          packagingCostKrw: data.packagingCostKrw,
-          overseasShippingKrw: data.overseasShippingKrw,
-          domesticShippingKrw: data.domesticShippingKrw,
-          otherCostKrw: data.otherCostKrw,
-          purchaser: data.purchaser ?? null,
-          purchaseDate: new Date(data.purchaseDate),
           regularPrice: data.regularPrice,
           salePrice: data.salePrice,
-          condition: data.condition ?? null,
           stockQuantity: data.stockQuantity,
           saleStatus: data.saleStatus,
           saleMode: data.saleMode,
@@ -257,26 +234,8 @@ export async function updateProduct(
     if (data.memberId !== undefined)
       patch.memberId = data.memberId !== null ? BigInt(data.memberId) : null;
     if (data.name !== undefined) patch.name = data.name;
-    if (data.description !== undefined) patch.description = data.description;
-    if (data.purchasePriceJpy !== undefined)
-      patch.purchasePriceJpy = data.purchasePriceJpy;
-    if (data.purchaseExchangeRate !== undefined)
-      patch.purchaseExchangeRate = data.purchaseExchangeRate;
-    if (data.purchasePriceKrw !== undefined)
-      patch.purchasePriceKrw = data.purchasePriceKrw;
-    if (data.packagingCostKrw !== undefined)
-      patch.packagingCostKrw = data.packagingCostKrw;
-    if (data.overseasShippingKrw !== undefined)
-      patch.overseasShippingKrw = data.overseasShippingKrw;
-    if (data.domesticShippingKrw !== undefined)
-      patch.domesticShippingKrw = data.domesticShippingKrw;
-    if (data.otherCostKrw !== undefined) patch.otherCostKrw = data.otherCostKrw;
-    if (data.purchaser !== undefined) patch.purchaser = data.purchaser;
-    if (data.purchaseDate !== undefined)
-      patch.purchaseDate = new Date(data.purchaseDate);
     if (data.regularPrice !== undefined) patch.regularPrice = data.regularPrice;
     if (data.salePrice !== undefined) patch.salePrice = data.salePrice;
-    if (data.condition !== undefined) patch.condition = data.condition;
     if (data.stockQuantity !== undefined)
       patch.stockQuantity = data.stockQuantity;
     if (data.saleStatus !== undefined) patch.saleStatus = data.saleStatus;
@@ -432,7 +391,6 @@ export async function bulkUpdateProducts(
     }
 
     revalidatePath("/delivery/products");
-    revalidatePath("/delivery/settlement");
     revalidatePath("/");
     return { updated: uniqueIds.length };
   });
@@ -671,7 +629,7 @@ export async function bulkCreateProductsFromCards(input: {
             name: card.name,
             retailPriceJpy: card.retailPriceJpy,
           },
-          { rate100, useRateForSalePrice: input.useRateForSalePrice, photoR2Key, today },
+          { rate100, useRateForSalePrice: input.useRateForSalePrice, photoR2Key },
         );
         await persistNewProduct(draft);
         created += 1;

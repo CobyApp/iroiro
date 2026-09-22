@@ -2405,3 +2405,18 @@ GRANT SELECT, INSERT ON used_report TO app;
 GRANT UPDATE (resolution, resolved_by, resolution_note, resolved_at, updated_at) ON used_report TO app;
 
 -- ============================================================================
+-- [20260924020000_simplify_product_costs]
+-- ============================================================================
+
+-- 스토어 상품에서 매입 원가·부대비용·부가정보(설명·컨디션)·매입정보(매입일·매입자)를 제거한다.
+-- 원가 기반 정산도 함께 제거됐다. 롤아웃 안전을 위해 이번엔 칼럼을 DROP 하지 않고, NOT NULL 만
+-- 완화한다 — 새 코드는 이 값들을 넣지 않으므로(생략), NOT NULL 이면 INSERT 가 깨진다.
+-- (packaging/overseas/domestic/other 는 이미 DEFAULT 0, description/condition/purchaser 는 이미 NULL 허용.)
+-- 실제 칼럼 DROP 은 새 코드 전면 배포 후 별도 마이그레이션에서 수행한다(읽기 경로 안전).
+ALTER TABLE product
+    ALTER COLUMN purchase_price_jpy DROP NOT NULL,
+    ALTER COLUMN purchase_exchange_rate DROP NOT NULL,
+    ALTER COLUMN purchase_price_krw DROP NOT NULL,
+    ALTER COLUMN purchase_date DROP NOT NULL;
+
+-- ============================================================================

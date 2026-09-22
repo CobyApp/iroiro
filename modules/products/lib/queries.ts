@@ -3,7 +3,6 @@ import "server-only";
 import { db } from "@/lib/db";
 import { catalogDb } from "@/lib/catalog-db";
 import { toProduct, toProductPhoto } from "./transform";
-import type { SettlementInput } from "./settlement";
 import type { ProductFilter } from "./filters";
 import { buildListingFacets, type ListingFacets } from "./facets";
 import type { Product, ProductPhoto, ProductWithPhotos } from "../types";
@@ -295,23 +294,6 @@ export async function getProductsByIds(
     );
     return { ...product, photos };
   });
-}
-
-// 매입자별 정산 집계에 필요한 최소 필드만 — 사진/조인 없이 전체 상품 스캔.
-export async function listSettlementRows(): Promise<SettlementInput[]> {
-  const rows = await db.product.findMany({
-    select: {
-      purchaser: true,
-      purchasePriceKrw: true,
-      packagingCostKrw: true,
-      overseasShippingKrw: true,
-      domesticShippingKrw: true,
-      otherCostKrw: true,
-      salePrice: true,
-      stockQuantity: true,
-    },
-  });
-  return rows;
 }
 
 export async function getProductById(

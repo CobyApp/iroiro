@@ -256,9 +256,6 @@ export function ProductList({
                         </div>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      매입 ₩{product.purchasePriceKrw.toLocaleString()}
-                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     {product.saleStatus === "active" &&

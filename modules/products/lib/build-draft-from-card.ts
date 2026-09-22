@@ -21,13 +21,10 @@ export type BuildDraftOptions = {
   useRateForSalePrice: boolean;
   /** 카드 앞면을 상품 버킷으로 복사한 R2 키 — 상품 사진 1장이 된다. */
   photoR2Key: string;
-  /** 매입일(YYYY-MM-DD, KST). */
-  today: string;
 };
 
-// 카탈로그 카드 → 초안 상품 입력. 매입가·부대비용은 0, saleStatus=draft, 재고 0으로 두고
-// 가격만 정가×환율로 제안한다(관리자가 나중에 매입 정보를 채우고 공개). regularPrice=salePrice 로
-// DB CHECK(salePrice<=regularPrice)를 만족시킨다.
+// 카탈로그 카드 → 초안 상품 입력. saleStatus=draft, 재고 0으로 두고 가격만 정가×환율로 제안한다
+// (관리자가 나중에 가격·재고를 채우고 공개). regularPrice=salePrice 로 DB CHECK(salePrice<=regularPrice)를 만족.
 export function buildDraftProductFromCard(
   card: DraftCardInput,
   opts: BuildDraftOptions,
@@ -49,20 +46,8 @@ export function buildDraftProductFromCard(
     seriesId: card.seriesId ?? null,
     catalogCardId: card.id,
     name: card.name,
-    description: null,
-    purchasePriceJpy: 0,
-    // 스키마는 양수 매입환율을 요구한다 — 환율 미상이면 1(플레이스홀더, 초안이라 무해).
-    purchaseExchangeRate: opts.rate100 > 0 ? opts.rate100 : 1,
-    purchasePriceKrw: 0,
-    packagingCostKrw: 0,
-    overseasShippingKrw: 0,
-    domesticShippingKrw: 0,
-    otherCostKrw: 0,
-    purchaser: null,
-    purchaseDate: opts.today,
     regularPrice: suggested,
     salePrice: suggested,
-    condition: null,
     stockQuantity: 0,
     saleStatus: "draft",
     retailPriceJpy: card.retailPriceJpy > 0 ? card.retailPriceJpy : 0,
