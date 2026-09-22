@@ -14,6 +14,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { getFavorites } from "@/modules/favorites/lib/queries";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
+import { InPageSearchBar } from "../_components/HeaderLeading";
 import { BoardGuide } from "@/modules/posts/components/BoardGuide";
 
 export const metadata: Metadata = { title: "커뮤니티" };
@@ -85,6 +86,9 @@ export default async function PostsPage({
           </div>
         }
       />
+
+      {/* 데스크톱 검색바 — 타이틀 아래(모바일은 상단 헤더 검색). */}
+      <InPageSearchBar />
 
       {/* 공식 공지(운영)·보드 가이드(정적)를 커뮤니티 상단에 통합 — 별도 공지 페이지 폐지 */}
       <Suspense fallback={null}>

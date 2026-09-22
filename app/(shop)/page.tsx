@@ -14,6 +14,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { getWishlistProductIds } from "@/modules/wishlist/lib/queries";
 import { MyBidsStrip } from "@/modules/auction/components/MyBidsStrip";
 import { MyFaveSection } from "@/modules/favorites/components/MyFaveSection";
+import { InPageSearchBar } from "./_components/HeaderLeading";
 
 // 홈 `/` — 관리 가능한 캠페인 배너 + 그룹/신상품/재고 상품 큐레이션.
 // 상세 검색·필터는 /products 카탈로그가 담당한다.
@@ -61,6 +62,9 @@ export default async function HomePage() {
           </section>
         )}
       </section>
+
+      {/* 데스크톱 검색바 — 배너 아래(모바일은 상단 헤더 검색). */}
+      <InPageSearchBar />
 
       {/* 내 입찰 현황 — 배너 바로 아래, 액션 필요한 입찰(결제 대기·진행중)만. */}
       <Suspense fallback={null}>

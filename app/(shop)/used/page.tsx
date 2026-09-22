@@ -24,6 +24,7 @@ import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { UsedFaveSection } from "@/modules/used/components/UsedFaveSection";
 import { EmptyState } from "@/components/EmptyState";
+import { InPageSearchBar } from "../_components/HeaderLeading";
 
 export const metadata: Metadata = { title: "중고거래" };
 
@@ -157,7 +158,9 @@ export default async function UsedHomePage({
         </Button>
       </div>
 
-      {/* 검색은 상단 헤더 검색바가 담당한다(중고 매물 검색). 여기선 필터 칩만. */}
+      {/* 데스크톱 검색바 — 타이틀 아래(모바일은 상단 헤더 검색). */}
+      <InPageSearchBar />
+
       {/* 판매 방식 + 그룹 → 멤버 필터 칩 — 링크 기반이라 뒤로가기·공유에 안전. */}
       <div className="space-y-2">
         <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">

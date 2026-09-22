@@ -14,7 +14,13 @@ import { compressImageBuffer } from "@/lib/image/compress-image";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { evaluateBid, payDueFrom } from "@/modules/auction/lib/rules";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
-import { calcUsedTradeFees, mockPostTrackingCode } from "./lib/fees";
+import { getCheckoutProvider } from "@/lib/payments/checkout";
+import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { issueTracking } from "@/lib/korea-post";
+import { notify } from "@/modules/notifications/lib/notify";
+import { calcUsedTradeFees } from "./lib/fees";
+import { failUsedTradePayment } from "./lib/checkout";
+import { AUTO_CONFIRM_DAYS } from "./lib/settle-trade";
 import {
   usedBuySchema,
   usedListingCreateSchema,
@@ -248,16 +254,22 @@ export async function cancelUsedListing(
   });
 }
 
-// 고정가 구매 — 결제는 목업(즉시 paid). 수수료율은 이 시점 설정을 스냅샷.
+// 고정가 구매 — 안전거래 결제. provider.kind 로 흐름이 갈린다:
+//  - immediate(mock): 지금처럼 즉시 결제완료(paid)로 거래 생성.
+//  - redirect(카카오페이): 결제대기(pending)로 만들고 결제창 redirectUrl 을 반환.
+//    승인은 app/api/payment/kakao/approve 가 pending→paid 로 마무리한다.
+// 수수료율은 이 시점 설정을 스냅샷.
 export async function buyUsedListing(
   input: UsedBuyInput,
-): Promise<ActionResult<{ tradeId: number }>> {
+): Promise<ActionResult<{ tradeId: number; redirectUrl?: string }>> {
   return runAction(async () => {
     const account = await requireLogin();
     const settings = await getSiteSettings();
     const data = usedBuySchema.parse(input);
+    const provider = getCheckoutProvider();
+    const immediate = provider.kind === "immediate";
 
-    const trade = await db.$transaction(async (tx) => {
+    const created = await db.$transaction(async (tx) => {
       // 판매중 → 거래중 원자 전이 — 동시 구매 경합을 막는다.
       const claimed = await tx.usedListing.updateMany({
         where: {
@@ -282,7 +294,8 @@ export async function buyUsedListing(
         feeBp: settings.usedTradeFeeBp,
       });
 
-      // 포인트 사용 — 상품가 한도·잔액 검증 후 트랜잭션 안에서 차감.
+      // 포인트 — 상품가 한도·잔액 검증. 즉시결제는 지금 차감하고, 리다이렉트결제는
+      // 대기 중 차감하지 않고 승인 시점(approve)에 차감한다(points_used 로 실어 보냄).
       if (data.usePoints > 0) {
         if (data.usePoints > fees.price) {
           throw new DomainError("포인트는 상품 금액까지만 쓸 수 있어요");
@@ -294,17 +307,19 @@ export async function buyUsedListing(
         if (data.usePoints > (agg._sum.amount ?? 0)) {
           throw new DomainError("보유 포인트가 부족해요");
         }
-        await tx.pointTransaction.create({
-          data: {
-            accountId: account.id,
-            amount: -data.usePoints,
-            reason: "used_order_use",
-            memo: `중고 매물 결제 사용 (listing #${listing.id})`,
-          },
-        });
+        if (immediate) {
+          await tx.pointTransaction.create({
+            data: {
+              accountId: account.id,
+              amount: -data.usePoints,
+              reason: "used_order_use",
+              memo: `중고 매물 결제 사용 (listing #${listing.id})`,
+            },
+          });
+        }
       }
 
-      return tx.usedTrade.create({
+      const trade = await tx.usedTrade.create({
         data: {
           listingId: listing.id,
           buyerAccountId: account.id,
@@ -314,16 +329,46 @@ export async function buyUsedListing(
           feeBp: fees.feeBp,
           feeAmount: fees.feeAmount,
           sellerPayout: fees.sellerPayout,
-          status: "paid", // 결제 목업 — PG 연동 전까지 즉시 결제 완료로 취급
+          pointsUsed: data.usePoints,
+          status: immediate ? "paid" : "pending",
           recipientName: data.recipientName,
           recipientPhone: data.recipientPhone,
           recipientAddress: data.recipientAddress,
         },
       });
+      return { trade, listing, chargeAmount: fees.buyerTotal - data.usePoints };
     });
 
+    // 즉시결제 — 바로 완료.
+    if (immediate) {
+      revalidateUsed(data.listingId);
+      return { tradeId: Number(created.trade.id) };
+    }
+
+    // 리다이렉트결제 — 결제 준비(ready) 후 결제창 URL 반환. HTTP 호출은 트랜잭션 밖.
+    const origin = await publicOriginFromHeaders();
+    const tradeId = Number(created.trade.id);
+    const ready = await provider.ready({
+      orderNo: `used-${tradeId}`,
+      userId: account.id,
+      itemName: created.listing.title,
+      quantity: 1,
+      totalAmount: created.chargeAmount,
+      approvalUrl: `${origin}/api/payment/kakao/approve?trade=${tradeId}`,
+      cancelUrl: `${origin}/api/payment/kakao/cancel?trade=${tradeId}`,
+      failUrl: `${origin}/api/payment/kakao/fail?trade=${tradeId}`,
+    });
+    if (!ready.ok) {
+      // 준비 실패 — pending 취소하고 매물을 다시 판매중으로 되돌린다.
+      await failUsedTradePayment(tradeId, account.id);
+      throw new DomainError(ready.failMessage || "결제 준비에 실패했어요");
+    }
+    await db.usedTrade.update({
+      where: { id: created.trade.id },
+      data: { paymentTid: ready.tid, updatedAt: new Date() },
+    });
     revalidateUsed(data.listingId);
-    return { tradeId: Number(trade.id) };
+    return { tradeId, redirectUrl: ready.redirectUrl };
   });
 }
 
@@ -433,7 +478,11 @@ export async function issueUsedPostQr(
       throw new DomainError("결제 완료 상태에서만 발급할 수 있어요");
     }
     const trackingCode =
-      trade.postTrackingCode ?? mockPostTrackingCode(Number(trade.id) * 7919);
+      trade.postTrackingCode ??
+      issueTracking({
+        seed: Number(trade.id) * 7919,
+        shippingMethod: undefined,
+      }).trackingCode;
     await db.usedTrade.update({
       where: { id: trade.id },
       data: {
@@ -447,21 +496,30 @@ export async function issueUsedPostQr(
   });
 }
 
-// 발송 처리 — 판매자.
+// 발송 처리 — 판매자. shipped_at 을 남겨 자동 수령확정 타이머의 기준으로 삼는다.
 export async function markUsedShipped(tradeId: number): Promise<ActionResult> {
   return runAction(async () => {
     const account = await requireLogin();
+    const now = new Date();
     const res = await db.usedTrade.updateMany({
       where: {
         id: BigInt(tradeId),
         sellerAccountId: account.id,
         status: "paid",
       },
-      data: { status: "shipped", updatedAt: new Date() },
+      data: { status: "shipped", shippedAt: now, updatedAt: now },
     });
     if (res.count === 0) throw new DomainError("발송 처리할 수 없는 상태입니다");
     const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });
-    if (trade) revalidateUsed(Number(trade.listingId));
+    if (trade) {
+      await notify(trade.buyerAccountId, {
+        type: "order_shipped",
+        title: "구매하신 상품이 발송됐어요",
+        body: `발송 후 ${AUTO_CONFIRM_DAYS}일이 지나면 자동으로 구매확정돼요.`,
+        link: `/used/${Number(trade.listingId)}`,
+      });
+      revalidateUsed(Number(trade.listingId));
+    }
   });
 }
 

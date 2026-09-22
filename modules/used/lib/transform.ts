@@ -77,6 +77,7 @@ export function toUsedTrade(row: PrismaUsedTrade): UsedTrade {
     recipientAddress: row.recipientAddress,
     postTrackingCode: row.postTrackingCode,
     postQrIssuedAt: row.postQrIssuedAt?.toISOString() ?? null,
+    shippedAt: row.shippedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };

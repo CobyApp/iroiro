@@ -11,6 +11,7 @@ import {
 } from "@/lib/action-result";
 import { requireCatalogManager } from "@/modules/admin/lib/requireAdminSpace";
 import { CatalogPrisma as Prisma } from "@/lib/catalog-db";
+import { regenerateCardNamesForSeries } from "@/modules/cards/actions";
 
 // 시리즈 관리 — 카탈로그 공간에서 관리자가 추가·보정·정리한다.
 // label 은 원본 표기(대개 일본어), labelKo 는 한국어 병기(label_i18n.ko).
@@ -137,7 +138,12 @@ export async function updateSeries(
         updatedAt: new Date(),
       },
     });
+    // 시리즈 이름·한글명이 바뀌면 연결된 카드 이름(멤버 한글 · 시리즈 한글)을 재생성한다.
+    // 카드명은 저장값이라 재생성하지 않으면 스토어에 옛 이름이 남는다(상품명은 카드 오버레이).
+    await regenerateCardNamesForSeries(id);
     revalidateCatalog();
+    revalidatePath("/products");
+    revalidatePath("/");
   });
 }
 

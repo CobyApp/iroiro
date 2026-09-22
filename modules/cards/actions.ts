@@ -77,6 +77,20 @@ async function nextPose(memberId: number, seriesId: number): Promise<number> {
 }
 
 // 카드 이름 자동 생성 — 분석기와 같은 "멤버 · 시리즈" 규칙.
+// 시리즈 한국어 병기(label_i18n.ko) 추출 — 비었으면 null(원문 fallback).
+function seriesKo(labelI18n: unknown): string | null {
+  if (labelI18n && typeof labelI18n === "object") {
+    const ko = (labelI18n as Record<string, unknown>).ko;
+    if (typeof ko === "string" && ko.trim()) return ko.trim();
+  }
+  return null;
+}
+
+// 시리즈 표시명 — 한국어 병기 우선, 없으면 원문(대개 일본어).
+function seriesDisplay(series: { label: string; labelI18n: unknown }): string {
+  return seriesKo(series.labelI18n) ?? series.label;
+}
+
 async function buildCardName(
   memberId: number,
   seriesId: number,
@@ -93,16 +107,52 @@ async function buildCardName(
   ]);
   if (!member) throw new DomainError("멤버를 찾을 수 없어요", "not_found");
   if (!series) throw new DomainError("시리즈를 찾을 수 없어요", "not_found");
-  // 카드 이름은 고객에게 그대로 노출되므로 시리즈 한국어 병기(label_i18n.ko)를 우선 쓴다 —
-  // 없으면 원문(대개 일본어). 멤버명은 이미 한국어. 시리즈 한글 라벨은 /catalog/series 에서 채운다.
-  const ko =
-    series.labelI18n &&
-    typeof series.labelI18n === "object" &&
-    typeof (series.labelI18n as Record<string, unknown>).ko === "string" &&
-    ((series.labelI18n as Record<string, unknown>).ko as string).trim()
-      ? ((series.labelI18n as Record<string, unknown>).ko as string).trim()
-      : null;
-  return `${member.name} · ${ko ?? series.label}`;
+  // 카드 이름은 고객에게 그대로 노출되므로 「멤버 한글명 · 시리즈 한글명」으로 만든다.
+  // 시리즈 한글 라벨은 /admin/catalog/series 에서 채운다(없으면 원문).
+  return `${member.name} · ${seriesDisplay(series)}`;
+}
+
+// 시리즈의 이름·한글 병기가 바뀌면 연결된 카드 이름을 모두 재생성한다.
+// 카드명은 저장값이라, 시리즈 한글명을 채워도 재생성하지 않으면 과거 이름(일본어)이 남는다.
+// 상품 표시명은 카드에서 실시간 오버레이하므로 카드명만 고치면 스토어까지 반영된다.
+export async function regenerateCardNamesForSeries(
+  seriesId: number,
+): Promise<void> {
+  const series = await catalogDb.series.findUnique({
+    where: { id: BigInt(seriesId) },
+    select: { label: true, labelI18n: true },
+  });
+  if (!series) return;
+  const display = seriesDisplay(series);
+  const cards = await catalogDb.card.findMany({
+    where: { seriesId: BigInt(seriesId) },
+    select: { id: true, memberId: true },
+  });
+  const memberIds = [
+    ...new Set(
+      cards
+        .map((c) => c.memberId)
+        .filter((v): v is bigint => v !== null),
+    ),
+  ];
+  if (memberIds.length === 0) return;
+  const members = await catalogDb.member.findMany({
+    where: { id: { in: memberIds } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(members.map((m) => [m.id.toString(), m.name]));
+  const updates = cards
+    .filter((c) => c.memberId !== null && nameById.has(c.memberId.toString()))
+    .map((c) =>
+      catalogDb.card.update({
+        where: { id: c.id },
+        data: {
+          name: `${nameById.get(c.memberId!.toString())} · ${display}`,
+          updatedAt: new Date(),
+        },
+      }),
+    );
+  if (updates.length > 0) await catalogDb.$transaction(updates);
 }
 
 export type CardInput = z.infer<typeof cardInputSchema>;

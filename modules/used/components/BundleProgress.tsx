@@ -16,7 +16,17 @@ import { MockQr } from "./MockQr";
 type Role = "seller" | "buyer";
 
 // 묶음 거래 진행 — 결제 → (판매자) QR·발송 → (구매자) 수령 확정.
-export function BundleProgress({ bundle, role }: { bundle: UsedBundle; role: Role }) {
+export function BundleProgress({
+  bundle,
+  role,
+  tracking = null,
+  autoConfirmNote = null,
+}: {
+  bundle: UsedBundle;
+  role: Role;
+  tracking?: { stateLabel: string; isMock: boolean } | null;
+  autoConfirmNote?: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [qrCode, setQrCode] = useState<string | null>(bundle.postTrackingCode);
@@ -111,15 +121,22 @@ export function BundleProgress({ bundle, role }: { bundle: UsedBundle; role: Rol
       )}
 
       {role === "buyer" && bundle.status === "shipped" && (
-        <Button
-          size="sm"
-          className="w-full gap-1.5"
-          disabled={pending}
-          onClick={() => run(() => confirmBundleReceived(bundle.id), "거래가 완료됐어요!")}
-        >
-          <PackageCheck className="h-4 w-4" />
-          수령 확정
-        </Button>
+        <div className="space-y-2">
+          <Button
+            size="sm"
+            className="w-full gap-1.5"
+            disabled={pending}
+            onClick={() => run(() => confirmBundleReceived(bundle.id), "거래가 완료됐어요!")}
+          >
+            <PackageCheck className="h-4 w-4" />
+            수령 확정
+          </Button>
+          {autoConfirmNote && (
+            <p className="text-center text-xs text-muted-foreground">
+              {autoConfirmNote}
+            </p>
+          )}
+        </div>
       )}
       {role === "buyer" && bundle.status === "paid" && (
         <p className="text-xs text-muted-foreground">
@@ -127,9 +144,17 @@ export function BundleProgress({ bundle, role }: { bundle: UsedBundle; role: Rol
         </p>
       )}
       {bundle.status === "shipped" && bundle.postTrackingCode && (
-        <p className="text-center text-xs text-muted-foreground">
-          등기번호 <span className="font-mono">{bundle.postTrackingCode}</span>
-        </p>
+        <div className="space-y-0.5 border-t border-border pt-2 text-center text-xs text-muted-foreground">
+          {tracking && (
+            <p className="font-medium text-foreground">
+              배송 상태: {tracking.stateLabel}
+              {tracking.isMock && " (체험판)"}
+            </p>
+          )}
+          <p>
+            등기번호 <span className="font-mono">{bundle.postTrackingCode}</span>
+          </p>
+        </div>
       )}
     </div>
   );
