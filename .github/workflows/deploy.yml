@@ -14,8 +14,10 @@ permissions:
   contents: read
 
 concurrency:
+  # 머지가 몰리면 진행 중이던 배포를 취소하고 가장 최신 커밋만 배포한다 — 릴리즈 지연 최소화.
+  # 마이그레이션은 schema_migration 로 섹션 단위 추적 + IF NOT EXISTS 로 멱등하므로 중단·재실행 안전.
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   AWS_REGION: ap-northeast-2
