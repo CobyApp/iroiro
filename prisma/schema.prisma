@@ -820,6 +820,23 @@ model UsedReport {
   @@map("used_report")
 }
 
+model UsedReview {
+  id                BigInt   @id @default(autoincrement())
+  tradeId           BigInt   @map("trade_id")
+  listingId         BigInt   @map("listing_id")
+  reviewerAccountId String   @map("reviewer_account_id") @db.Uuid
+  sellerAccountId   String   @map("seller_account_id") @db.Uuid
+  rating            Int
+  comment           String?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tradeId], map: "used_review_trade_unique")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_created_idx")
+  @@index([listingId], map: "used_review_listing_idx")
+  @@map("used_review")
+}
+
 model UsedListingPhoto {
   id           BigInt      @id @default(autoincrement())
   listingId    BigInt      @map("listing_id")

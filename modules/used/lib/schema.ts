@@ -40,6 +40,15 @@ export type UsedDismissReportInput = z.input<typeof usedDismissReportSchema>;
 export const usedListingIdSchema = z.object({ listingId: positiveId });
 export type UsedListingIdInput = z.input<typeof usedListingIdSchema>;
 
+// 중고 거래 후기 입력 — 거래당 1개, 별점 1~5 + 코멘트(선택).
+export const USED_REVIEW_COMMENT_MAX = 500;
+export const usedReviewCreateSchema = z.object({
+  tradeId: positiveId,
+  rating: z.number().int().min(1, "별점을 선택해주세요").max(5),
+  comment: optionalText(USED_REVIEW_COMMENT_MAX),
+});
+export type UsedReviewCreateInput = z.input<typeof usedReviewCreateSchema>;
+
 export const usedPhotoInputSchema = z.object({
   r2Key: z.string().min(1),
   displayOrder: z.number().int().min(0),
