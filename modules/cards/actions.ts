@@ -88,12 +88,21 @@ async function buildCardName(
     }),
     catalogDb.series.findUnique({
       where: { id: BigInt(seriesId) },
-      select: { label: true },
+      select: { label: true, labelI18n: true },
     }),
   ]);
   if (!member) throw new DomainError("멤버를 찾을 수 없어요", "not_found");
   if (!series) throw new DomainError("시리즈를 찾을 수 없어요", "not_found");
-  return `${member.name} · ${series.label}`;
+  // 카드 이름은 고객에게 그대로 노출되므로 시리즈 한국어 병기(label_i18n.ko)를 우선 쓴다 —
+  // 없으면 원문(대개 일본어). 멤버명은 이미 한국어. 시리즈 한글 라벨은 /catalog/series 에서 채운다.
+  const ko =
+    series.labelI18n &&
+    typeof series.labelI18n === "object" &&
+    typeof (series.labelI18n as Record<string, unknown>).ko === "string" &&
+    ((series.labelI18n as Record<string, unknown>).ko as string).trim()
+      ? ((series.labelI18n as Record<string, unknown>).ko as string).trim()
+      : null;
+  return `${member.name} · ${ko ?? series.label}`;
 }
 
 export type CardInput = z.infer<typeof cardInputSchema>;
