@@ -55,7 +55,7 @@ return (
 ```
 - 세션 없으면 `/login`으로, 권한 없으면 `/`로 (404 노출 금지 — 정보 누설)
 - `isBoardManager`는 `isAdmin`(site admin)을 포함한다. moderator는 커뮤니티 관리 섹션만 보이도록 사이드바에서 필터한다(`modules/admin/lib/nav.ts`의 `visibleSections`). 대시보드는 admin 전용이라 moderator는 `/admin`에서 `/admin/posts`로 리다이렉트된다.
-- `/admin`과 `/catalog`는 **같은 `AdminShell`**을 쓴다(`scope`로 배지·기본 메뉴만 달라짐). `(catalog)/layout.tsx`는 `isAdmin`만 통과시킨다. 페이지 제목은 `AdminPageHeader`, 페이지 프레임은 `AdminPage`로 통일한다.
+- 관리자는 전부 `/admin/*` 아래다(2026-09 통합): `/admin`(운영 대시보드)·`/admin/store`·`/admin/used`·`/admin/posts`·`/admin/catalog`. 고객 사이트는 최상위(`/products`·`/used`·`/posts`…) — 경로 충돌 없음. `app/(admin)/admin/layout.tsx`는 베이스 게이트(로그인+아무 관리 공간)만, 셸·공간 가드는 대시보드 그룹 `(main)`과 각 공간 하위 폴더의 layout 이 담당한다. 모든 공간이 **같은 `AdminShell`**(`scope`로 배지·메뉴만 다름). 페이지 제목은 `AdminPageHeader`, 프레임은 `AdminPage`로 통일.
 - **Server Action은 layout과 별개로 `requireAdmin()` / `requireBoardManager()`로 재검증**한다 — Server Action은 공개 엔드포인트와 같은 보안 기준.
 
 ### `(auth)/layout.tsx` — 레이아웃만
