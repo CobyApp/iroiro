@@ -56,7 +56,7 @@ export function ProductGrid({
         </span>
         <p className="font-display text-foreground">상품 준비 중이에요</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          곧 예쁜 포토카드로 채워질 거예요
+          곧 예쁜 토레카로 채워질 거예요
         </p>
       </div>
     );

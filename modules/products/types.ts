@@ -9,7 +9,8 @@
  * 별도로 수정할 필요가 없습니다. 라벨 누락은 TS 컴파일 에러로 잡힙니다.
  */
 export const ITEM_TYPE_LABEL = {
-  photocard: "포토카드",
+  // 스토어는 토레카(트레이딩 카드)만 판매한다. 값은 photocard(레거시)로 두고 라벨만 토레카.
+  photocard: "토레카",
 } as const satisfies Record<string, string>;
 
 export type ItemType = keyof typeof ITEM_TYPE_LABEL;

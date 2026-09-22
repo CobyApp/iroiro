@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
-import { ITEM_TYPE_LABEL, SALE_MODE_LABEL } from "@/modules/products/types";
+import { SALE_MODE_LABEL } from "@/modules/products/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
 import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
@@ -35,7 +35,7 @@ const PRODUCT: SearchMode = {
   recentKey: "iroiro:recent-searches",
   placeholder: "상품·그룹·멤버 검색",
   label: "상품 검색",
-  hint: "스토어에서 상품·그룹·종류로 찾기",
+  hint: "스토어에서 상품·그룹으로 찾기",
 };
 const USED: SearchMode = {
   kind: "search",
@@ -191,8 +191,7 @@ function SearchField({
     .filter((t) => (teamAllowed ? teamAllowed.has(t.id) : true))
     .filter((t) => (typed ? t.name.toLowerCase().includes(typed) : true))
     .slice(0, 10);
-  // 결과가 있는 종류·판매방식만.
-  const storeTypes = new Set(tagFacets.storeItemTypes);
+  // 결과가 있는 판매방식만(중고).
   const usedModes = new Set(tagFacets.usedSaleModes);
 
   return (
@@ -256,18 +255,7 @@ function SearchField({
             </ChipGroup>
           )}
 
-          {/* 스토어 — 종류 태그(상품이 있는 종류만) */}
-          {mode.key === "product" && !typed && (
-            <ChipGroup label="종류">
-              {(Object.keys(ITEM_TYPE_LABEL) as (keyof typeof ITEM_TYPE_LABEL)[])
-                .filter((type) => storeTypes.has(type))
-                .map((type) => (
-                <Chip key={type} onClick={() => goFilter(`/products?item=${type}`)}>
-                  {ITEM_TYPE_LABEL[type]}
-                </Chip>
-              ))}
-            </ChipGroup>
-          )}
+          {/* 스토어는 토레카만 취급 — 종류 필터 없음(그룹·검색어로 찾는다). */}
 
           {/* 중고 — 판매 방식 태그(매물이 있는 방식만) */}
           {mode.key === "used" && !typed && (
