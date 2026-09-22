@@ -127,9 +127,10 @@ export async function createUsedListing(
       seriesId: bigint | null;
       title: string;
     };
-    if (data.itemType === "photocard") {
+    // 카드를 골랐으면(cardId 있음) 카탈로그 카드에서 제목·계층 파생, 아니면 직접 입력값 사용.
+    if (data.cardId != null) {
       const card = await catalogDb.card.findUnique({
-        where: { id: BigInt(data.cardId!) },
+        where: { id: BigInt(data.cardId) },
       });
       if (!card || card.status !== "active") {
         throw new DomainError("카드를 찾을 수 없어요 — 다시 선택해주세요");
