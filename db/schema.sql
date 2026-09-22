@@ -2814,3 +2814,28 @@ COMMENT ON COLUMN "order".tracking_code IS '우체국 등기 송장번호(발송
 COMMENT ON COLUMN "order".shipped_at IS '발송 처리 시각';
 
 -- ============================================================================
+-- [20261003000000_login_pairing]
+-- ============================================================================
+
+-- iOS standalone PWA(홈 화면 앱)는 외부 OAuth 리다이렉트가 Safari 로 튕겨 나가 세션 쿠키가
+-- 앱 컨텍스트에 안 심긴다. 디바이스 페어링 브리지: 앱이 고엔트로피 code 를 만들어 Safari 로
+-- 로그인 → 콜백이 code↔account 를 이 표에 남김 → 앱이 code 로 claim 하면 앱 컨텍스트에서 세션 발급.
+-- 코드는 1회용·단기(5분). 만료 스윕은 claim/생성 시 lazy 정리.
+CREATE TABLE IF NOT EXISTS login_pairing
+(
+    code       TEXT PRIMARY KEY,
+    account_id UUID        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_pairing_expires_idx ON login_pairing (expires_at);
+
+COMMENT ON TABLE login_pairing IS 'PWA 로그인 디바이스 페어링 — code↔account, 1회용·단기';
+COMMENT ON COLUMN login_pairing.code IS '앱이 생성한 고엔트로피 코드(base64url 32바이트)';
+COMMENT ON COLUMN login_pairing.account_id IS '로그인된 회원 — claim 시 이 계정으로 세션 발급';
+COMMENT ON COLUMN login_pairing.expires_at IS '만료 시각(생성 +5분)';
+
+-- UPDATE 는 createLoginPairing 의 upsert(같은 code 재사용 시 갱신)에 필요.
+GRANT SELECT, INSERT, UPDATE, DELETE ON login_pairing TO app;
+
+-- ============================================================================

@@ -18,9 +18,11 @@ import {
 import {
   clearOAuthCookies,
   readOAuthCookies,
+  readOAuthPair,
   readOAuthReturn,
 } from "@/modules/auth/lib/oauth/state";
 import { createSession } from "@/modules/auth/lib/session";
+import { createLoginPairing } from "@/modules/auth/lib/pairing";
 
 // Prisma 사용 → Node 런타임 필수(Edge 불가).
 export const runtime = "nodejs";
@@ -81,8 +83,19 @@ export async function GET(
       // 기존 사용자 → 로그인.
       // TODO(온보딩): 전화 인증 미완료(phone_number_verified_at NULL)면 /onboarding/phone로.
       const { token, expiresAt } = await createSession(existing.id);
+      // PWA 페어링 — 앱이 만든 code 가 있으면 code↔account 를 남겨, 앱이 claim 으로 세션을 받는다.
+      // (여기 콜백은 iOS 홈앱에선 Safari 컨텍스트라 아래 세션 쿠키는 앱에 안 심긴다.)
+      const pairCode = readOAuthPair(request);
+      // 페어링 실패가 로그인 자체를 막지 않게 best-effort(실패 시 앱 폴링은 타임아웃).
+      if (pairCode) {
+        await createLoginPairing(pairCode, existing.id).catch((e) =>
+          console.error("[login pairing]", e),
+        );
+      }
       const returnTo = readOAuthReturn(request) ?? "/";
-      const response = NextResponse.redirect(publicUrl(request, returnTo));
+      const response = NextResponse.redirect(
+        publicUrl(request, pairCode ? "/login/paired" : returnTo),
+      );
       response.cookies.set(
         SESSION_COOKIE_NAME,
         token,

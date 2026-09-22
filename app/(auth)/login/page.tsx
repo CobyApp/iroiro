@@ -1,4 +1,5 @@
 import { BrandMark } from "@/modules/ui/components/BrandMark";
+import { KakaoLoginButton } from "@/modules/auth/components/KakaoLoginButton";
 
 // 로그인 화면 — 카카오 소셜 로그인. 자체 인증(DB 세션). shop 레이아웃 안에 있어 상단 헤더·하단 탭을 공유한다.
 // 버튼은 <a>로 OAuth 시작 라우트(GET /api/auth/kakao)에 직접 이동 → 제공자로 302.
@@ -73,16 +74,16 @@ export default async function LoginPage({
         </p>
       )}
 
-      {/* 카카오 로그인 */}
+      {/* 카카오 로그인 — 일반 브라우저는 전체 이동, iOS 홈앱은 페어링 플로우(KakaoLoginButton 내부 판단). */}
       <div className="mt-7 w-full">
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- OAuth 시작 라우트(Route Handler)로의 전체 이동. 외부 제공자로 302라 Link 부적합. */}
-        <a
+        <KakaoLoginButton
           href={`/api/auth/kakao${q}`}
+          returnTo={safeReturn}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] text-[15px] font-semibold text-[#191600] shadow-card transition-[transform,background-color] hover:bg-[#f8e200] active:scale-[.98]"
         >
           <KakaoMark />
           카카오로 시작하기
-        </a>
+        </KakaoLoginButton>
       </div>
 
       <p className="mt-5 max-w-xs text-center text-xs leading-relaxed text-muted-foreground">

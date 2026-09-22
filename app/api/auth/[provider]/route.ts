@@ -45,6 +45,8 @@ export async function GET(
 
   const response = NextResponse.redirect(authorizationUrl);
   const returnTo = request.nextUrl.searchParams.get("returnTo");
-  setOAuthCookies(response, { state, codeVerifier, returnTo });
+  // PWA(홈 화면 앱) 페어링 — 앱이 만든 code 를 쿠키로 실어 콜백까지 전달(카카오엔 안 보냄).
+  const pairCode = request.nextUrl.searchParams.get("pair");
+  setOAuthCookies(response, { state, codeVerifier, returnTo, pairCode });
   return response;
 }

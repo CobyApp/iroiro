@@ -8,7 +8,13 @@ import type { NextRequest, NextResponse } from "next/server";
 export const OAUTH_STATE_COOKIE = "oauth_state";
 export const OAUTH_VERIFIER_COOKIE = "oauth_verifier";
 export const OAUTH_RETURN_COOKIE = "oauth_return";
+export const OAUTH_PAIR_COOKIE = "oauth_pair";
 const OAUTH_COOKIE_MAX_AGE = 60 * 10; // 10분
+
+// PWA 페어링 코드 형식 — base64url 32바이트(43자). 아니면 무시(cookie 미설정).
+function safePairCode(value: string | null | undefined): string | null {
+  return value && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : null;
+}
 
 export function generateState(): string {
   return randomBytes(32).toString("base64url");
@@ -47,7 +53,12 @@ export function safeReturnPath(value: string | null | undefined): string | null 
 
 export function setOAuthCookies(
   response: NextResponse,
-  input: { state: string; codeVerifier: string | null; returnTo?: string | null },
+  input: {
+    state: string;
+    codeVerifier: string | null;
+    returnTo?: string | null;
+    pairCode?: string | null;
+  },
 ): void {
   response.cookies.set(OAUTH_STATE_COOKIE, input.state, transientCookieOptions());
   if (input.codeVerifier) {
@@ -59,6 +70,12 @@ export function setOAuthCookies(
   }
   const rt = safeReturnPath(input.returnTo);
   if (rt) response.cookies.set(OAUTH_RETURN_COOKIE, rt, transientCookieOptions());
+  const pair = safePairCode(input.pairCode);
+  if (pair) response.cookies.set(OAUTH_PAIR_COOKIE, pair, transientCookieOptions());
+}
+
+export function readOAuthPair(request: NextRequest): string | null {
+  return safePairCode(request.cookies.get(OAUTH_PAIR_COOKIE)?.value);
 }
 
 export function readOAuthCookies(request: NextRequest): {
@@ -79,4 +96,5 @@ export function clearOAuthCookies(response: NextResponse): void {
   response.cookies.delete(OAUTH_STATE_COOKIE);
   response.cookies.delete(OAUTH_VERIFIER_COOKIE);
   response.cookies.delete(OAUTH_RETURN_COOKIE);
+  response.cookies.delete(OAUTH_PAIR_COOKIE);
 }
