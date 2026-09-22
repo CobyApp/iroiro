@@ -2726,3 +2726,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON team, member, team_member, series, serie
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app;
 
 -- ============================================================================
+-- [20260928000000_product_catalog_card_unique]
+-- ============================================================================
+
+-- 카탈로그 카드 1장 = 상품 1개(1:1). 토레카 카드가 곧 상품이므로 한 카드에 상품이 둘 이상
+-- 생기면 안 된다(과거 복사·백필로 중복이 생겼던 문제). 부분 유니크로 DB 차원에서 원천 차단한다.
+-- catalog_card_id 가 NULL 인 상품(향후 카탈로그와 무관한 굿즈)은 여러 개 허용.
+-- 적용 전 기존 중복은 정리 완료(운영 스크립트). 재실행 안전(IF NOT EXISTS).
+CREATE UNIQUE INDEX IF NOT EXISTS product_catalog_card_unique
+    ON product (catalog_card_id) WHERE catalog_card_id IS NOT NULL;
+
+-- ============================================================================

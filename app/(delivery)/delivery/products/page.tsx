@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
@@ -10,7 +8,6 @@ import { ProductFilters } from "@/modules/products/components/ProductFilters";
 import { ProductList } from "@/modules/products/components/ProductList";
 import { ProductPagination } from "@/modules/products/components/ProductPagination";
 import { ProductSort } from "@/modules/products/components/ProductSort";
-import { CatalogSyncButton } from "@/modules/products/components/CatalogSyncButton";
 import {
   ADMIN_PRODUCT_PAGE_SIZE,
   parseProductFilters,
@@ -34,13 +31,8 @@ export default async function ProductsListPage({
     <AdminPage>
       <AdminPageHeader
         title="상품 목록"
-        description="토레카 카탈로그에 카드가 추가되면 여기에 임시저장 상품으로 자동 등록돼요. 기존 카드는 '카탈로그 동기화'로 한 번에 편입하세요. 가격·재고를 채워 공개하세요."
-      >
-        <CatalogSyncButton />
-        <Button asChild variant="outline">
-          <Link href="/delivery/products/duplicates">중복 정리</Link>
-        </Button>
-      </AdminPageHeader>
+        description="토레카 카탈로그의 카드가 그대로 상품이에요. 카드가 추가되면 여기에 임시저장 상태로 나타나요 — 가격·재고를 채워 공개하세요. 이름·이미지 등은 토레카 관리에서 바꾸면 실시간 반영돼요."
+      />
 
       <Suspense fallback={<div className="h-10" />}>
         <div className="flex flex-wrap items-start justify-between gap-3">

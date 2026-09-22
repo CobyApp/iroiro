@@ -70,6 +70,7 @@ model Product {
   @@index([salePrice], map: "product_sale_price_idx")
   @@index([seriesId], map: "product_series_idx")
   @@index([catalogCardId], map: "product_catalog_card_idx")
+  @@unique([catalogCardId], map: "product_catalog_card_unique", where: raw("(catalog_card_id IS NOT NULL)"))
   @@map("product")
 }
 

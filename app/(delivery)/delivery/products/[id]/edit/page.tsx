@@ -7,7 +7,6 @@ import { listMembers } from "@/modules/members/lib/queries";
 import { listSeriesOptions } from "@/modules/series/lib/queries";
 import { ProductForm } from "@/modules/products/components/ProductForm";
 import { getProductById } from "@/modules/products/lib/queries";
-import { DuplicateListingButton } from "@/modules/products/components/DuplicateListingButton";
 
 export default async function ProductEditPage({
   params,
@@ -29,17 +28,13 @@ export default async function ProductEditPage({
 
   return (
     <AdminPage>
-      <AdminPageHeader title="상품 수정">
-        <DuplicateListingButton productId={productId} />
-      </AdminPageHeader>
+      <AdminPageHeader title="상품 수정" />
       <ProductForm
-        mode="edit"
         product={product}
         teams={teams}
         members={members}
         series={series}
         publicBaseUrl={env.R2_PUBLIC_BASE}
-        catalogPublicBase={env.CATALOG_PUBLIC_BASE}
       />
     </AdminPage>
   );

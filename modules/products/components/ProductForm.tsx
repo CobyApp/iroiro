@@ -14,20 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TeamCombobox } from "@/modules/teams/components/TeamCombobox";
 import type { Team } from "@/modules/teams/types";
-import { MemberCombobox } from "@/modules/members/components/MemberCombobox";
 import type { MemberWithTeams } from "@/modules/members/types";
 import type { SeriesOption } from "@/modules/series/lib/queries";
-import { CatalogCardPicker } from "./CatalogCardPicker";
-import { importCatalogCardPhoto } from "../actions";
-import { createProduct, updateProduct } from "../actions";
+import { updateProduct } from "../actions";
 import { ProductPhotoDownload } from "./ProductPhotoDownload";
 import { ProductPhotoUpload } from "./ProductPhotoUpload";
 import type { ProductCreateInput, ProductPhotoInput } from "../lib/schema";
 import {
   AUCTION_STATUS_LABEL,
-  ITEM_TYPES,
   ITEM_TYPE_LABEL,
   SALE_MODES,
   SALE_MODE_LABEL,
@@ -48,23 +43,19 @@ function isoToLocalInput(iso: string | null): string {
 }
 
 type Props = {
-  mode: "new" | "edit";
   product?: ProductWithPhotos | null;
   teams: Team[];
   members: MemberWithTeams[];
   series: SeriesOption[];
   publicBaseUrl: string;
-  catalogPublicBase: string;
 };
 
 export function ProductForm({
-  mode,
   product,
   teams: initialTeams,
   members: initialMembers,
   series,
   publicBaseUrl,
-  catalogPublicBase,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,21 +68,14 @@ export function ProductForm({
   }
   const teams = initialTeams;
   const members = initialMembers;
-  const [itemCode, setItemCode] = useState(product?.itemCode ?? "");
-  const [itemType, setItemType] = useState<ItemType>(
-    product?.itemType ?? "photocard",
-  );
-  const [teamId, setTeamId] = useState<number | null>(product?.teamId ?? null);
-  const [memberId, setMemberId] = useState<number | null>(
-    product?.memberId ?? null,
-  );
-  const [seriesId, setSeriesId] = useState<number | null>(
-    product?.seriesId ?? null,
-  );
-  const [catalogImporting, setCatalogImporting] = useState(false);
-  // 단건 폼에서 카탈로그 카드를 골랐을 때의 출처 카드 id — 신규 등록에서만 전송(수정은 건드리지 않음).
-  const [catalogCardId, setCatalogCardId] = useState<number | null>(null);
-  const [name, setName] = useState(product?.name ?? "");
+  // 토레카 정보(이름·그룹·멤버·시리즈·종류·아이템코드)는 카탈로그(card)가 소유한다 — 편집 불가·읽기전용.
+  // 저장 시 update payload 에 기존값을 그대로 실어 서버가 비우지 않게 한다.
+  const itemCode = product?.itemCode ?? "";
+  const itemType: ItemType = product?.itemType ?? "photocard";
+  const teamId = product?.teamId ?? null;
+  const memberId = product?.memberId ?? null;
+  const seriesId = product?.seriesId ?? null;
+  const name = product?.name ?? "";
   const [listPrice, setListPrice] = useState(
     product?.regularPrice?.toString() ?? "0",
   );
@@ -100,7 +84,7 @@ export function ProductForm({
   );
   // 사용자가 할인가를 직접 손대기 전에는 정가를 따라 자동 동기화.
   // 수정 모드는 기존 값이 의도된 입력이므로 처음부터 dirty 처리.
-  const [salePriceTouched, setSalePriceTouched] = useState(mode === "edit");
+  const [salePriceTouched, setSalePriceTouched] = useState(true);
   const [stock, setStock] = useState(product?.stockQuantity?.toString() ?? "0");
   const [saleStatus, setSaleStatus] = useState<SaleStatus>(
     product?.saleStatus ?? "draft",
@@ -143,8 +127,8 @@ export function ProductForm({
       teamId,
       memberId,
       seriesId,
-      // 신규 등록만 출처 카드를 심는다. 수정에서는 undefined 로 두어 기존 값을 보존한다.
-      catalogCardId: mode === "new" ? catalogCardId : undefined,
+      // 출처 카드(catalog_card_id)는 수정하지 않는다 — undefined 로 기존 값 보존.
+      catalogCardId: undefined,
       name,
       regularPrice: isAuction ? startPrice : Number(listPrice),
       // salePrice는 DB NOT NULL — 비워두면 정가와 동일하게 보낸다.
@@ -172,15 +156,6 @@ export function ProductForm({
     }
     startTransition(async () => {
       const payload = buildPayload();
-      if (mode === "new") {
-        const result = await createProduct(payload);
-        if (!result.ok) {
-          toast.error(result.message);
-          return;
-        }
-        router.push(backToList());
-        return;
-      }
       if (product) {
         const result = await updateProduct({ id: product.id, ...payload });
         if (!result.ok) {
@@ -200,121 +175,28 @@ export function ProductForm({
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>식별</CardTitle>
+            <CardTitle>토레카 정보</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
-              <p className="text-xs text-muted-foreground">
-                판매할 토레카를 카탈로그에서 고르면 그룹·멤버·시리즈·이름·정가·사진이 한 번에 채워져요.
-              </p>
-              <div className="mt-2">
-                <CatalogCardPicker
-                  teams={teams}
-                  members={members}
-                  series={series}
-                  catalogPublicBase={catalogPublicBase}
-                  onPick={(card) => {
-                    setCatalogCardId(card.id);
-                    setTeamId(card.teamId);
-                    setMemberId(card.memberId);
-                    setSeriesId(card.seriesId);
-                    setItemType(card.itemType as ItemType);
-                    if (card.itemCode) setItemCode(card.itemCode);
-                    setName(card.name);
-                    if (card.retailPriceJpy > 0 && (listPrice === "0" || listPrice === "")) {
-                      // 정가(엔)는 참고용 — 판매가는 관리자가 원화로 정한다. 여기선 이름·식별만 채우고
-                      // 가격은 매입 정보에서 계산되므로 건드리지 않는다.
-                    }
-                    setCatalogImporting(true);
-                    void (async () => {
-                      const res = await importCatalogCardPhoto({ cardId: card.id });
-                      if (res.ok) {
-                        setPhotos((prev) => [
-                          ...prev,
-                          {
-                            r2Key: res.data.r2Key,
-                            altText: null,
-                            displayOrder: prev.length,
-                            isThumbnail: prev.length === 0,
-                          },
-                        ]);
-                        toast.success("토레카 정보와 사진을 불러왔어요");
-                      } else {
-                        toast.error(res.message);
-                      }
-                      setCatalogImporting(false);
-                    })();
-                  }}
-                />
-              </div>
-              {seriesId != null && (
-                <p className="mt-2 text-xs text-primary">
-                  시리즈 연결됨 · {series.find((s) => s.id === seriesId)?.label ?? `#${seriesId}`}
-                  {catalogImporting && " · 사진 불러오는 중…"}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label>그룹</Label>
-              <TeamCombobox
-                teams={teams}
-                value={teamId}
-                onChange={(id) => {
-                  setTeamId(id);
-                  setMemberId(null);
-                }}
-              />
-            </div>
-            <div>
-              <Label>멤버</Label>
-              <MemberCombobox
-                members={members}
-                teamId={teamId}
-                value={memberId}
-                onChange={setMemberId}
-              />
-            </div>
-            <div>
-              <Label>
-                아이템 구분 <span className="text-destructive">*</span>
-              </Label>
-              <Select value={itemType} onValueChange={(value) => setItemType(value as ItemType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ITEM_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {ITEM_TYPE_LABEL[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="name">
-                상품명 <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="item-code">
-                아이템 코드{" "}
-                <span className="text-xs font-normal text-muted-foreground">
-                  — 외부 식별 코드 (선택)
-                </span>
-              </Label>
-              <Input
-                id="item-code"
-                value={itemCode}
-                onChange={(event) => setItemCode(event.target.value)}
-                placeholder="예: TRCD-NJZ-MNZ-001"
-              />
-            </div>
+          <CardContent className="space-y-2.5 text-sm">
+            <p className="text-xs text-muted-foreground">
+              이름·그룹·멤버·시리즈·종류는 토레카 관리에서 수정하면 실시간 반영돼요. 여기선
+              가격·재고·판매 상태와 사진만 바꿀 수 있어요.
+            </p>
+            <dl className="grid grid-cols-1 gap-1.5">
+              {[
+                ["상품명", name || "-"],
+                ["그룹", teams.find((t) => t.id === teamId)?.name ?? "-"],
+                ["멤버", members.find((m) => m.id === memberId)?.name ?? "-"],
+                ["시리즈", series.find((s) => s.id === seriesId)?.label ?? "-"],
+                ["구분", ITEM_TYPE_LABEL[itemType]],
+                ...(itemCode ? ([["아이템 코드", itemCode]] as [string, string][]) : []),
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-3">
+                  <dt className="shrink-0 text-muted-foreground">{label}</dt>
+                  <dd className="text-right font-medium text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
           </CardContent>
         </Card>
 
@@ -516,7 +398,7 @@ export function ProductForm({
             />
           </CardContent>
         </Card>
-        {mode === "edit" && product && product.photos.length > 0 && (
+        {product && product.photos.length > 0 && (
           <ProductPhotoDownload product={product} />
         )}
       </div>
@@ -533,7 +415,7 @@ export function ProductForm({
           취소
         </Button>
         <Button type="button" onClick={onSubmit} disabled={pending}>
-          {mode === "new" ? "등록" : "저장"}
+          저장
         </Button>
       </div>
     </div>
