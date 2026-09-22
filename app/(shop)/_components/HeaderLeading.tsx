@@ -104,8 +104,9 @@ export function HeaderLeading({ teams = [] }: { teams?: TeamOption[] }) {
 
 function BackButton({ fallback }: { fallback: string }) {
   const router = useRouter();
+  // 데스크톱은 좌측 상시 로고와 브라우저 뒤로가기가 있어 상단 뒤로가기 버튼이 불필요 — 모바일에서만 노출.
   return (
-    <div className="flex min-w-0 flex-1 items-center">
+    <div className="flex min-w-0 flex-1 items-center sm:hidden">
       <button
         type="button"
         aria-label="뒤로"
