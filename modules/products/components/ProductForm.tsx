@@ -198,6 +198,34 @@ export function ProductForm({
     <div className="space-y-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-4">
+        {mode === "edit" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>토레카 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5 text-sm">
+              <p className="text-xs text-muted-foreground">
+                이름·그룹·멤버·시리즈·종류는 토레카 관리에서 수정해요. 여기선 가격·재고·판매
+                상태와 사진만 바꿀 수 있어요.
+              </p>
+              <dl className="grid grid-cols-1 gap-1.5">
+                {[
+                  ["상품명", name || "-"],
+                  ["그룹", teams.find((t) => t.id === teamId)?.name ?? "-"],
+                  ["멤버", members.find((m) => m.id === memberId)?.name ?? "-"],
+                  ["시리즈", series.find((s) => s.id === seriesId)?.label ?? "-"],
+                  ["구분", ITEM_TYPE_LABEL[itemType]],
+                  ...(itemCode ? ([["아이템 코드", itemCode]] as [string, string][]) : []),
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-baseline justify-between gap-3">
+                    <dt className="shrink-0 text-muted-foreground">{label}</dt>
+                    <dd className="text-right font-medium text-foreground">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle>식별</CardTitle>
@@ -317,6 +345,7 @@ export function ProductForm({
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
