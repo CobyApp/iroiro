@@ -1,7 +1,6 @@
 // 가입 닉네임 화면 — OAuth 신규 신원만 도달(pending-account 쿠키 보유). 제출 시 account 최초 생성.
 import { redirect } from "next/navigation";
 
-import { PageBack } from "@/components/PageBack";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandMark } from "@/modules/ui/components/BrandMark";
@@ -35,14 +34,8 @@ export default async function SignupPage({
   const [teams, members] = await Promise.all([listTeams(), listMembers()]);
 
   return (
-    <div className="space-y-3">
-      {/* 뒤로가기 — 다른 계정으로 다시 로그인하러 갈 수 있게. */}
-      <div className="flex items-center gap-2">
-        <PageBack fallbackHref="/login" />
-        <span className="text-sm text-muted-foreground">로그인으로 돌아가기</span>
-      </div>
-
-      <div className="rounded-md border border-border bg-card p-8 shadow-card">
+    <div className="pt-3">
+      <div className="mx-auto max-w-sm rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
         <div className="mb-8 text-center">
           <BrandMark className="mx-auto mb-4 h-14 w-14" preload />
           <h1 className="font-display text-2xl text-foreground">
