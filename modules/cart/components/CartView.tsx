@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { AlertTriangle, ImageOff, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ActionResult } from "@/lib/action-result";
+import { calculateOrderAmounts } from "@/modules/orders/lib/amounts";
 import { removeCartItem, updateCartItemQuantity } from "../actions";
 
 export type CartLineView = {
@@ -21,10 +22,8 @@ export type CartLineView = {
   thumbnailUrl: string | null;
 };
 
-type Summary = {
-  productAmount: number;
-  deliveryAmount: number;
-  totalAmount: number;
+type Policy = {
+  deliveryFee: number;
   freeThresholdAmount: number | null;
 };
 
@@ -34,19 +33,59 @@ function formatWon(amount: number): string {
 
 export function CartView({
   lines,
-  summary,
+  policy,
 }: {
   lines: CartLineView[];
-  summary: Summary;
+  policy: Policy;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const hasUnavailable = lines.some((line) => !line.available);
+  // 선택 상태 — 기본은 구매 가능한 항목 전체 선택. 구매 불가 항목은 선택 불가.
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(lines.filter((l) => l.available).map((l) => l.cartItemId)),
+  );
+
+  function toggle(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const availableLines = lines.filter((l) => l.available);
+  const allSelected =
+    availableLines.length > 0 &&
+    availableLines.every((l) => selected.has(l.cartItemId));
+  function toggleAll() {
+    setSelected(
+      allSelected
+        ? new Set()
+        : new Set(availableLines.map((l) => l.cartItemId)),
+    );
+  }
+
+  // 선택 항목 기준 금액 — 서버와 같은 순수 함수로 계산(최종 검증은 결제 시 서버).
+  const selectedLines = availableLines.filter((l) => selected.has(l.cartItemId));
+  const summary = calculateOrderAmounts(
+    selectedLines.map((l) => ({ unitPrice: l.unitPrice, quantity: l.quantity })),
+    policy,
+  );
   const remainingForFree =
-    summary.freeThresholdAmount !== null && summary.deliveryAmount > 0
-      ? summary.freeThresholdAmount - summary.productAmount
+    policy.freeThresholdAmount !== null && summary.deliveryAmount > 0
+      ? policy.freeThresholdAmount - summary.productAmount
       : 0;
+
+  function goCheckout() {
+    if (selectedLines.length === 0) {
+      toast.error("주문할 상품을 선택해주세요");
+      return;
+    }
+    const ids = selectedLines.map((l) => l.cartItemId).join(",");
+    router.push(`/checkout?items=${ids}`);
+  }
 
   function runCartAction(action: () => Promise<ActionResult>) {
     startTransition(async () => {
@@ -61,11 +100,32 @@ export function CartView({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <ul className="space-y-3">
+      <div className="space-y-3">
+        {/* 전체 선택 — 구매 가능한 항목만 대상. */}
+        {availableLines.length > 0 && (
+          <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-medium text-foreground">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="h-4 w-4 cursor-pointer accent-primary"
+            />
+            전체 선택 ({selectedLines.length}/{availableLines.length})
+          </label>
+        )}
+        <ul className="space-y-3">
         {lines.map((line) => (
           <li key={line.cartItemId}>
             <Card>
               <CardContent className="flex gap-4 p-4">
+                <input
+                  type="checkbox"
+                  checked={selected.has(line.cartItemId)}
+                  onChange={() => toggle(line.cartItemId)}
+                  disabled={!line.available}
+                  aria-label={`${line.name} 선택`}
+                  className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-40"
+                />
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xs border border-border bg-muted shadow-card">
                   {line.thumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -172,7 +232,8 @@ export function CartView({
             </Card>
           </li>
         ))}
-      </ul>
+        </ul>
+      </div>
 
       <div className="lg:sticky lg:top-24 lg:self-start">
         <Card>
@@ -204,10 +265,10 @@ export function CartView({
               </div>
             </dl>
 
-            {hasUnavailable && (
-              <p className="flex items-center gap-1 text-xs font-medium text-destructive">
+            {selectedLines.length === 0 && (
+              <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                구매 불가 상품을 삭제한 뒤 주문할 수 있어요
+                주문할 상품을 선택해주세요
               </p>
             )}
 
@@ -215,10 +276,10 @@ export function CartView({
               type="button"
               size="lg"
               className="w-full"
-              disabled={pending || hasUnavailable || lines.length === 0}
-              onClick={() => router.push("/checkout")}
+              disabled={pending || selectedLines.length === 0}
+              onClick={goCheckout}
             >
-              주문하기
+              주문하기 ({selectedLines.length})
             </Button>
           </CardContent>
         </Card>

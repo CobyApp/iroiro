@@ -6,7 +6,6 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { getCartItems } from "@/modules/cart/lib/queries";
 import { getProductsByIds } from "@/modules/products/lib/queries";
 import { getDeliveryPolicy } from "@/modules/orders/lib/queries";
-import { calculateOrderAmounts } from "@/modules/orders/lib/amounts";
 import {
   CartView,
   type CartLineView,
@@ -83,20 +82,13 @@ export default async function CartPage() {
     );
   }
 
-  const availableItems = lines
-    .filter((line) => line.available)
-    .map((line) => ({ unitPrice: line.unitPrice, quantity: line.quantity }));
-  const amounts = calculateOrderAmounts(availableItems, policy);
-
   return (
     <div className="shop-page-frame space-y-6">
       <h1 className="font-display text-2xl">장바구니</h1>
       <CartView
         lines={lines}
-        summary={{
-          productAmount: amounts.productAmount,
-          deliveryAmount: amounts.deliveryAmount,
-          totalAmount: amounts.totalAmount,
+        policy={{
+          deliveryFee: policy.deliveryFee,
           freeThresholdAmount: policy.freeThresholdAmount,
         }}
       />

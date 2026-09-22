@@ -87,8 +87,21 @@ async function placeOrderTx(
   provider: string,
   orderNo: string,
 ): Promise<void> {
-  const cart = await tx.cartItem.findMany({ where: { accountId } });
-  if (cart.length === 0) throw new DomainError("장바구니가 비어 있습니다");
+  // 선택 주문 — 장바구니에서 고른 항목만. 빈 배열(구버전/미선택)이면 전체.
+  const selectedIds = data.cartItemIds.map((id) => BigInt(id));
+  const cart = await tx.cartItem.findMany({
+    where: {
+      accountId,
+      ...(selectedIds.length > 0 ? { id: { in: selectedIds } } : {}),
+    },
+  });
+  if (cart.length === 0) {
+    throw new DomainError(
+      selectedIds.length > 0
+        ? "주문할 상품을 선택해주세요"
+        : "장바구니가 비어 있습니다",
+    );
+  }
 
   const productIds = cart.map((item) => item.productId);
   const [products, thumbnails, policyRow] = await Promise.all([
@@ -267,8 +280,13 @@ async function placeOrderTx(
     }
   }
 
-  // 장바구니 전체 주문 — 해당 계정 장바구니 비우기.
-  await tx.cartItem.deleteMany({ where: { accountId } });
+  // 주문한 항목만 장바구니에서 비운다(선택 주문). 선택이 없으면(전체 주문) 계정 전체.
+  await tx.cartItem.deleteMany({
+    where: {
+      accountId,
+      ...(selectedIds.length > 0 ? { id: { in: selectedIds } } : {}),
+    },
+  });
 }
 
 // 주문이 취소로 끝날 때 포인트 환급 + 쿠폰 복원 — 취소 tx 안에서 호출.
