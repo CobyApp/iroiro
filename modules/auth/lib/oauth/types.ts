@@ -1,9 +1,9 @@
 import "server-only";
 
-export type OAuthProvider = "kakao" | "naver";
+export type OAuthProvider = "kakao";
 
 export function isOAuthProvider(value: string): value is OAuthProvider {
-  return value === "kakao" || value === "naver";
+  return value === "kakao";
 }
 
 // 제공자 응답에서 정규화한 신원·프로필(제공자 무관 형태).

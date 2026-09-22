@@ -34,7 +34,7 @@ function loginError(request: NextRequest, code: string): NextResponse {
 }
 
 // OAuth 콜백 — state 검증 → code 교환 → 프로필 → account 생성/연결 → 세션 발급 → 쿠키.
-// GET /api/auth/{kakao|naver}/callback?code=...&state=...
+// GET /api/auth/{kakao}/callback?code=...&state=...
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },

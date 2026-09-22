@@ -81,8 +81,6 @@ jobs:
           CATALOG_DATABASE_URL: postgresql://catalog_app:app@localhost:5432/iroiro_catalog
           # Build-time placeholders — real values are injected by ECS (SSM secrets) at runtime.
           KAKAO_REST_API_KEY: build-placeholder
-          NAVER_CLIENT_ID: build-placeholder
-          NAVER_CLIENT_SECRET: build-placeholder
           # Inlined into the client bundle, so it must be present at build time.
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
         run: npm run build

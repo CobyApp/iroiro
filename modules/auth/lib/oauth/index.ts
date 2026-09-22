@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createKakaoClient } from "./kakao";
-import { createNaverClient } from "./naver";
 import type { OAuthClient, OAuthProvider } from "./types";
 
 export {
@@ -16,8 +15,6 @@ export function getOAuthClient(provider: OAuthProvider): OAuthClient {
   switch (provider) {
     case "kakao":
       return createKakaoClient();
-    case "naver":
-      return createNaverClient();
   }
 }
 
