@@ -16,10 +16,14 @@ import type { OrderStatus } from "@/modules/orders/types";
 import { canReviewOrderStatus } from "./lib/rules";
 import {
   reviewDeleteSchema,
+  reviewDismissReportSchema,
+  reviewHideSchema,
+  reviewIdSchema,
   reviewUpsertSchema,
   type ReviewDeleteInput,
   type ReviewUpsertInput,
 } from "./lib/schema";
+import * as reportLib from "./lib/report";
 
 async function requireAccountId(): Promise<string> {
   const account = await getCurrentAccount();
@@ -105,6 +109,39 @@ export async function adminDeleteReview(
     if (result.count === 0) {
       throw new DomainError("리뷰를 찾을 수 없습니다");
     }
+    revalidatePath("/delivery/reviews");
+  });
+}
+
+// ── 리뷰 신고 처리(스토어 관리 공간 /delivery) — 모두 delivery 부분 권한(또는 site admin)만.
+// 도메인 로직은 lib/report.ts(순수·테스트 대상), 여기선 가드·검증·revalidate 만 담당(룰 2·3).
+
+/** 리뷰 숨김 — hidden_* 스탬프 + 미해결 신고 일괄 처리. 고객 화면에서 사라지므로 함께 revalidate. */
+export async function hideProductReview(input: unknown): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await requireDeliveryManager();
+    const data = parseActionInput(reviewHideSchema, input);
+    await reportLib.hideProductReview(admin.id, data);
+    revalidatePath("/delivery/reviews");
+  });
+}
+
+/** 숨김 해제 — 리뷰를 다시 노출. */
+export async function unhideProductReview(input: unknown): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await requireDeliveryManager();
+    const { reviewId } = parseActionInput(reviewIdSchema, input);
+    await reportLib.unhideProductReview(admin.id, reviewId);
+    revalidatePath("/delivery/reviews");
+  });
+}
+
+/** 신고 기각 — 대상 리뷰는 그대로. */
+export async function dismissProductReviewReport(input: unknown): Promise<ActionResult> {
+  return runAction(async () => {
+    const admin = await requireDeliveryManager();
+    const data = parseActionInput(reviewDismissReportSchema, input);
+    await reportLib.dismissProductReviewReport(admin.id, data);
     revalidatePath("/delivery/reviews");
   });
 }

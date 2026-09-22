@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { PRODUCT_CONDITIONS } from "@/modules/products/types";
-import { USED_ITEM_TYPES, USED_REPORT_REASONS, USED_SHIPPING_METHODS } from "../types";
+import {
+  USED_ITEM_TYPES,
+  USED_REPORT_REASONS,
+  USED_REVIEW_REPORT_REASONS,
+  USED_SHIPPING_METHODS,
+} from "../types";
 
 // 신고·차단·처리 입력 길이 상한(글 신고와 동일 어휘·값).
 export const USED_REPORT_DETAIL_MAX = 500;
@@ -48,6 +53,30 @@ export const usedReviewCreateSchema = z.object({
   comment: optionalText(USED_REVIEW_COMMENT_MAX),
 });
 export type UsedReviewCreateInput = z.input<typeof usedReviewCreateSchema>;
+
+// 중고 후기 신고·처리 입력(글/매물 신고와 동일 어휘).
+export const USED_REVIEW_HIDE_REASON_MAX = 500;
+export const usedReviewReportCreateSchema = z.object({
+  reviewId: positiveId,
+  reason: z.enum(USED_REVIEW_REPORT_REASONS),
+  detail: optionalText(USED_REPORT_DETAIL_MAX),
+});
+export type UsedReviewReportCreateInput = z.input<typeof usedReviewReportCreateSchema>;
+
+export const usedReviewHideSchema = z.object({
+  reviewId: positiveId,
+  reason: z.string().trim().min(1, "숨김 사유를 입력해주세요").max(USED_REVIEW_HIDE_REASON_MAX),
+});
+export type UsedReviewHideInput = z.input<typeof usedReviewHideSchema>;
+
+export const usedReviewDismissSchema = z.object({
+  reportId: positiveId,
+  note: optionalText(USED_RESOLUTION_NOTE_MAX),
+});
+export type UsedReviewDismissInput = z.input<typeof usedReviewDismissSchema>;
+
+export const usedReviewIdSchema = z.object({ reviewId: positiveId });
+export type UsedReviewIdInput = z.input<typeof usedReviewIdSchema>;
 
 export const usedPhotoInputSchema = z.object({
   r2Key: z.string().min(1),
