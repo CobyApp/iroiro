@@ -31,8 +31,8 @@ describe("splitSections", () => {
     expect(() => splitSections("-- [x]\nselect 1;\n-- [x]\nselect 2;")).toThrow(/중복/);
   });
 
-  it("실제 db/schema.sql·db/catalog-schema.sql 을 오류 없이 나눈다(이름 유일, 순서 유지)", () => {
-    for (const file of ["db/schema.sql", "db/catalog-schema.sql"]) {
+  it("실제 db/schema.sql 을 오류 없이 나눈다(이름 유일, 순서 유지)", () => {
+    for (const file of ["db/schema.sql"]) {
       const sections = splitSections(readFileSync(file, "utf8"));
       expect(sections.length).toBeGreaterThan(0);
       const names = sections.map((s) => s.name);

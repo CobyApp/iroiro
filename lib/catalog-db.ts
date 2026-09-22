@@ -1,32 +1,15 @@
 import "server-only";
 
-import { PrismaClient } from "@/lib/generated/catalog-client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { db } from "@/lib/db";
 
-// 카탈로그 DB(iroiro_catalog) 클라이언트 — 토레카 마스터(team·member·team_member·series·series_kind·card).
-// dev·prd 가 같은 DB 를 공유하므로 커머스 DB(lib/db.ts 의 `db`)와 연결·클라이언트를 분리한다.
-// 커머스 테이블(product·favorite·post…)은 카탈로그 id 를 값으로만 들고 있어 두 클라이언트 사이에
-// 조인은 없다 — 이름이 필요하면 id 목록으로 catalogDb 에서 따로 조회해 앱에서 합친다.
-// BigInt JSON polyfill 은 lib/db.ts 가 이미 설치한다(같은 프로세스).
+// 토레카 마스터(team·member·team_member·series·series_kind·card)는 커머스 DB(db)로 병합됐다
+// (2026-09-23, 구 공유 카탈로그 DB iroiro_catalog 폐기). dev·prd 는 각자 자기 커머스 DB 안에서
+// 토레카를 갖는다. 아래는 과거 `catalogDb`/`Catalog*Row`/`CatalogPrisma` 임포트 호환을 위한 얇은 별칭 —
+// 이제 전부 커머스 클라이언트(`db` / `@prisma/client`)를 가리킨다. 이름은 `R2_*` 처럼 레거시로 유지.
+// 두 클라이언트가 하나가 됐으므로 team·member·card 를 상품·주문과 같은 트랜잭션에서 다룰 수 있다.
+export const catalogDb = db;
 
-const adapter = new PrismaPg({
-  connectionString: process.env.CATALOG_DATABASE_URL,
-});
-
-const catalogClientSingleton = () => new PrismaClient({ adapter });
-
-declare const globalThis: {
-  __prismaCatalogGlobal?: ReturnType<typeof catalogClientSingleton>;
-} & typeof global;
-
-export const catalogDb =
-  globalThis.__prismaCatalogGlobal ?? catalogClientSingleton();
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__prismaCatalogGlobal = catalogDb;
-}
-
-// 카탈로그 모델 타입 — 도메인 transform 이 `@prisma/client` 대신 여기서 가져온다.
+// 카탈로그 모델 타입 — 이제 커머스 스키마의 모델 타입이다.
 export type {
   Card as CatalogCardRow,
   Team as CatalogTeamRow,
@@ -34,5 +17,5 @@ export type {
   TeamMember as CatalogTeamMemberRow,
   Series as CatalogSeriesRow,
   SeriesKind as CatalogSeriesKindRow,
-} from "@/lib/generated/catalog-client";
-export { Prisma as CatalogPrisma } from "@/lib/generated/catalog-client";
+} from "@prisma/client";
+export { Prisma as CatalogPrisma } from "@prisma/client";

@@ -184,8 +184,8 @@
 ### Prisma schema ↔ `db/schema.sql` 정합성
 
 #### ✅ 규칙
-- **SQL 파일이 단일 진실 — DB 두 개, 파일 두 개.** 커머스 DB는 `db/schema.sql` ↔ `prisma/schema.prisma`(`db`), 카탈로그 DB(토레카 마스터: team·member·team_member·series·series_kind·card, dev·prd 공유)는 `db/catalog-schema.sql` ↔ `prisma/catalog.prisma`(`catalogDb`, 생성물 `lib/generated/catalog-client`). Prisma는 introspect(`npm run db:pull` / `db:pull:catalog`) 후 camelCase 매핑을 수동 유지(파일 상단 주석 참조). 절차: SQL 편집 → `npm run db:reset` → `npm run db:pull && npm run db:generate`.
-- **두 DB 사이에는 조인·FK·`@relation`이 없다.** 커머스 테이블은 카탈로그 id(`team_id`·`member_id`·`series_id`·`card_id`)를 값으로만 들고, 이름이 필요하면 id 목록으로 `catalogDb`에서 따로 조회해 앱에서 합친다. 카탈로그 행에 환경별 계정 id를 적을 때는 `submitted_env`처럼 **어느 환경의 id인지 함께** 적는다.
+- **SQL 파일이 단일 진실 — DB 하나, 스키마 파일 하나(`db/schema.sql`).** 커머스 DB는 `db/schema.sql` ↔ `prisma/schema.prisma`(`db`). 토레카 마스터(team·member·team_member·series·series_kind·card)도 이제 이 커머스 DB 안에 있다 — dev·prd가 각자 자기 커머스 DB 안에서 독립적으로 가진다(더 이상 공유 카탈로그 DB가 아니다). Prisma는 introspect(`npm run db:pull`) 후 camelCase 매핑을 수동 유지(파일 상단 주석 참조). 절차: SQL 편집 → `npm run db:reset` → `npm run db:pull && npm run db:generate`.
+- **토레카 마스터가 커머스 테이블과 같은 DB 안에 있으므로 이제 조인은 가능하지만, 기존 코드는 여전히 id 값 참조 관례를 유지한다.** 커머스 테이블은 토레카 id(`team_id`·`member_id`·`series_id`·`card_id`)를 값으로만 들고, 이름이 필요하면 id 목록으로 따로 조회해 앱에서 합친다. 카탈로그 행에 계정 id를 적을 때는 `submitted_env`처럼 **어느 환경의 id인지 함께** 적는다.
 - **변경은 파일 끝에 `-- [YYYYMMDDHHMMSS_name]` 섹션으로 덧붙이고 재실행 안전(IF NOT EXISTS / IF EXISTS)하게 쓴다.** 배포 시 `scripts/db-migrate.mjs`가 각 DB의 `schema_migration` 표와 비교해 미적용 섹션만 순서대로 적용한다(섹션 = 트랜잭션 1개). 섹션 이름은 바꾸지 않는다(기록 키).
 - **인덱스/유니크/partial은 양쪽에 같은 `map` 이름으로 반영**. partial은 Prisma에서 `where: raw("(…)")`.
 - **관계는 도메인 *내부*만 `@relation` 선언**(`relationMode="prisma"`라 DB FK는 안 생김). **교차 도메인 참조**(예: `account_id`, `product_id`)는 `@relation` 없이 bare 스칼라 + `@@index`로 둔다 — `product_photo` 선례.

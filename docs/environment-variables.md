@@ -31,8 +31,7 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
 | `DATABASE_URL` 🔒 | ⚙️ 운영 필수 | 커머스 DB — Prisma(`lib/db.ts`, adapter-pg) 연결 문자열. **비특권 `app` 롤로 접속한다** — 소유자 `postgres`로 붙으면 GRANT가 무효라 soft delete 강제 등 DB 방어선이 작동하지 않는다([db-authorization-review](./architecture/db-authorization-review.md)). 로컬: `npm run db:reset`이 `db/schema.sql` 적용 + `ALTER ROLE app WITH LOGIN`을 실행하므로 `postgresql://app:app@127.0.0.1:5432/iroiro` 그대로. `env.ts` 검증 밖이지만 없으면 `prisma generate`부터 실패. dev/prd: RDS `iroiro-<env>`, `setup.sh db`가 생성해 SSM에 넣는다(`sslmode=verify-full&sslrootcert=/app/rds-ca.pem` 포함). 비밀번호 특수문자 주의 → [lessons/10](./lessons/10-database-url-password.md) |
-| `CATALOG_DATABASE_URL` 🔒 | ⚙️ 운영 필수 | **카탈로그 DB**(토레카 마스터: team·member·team_member·series·series_kind·card) — `lib/catalog-db.ts`의 `catalogDb`. dev·prd가 **같은 DB 하나**를 공유한다(운영 RDS `iroiro-prd` 안 `iroiro_catalog`, 비특권 `catalog_app` 롤). 로컬: compose의 `iroiro_catalog`, `postgresql://catalog_app:app@127.0.0.1:5432/iroiro_catalog`. 정본은 `db/catalog-schema.sql`, Prisma는 `prisma/catalog.prisma`(`npm run db:pull:catalog`) |
-| `DATABASE_URL_OWNER`, `CATALOG_DATABASE_URL_OWNER` 🔒 | ◯ 마이그레이션 태스크 전용 | 소유자 롤 연결 문자열. 앱 컨테이너에는 주입하지 않고, 배포 시 `iroiro-migrate-<env>` 원오프 태스크(`scripts/db-migrate.mjs`)만 받는다. SSM `/iroiro/<env>/…` |
+| `DATABASE_URL_OWNER` 🔒 | ◯ 마이그레이션 태스크 전용 | 소유자 롤 연결 문자열. 앱 컨테이너에는 주입하지 않고, 배포 시 `iroiro-migrate-<env>` 원오프 태스크(`scripts/db-migrate.mjs`)만 받는다. SSM `/iroiro/<env>/…` |
 
 ## 스토리지 (AWS S3 / 로컬 MinIO)
 
@@ -47,8 +46,8 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 | `R2_BUCKET` | ⚙️ 운영 필수 | 공개 버킷 이름(상품 `products/`·공지 `notices/`·배너 `banners/`·아바타 `avatars/`). 기본 `iroiro-products-dev`. 운영: `iroiro-kr-products-<env>`(버킷 정책 public read) |
 | `R2_PUBLIC_BASE` | ⚙️ 운영 필수 | 공지·배너·관리 미리보기용 공개 객체 URL 베이스. 로컬 `http://localhost:9000/iroiro-products-dev`, 운영 `https://iroiro-kr-products-<env>.s3.ap-northeast-2.amazonaws.com`. 고객용 상품 사진은 이 주소를 노출하지 않고 `/media/product-*`에서 워터마크 처리한다([product-image-protection](./product-image-protection.md)) |
 | `R2_UGC_BUCKET` | ⚙️ 운영 필수 | UGC(게시판) 사진 전용 **비공개** 버킷. 기본 `iroiro-ugc-dev`. 운영 `iroiro-kr-ugc-<env>`(public access block, `posts/tmp/` 1일 만료 lifecycle). 서빙은 서명 GET만. 자격증명은 위 `R2_*` 공유 |
-| `CATALOG_BUCKET` | ⚙️ 운영 필수 | 카탈로그(토레카 앞면) 버킷 — dev·prd **공유** `iroiro-kr-catalog`(로컬 MinIO `iroiro-catalog-dev`). 카드 한 장 = `cards/wm/<uuid>.jpg`(워터마크·공개) + `cards/clean/<uuid>.jpg`(원본·비공개, `/media/catalog-clean` 관리자 라우트로만). 버킷 정책은 `cards/wm/*`만 public read. 자격증명은 `R2_*` 공유(두 환경 앱 IAM 사용자 모두 권한, `setup.sh catalog`) |
-| `CATALOG_PUBLIC_BASE` | ⚙️ 운영 필수 | 카탈로그 버킷 공개 URL 베이스 — 고객 화면의 카드 이미지(`cardFrontUrl`). 운영 `https://iroiro-kr-catalog.s3.ap-northeast-2.amazonaws.com` |
+| `CATALOG_BUCKET` | ⚙️ 운영 필수 | 카탈로그(토레카 앞면) 버킷 — **환경별** `iroiro-kr-catalog-<env>`(운영 `iroiro-kr-catalog-dev` / `iroiro-kr-catalog-prd`, 로컬 MinIO `iroiro-catalog-dev`). 카드 한 장 = `cards/wm/<uuid>.jpg`(워터마크·공개) + `cards/clean/<uuid>.jpg`(원본·비공개, `/media/catalog-clean` 관리자 라우트로만). 버킷 정책은 `cards/wm/*`만 public read. 자격증명은 `R2_*` 공유(`setup.sh catalog`) |
+| `CATALOG_PUBLIC_BASE` | ⚙️ 운영 필수 | 카탈로그 버킷 공개 URL 베이스 — 고객 화면의 카드 이미지(`cardFrontUrl`). 운영 `https://iroiro-kr-catalog-<env>.s3.ap-northeast-2.amazonaws.com` |
 
 ## OAuth 소셜 로그인 (카카오 · 네이버)
 

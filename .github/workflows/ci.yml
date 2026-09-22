@@ -25,10 +25,7 @@ jobs:
       - name: Generate Prisma client
         env:
           DATABASE_URL: postgresql://app:app@localhost:5432/iroiro
-          CATALOG_DATABASE_URL: postgresql://catalog_app:app@localhost:5432/iroiro_catalog
-        run: |
-          npx prisma generate
-          npx prisma generate --config prisma.catalog.config.ts
+        run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

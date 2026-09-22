@@ -8,7 +8,7 @@ const m = vi.hoisted(() => ({
 // series 는 카탈로그 DB, 상품·중고 참조 검사는 커머스 DB — 테스트는 한 객체로 둘 다 받는다.
 vi.mock("@/lib/db", () => ({ db: m }));
 vi.mock("@/lib/catalog-db", async () => {
-  const { Prisma } = await import("@/lib/generated/catalog-client");
+  const { Prisma } = await import("@prisma/client");
   return { CatalogPrisma: Prisma, catalogDb: m };
 });
 vi.mock("@/modules/admin/lib/requireAdminSpace", () => ({ requireCatalogManager: vi.fn() }));
