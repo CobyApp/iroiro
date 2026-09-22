@@ -13,7 +13,7 @@ import { productCleanKey } from "./lib/photo-keys";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { db } from "@/lib/db";
 import { isNotFoundError, isUniqueViolationOn } from "@/lib/prisma-errors";
-import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
+import { requireCatalogManager, requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import {
   detectWishlistEvents,
   notifyWishers,
@@ -656,5 +656,52 @@ export async function bulkCreateProductsFromCards(input: {
       revalidatePath("/");
     }
     return { created, skipped };
+  });
+}
+
+// 카탈로그 카드 1장을 임시저장(draft) 상품으로 자동 생성 — 카드 등록/승인 시점에서 호출.
+// 카탈로그가 곧 상품: 새 카드가 생기면 상품 목록에 draft 로 자동 편입되고, 관리자가 가격·재고를 채워 공개한다.
+// 이미 등록됐거나 이미지가 없으면 조용히 건너뛴다(카드 생성 자체는 막지 않는다).
+export async function createDraftProductForCard(
+  cardId: number,
+): Promise<ActionResult<{ created: boolean }>> {
+  return runAction(async () => {
+    await requireCatalogManager();
+    const { getCardById } = await import("@/modules/cards/lib/queries");
+
+    const existing = await db.product.findFirst({
+      where: { catalogCardId: BigInt(cardId) },
+      select: { id: true },
+    });
+    if (existing) return { created: false };
+
+    const card = await getCardById(cardId);
+    if (!card || !card.frontR2Key) return { created: false };
+
+    // 판매가는 오늘 환율×정가로 제안(실패 시 0=미정). 관리자가 목록에서 채운다.
+    let rate100 = 0;
+    try {
+      rate100 = (await fetchJpyKrwRate(todayKstYmd())).rate;
+    } catch {
+      rate100 = 0;
+    }
+
+    const photoR2Key = await copyCatalogCardPhotoToProduct(cardId);
+    const draft = buildDraftProductFromCard(
+      {
+        id: card.id,
+        itemCode: card.itemCode,
+        itemType: card.itemType,
+        teamId: card.teamId,
+        memberId: card.memberId,
+        seriesId: card.seriesId,
+        name: card.name,
+        retailPriceJpy: card.retailPriceJpy,
+      },
+      { rate100, useRateForSalePrice: rate100 > 0, photoR2Key },
+    );
+    await persistNewProduct(draft);
+    revalidatePath("/delivery/products");
+    return { created: true };
   });
 }

@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Store } from "lucide-react";
+import { Star, Store } from "lucide-react";
 import { env } from "@/lib/env";
+import { formatKstDate } from "@/lib/datetime";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import {
   getSellerSummary,
   listSellerListings,
 } from "@/modules/used/lib/queries";
+import {
+  getSellerReviewSummary,
+  listSellerReviews,
+} from "@/modules/used/lib/review-queries";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { getPointBalance } from "@/modules/points/lib/queries";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
@@ -35,11 +40,14 @@ export default async function UsedSellerPage({
   ]);
   if (!summary) notFound();
 
-  const [{ items, total }, wishedIds, pointBalance] = await Promise.all([
-    listSellerListings(accountId, { page, pageSize: PAGE_SIZE }),
-    account ? getUsedWishlistIds(account.id) : Promise.resolve(undefined),
-    account ? getPointBalance(account.id) : Promise.resolve(0),
-  ]);
+  const [{ items, total }, wishedIds, pointBalance, reviewSummary, reviews] =
+    await Promise.all([
+      listSellerListings(accountId, { page, pageSize: PAGE_SIZE }),
+      account ? getUsedWishlistIds(account.id) : Promise.resolve(undefined),
+      account ? getPointBalance(account.id) : Promise.resolve(0),
+      getSellerReviewSummary(accountId),
+      listSellerReviews(accountId),
+    ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const isLoggedIn = account !== null;
   const isOwner = account?.id === accountId;
@@ -63,6 +71,13 @@ export default async function UsedSellerPage({
           <p className="text-sm text-muted-foreground">
             판매중 {summary.activeCount} · 판매완료 {summary.soldCount}
           </p>
+          {reviewSummary.count > 0 && (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-foreground">
+              <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+              <b>{reviewSummary.avg.toFixed(1)}</b>
+              <span className="text-muted-foreground">후기 {reviewSummary.count}</span>
+            </p>
+          )}
         </div>
       </header>
 
@@ -94,6 +109,43 @@ export default async function UsedSellerPage({
             />
           ))}
         </div>
+      )}
+
+      {reviews.length > 0 && (
+        <section className="space-y-3 pt-2">
+          <h2 className="text-base font-bold text-foreground">거래 후기</h2>
+          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+            {reviews.map((r) => (
+              <li key={r.id} className="space-y-1 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-0.5" aria-label={`별점 ${r.rating}점`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={
+                          "h-3.5 w-3.5 " +
+                          (r.rating >= n
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-muted-foreground/30")
+                        }
+                        aria-hidden
+                      />
+                    ))}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{r.reviewerMasked}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {formatKstDate(r.createdAt)}
+                  </span>
+                </div>
+                {r.comment && (
+                  <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                    {r.comment}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {totalPages > 1 && (

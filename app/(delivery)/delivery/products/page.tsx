@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { listTeams } from "@/modules/teams/lib/queries";
 import { listMembers } from "@/modules/members/lib/queries";
-import { listSeriesOptions } from "@/modules/series/lib/queries";
-import { CatalogBulkImport } from "@/modules/products/components/CatalogBulkImport";
 import { ProductFilters } from "@/modules/products/components/ProductFilters";
 import { ProductList } from "@/modules/products/components/ProductList";
 import { ProductPagination } from "@/modules/products/components/ProductPagination";
@@ -34,18 +31,12 @@ export default async function ProductsListPage({
 
   return (
     <AdminPage>
-      <AdminPageHeader title="상품 목록">
-        <Suspense fallback={null}>
-          <BulkImportSlot />
-        </Suspense>
+      <AdminPageHeader
+        title="상품 목록"
+        description="토레카 카탈로그에 카드가 추가되면 여기에 임시저장 상품으로 자동 등록돼요. 가격·재고를 채워 공개하세요."
+      >
         <Button asChild variant="outline">
           <Link href="/delivery/products/duplicates">중복 정리</Link>
-        </Button>
-        <Button asChild>
-          <Link href="/delivery/products/new">
-            <Plus className="mr-0.5 h-4 w-4" />
-            신규 등록
-          </Link>
         </Button>
       </AdminPageHeader>
 
@@ -74,23 +65,6 @@ export default async function ProductsListPage({
         <AdminProductsView filter={filter} />
       </Suspense>
     </AdminPage>
-  );
-}
-
-// 헤더의 "토레카 일괄 등록" — 카탈로그 데이터를 실어 클라이언트 다이얼로그로 넘긴다.
-async function BulkImportSlot() {
-  const [teams, members, series] = await Promise.all([
-    listTeams(),
-    listMembers(),
-    listSeriesOptions(),
-  ]);
-  return (
-    <CatalogBulkImport
-      teams={teams}
-      members={members}
-      series={series}
-      catalogPublicBase={env.CATALOG_PUBLIC_BASE}
-    />
   );
 }
 
