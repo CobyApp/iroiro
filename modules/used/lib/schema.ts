@@ -84,14 +84,11 @@ const usedListingBase = z.object({
 // 판매방식별 필수값 — 고정가는 price, 경매는 시작가·마감시각.
 // 종류별 필수값 — 토레카는 카드 선택, 그 외는 제목.
 export const usedListingCreateSchema = usedListingBase
-  .refine((v) => v.itemType !== "photocard" || (v.cardId ?? 0) > 0, {
-    message: "카드를 선택해주세요",
-    path: ["cardId"],
-  })
-  .refine((v) => v.itemType === "photocard" || !!(v.title && v.title.length > 0), {
-    message: "제목을 입력해주세요",
-    path: ["title"],
-  })
+  // 카드를 골랐으면 카드 기반, 아니면 직접 입력(제목 필수) — 종류 무관.
+  .refine(
+    (v) => (v.cardId ?? 0) > 0 || !!(v.title && v.title.trim().length > 0),
+    { message: "카드를 선택하거나 제목을 입력해주세요", path: ["title"] },
+  )
   .refine((v) => v.saleMode !== "fixed" || (v.price ?? 0) > 0, {
     message: "판매가를 입력하세요",
     path: ["price"],
