@@ -3,7 +3,7 @@
 iroiro의 소셜 로그인은 **카카오 전용**이다(네이버는 2026-09 제거).  **자체 구현 OAuth**(Supabase Auth·NextAuth 미사용)다. 코드는 이미 구현돼 있으므로, 이 문서의 순서대로 **제공자 콘솔 등록 + 환경변수(또는 SSM 파라미터) 채우기**만 하면 동작한다.
 
 > 관련 코드: [`app/api/auth/[provider]/route.ts`](../app/api/auth/[provider]/route.ts)(시작) · [`app/api/auth/[provider]/callback/route.ts`](../app/api/auth/[provider]/callback/route.ts)(콜백) · [`modules/auth/`](../modules/auth/)(세션·계정·OAuth 클라이언트).
-> 설계 배경은 [specs/2026-06-13-oauth-social-login.md](./specs/2026-06-13-oauth-social-login.md), 인프라·시크릿 주입은 [deployment.md](./deployment.md), 변수 목록은 [environment-variables.md](./environment-variables.md).
+> 인프라·시크릿 주입은 [deployment.md](./deployment.md), 변수 목록은 [environment-variables.md](./environment-variables.md).
 
 ## 큰 그림 — 로그인 한 번에 일어나는 일
 

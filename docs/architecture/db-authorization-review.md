@@ -14,7 +14,7 @@ GRANT    DB 방어선 — 앱은 비특권 `app` 롤로 접속, 테이블별 명
 
 ## 왜 이 논의가 시작됐나
 
-게시판 `post`·`post_comment`의 `author_name`·`author_code`(작성 시점 닉네임 스냅샷)를 없애고 현재 닉네임을 읽는 방향을 검토하다가, 스펙([community-design](../specs/2026-07-19-community-design.md))의 "`account` own-row RLS 때문에 실시간 표시 불가"라는 서술을 확인했다. 그 과정에서 **RLS가 실제로는 아무것도 강제하지 않는다**는 사실이 드러나 인가 계층 전체를 다시 봤다.
+게시판 `post`·`post_comment`의 `author_name`·`author_code`(작성 시점 닉네임 스냅샷)를 없애고 현재 닉네임을 읽는 방향을 검토하다가, 커뮤니티 설계 초안의 "`account` own-row RLS 때문에 실시간 표시 불가"라는 서술을 확인했다. 그 과정에서 **RLS가 실제로는 아무것도 강제하지 않는다**는 사실이 드러나 인가 계층 전체를 다시 봤다.
 
 ## 실측 — 당시 무엇이 실제로 작동하고 있었나 (2026-08-01, 로컬 DB)
 
