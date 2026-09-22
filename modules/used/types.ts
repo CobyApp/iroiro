@@ -217,3 +217,20 @@ export type AdminUsedListingRow = {
   blockedReason: string | null;
   createdAt: string;
 };
+
+// ── 중고 거래 후기 ────────────────────────────────────────────────────────
+export type UsedReview = {
+  id: number;
+  tradeId: number;
+  listingId: number;
+  reviewerMasked: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+};
+
+// 판매자 후기 요약 — 평균 별점·개수.
+export type SellerReviewSummary = {
+  count: number;
+  avg: number;
+};

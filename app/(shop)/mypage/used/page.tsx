@@ -10,6 +10,8 @@ import {
   listMyUsedPurchases,
   listUsedListingsByIds,
 } from "@/modules/used/lib/queries";
+import { reviewedTradeIdsOf } from "@/modules/used/lib/review-queries";
+import { UsedReviewDialog } from "@/modules/used/components/UsedReviewDialog";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { USED_TRADE_STATUS_LABEL } from "@/modules/used/types";
@@ -42,6 +44,11 @@ export default async function MyUsedTradesPage() {
     purchases.map((t) => t.listingId),
   );
   const listingById = new Map(purchaseListings.map((l) => [l.id, l]));
+  // 완료된 거래 중 이미 후기를 남긴 것 — '후기 남기기' 노출 판단.
+  const reviewedTradeIds = await reviewedTradeIdsOf(
+    account.id,
+    purchases.filter((t) => t.status === "completed").map((t) => t.id),
+  );
 
   return (
     <div className="shop-page-frame space-y-8">
@@ -73,10 +80,10 @@ export default async function MyUsedTradesPage() {
               const listing = listingById.get(trade.listingId);
               const thumb = listing?.photos.find((p) => p.isPrimary) ?? listing?.photos[0];
               return (
-                <li key={trade.id}>
+                <li key={trade.id} className="flex items-center gap-3 px-3 py-2.5">
                   <Link
                     href={`/used/${trade.listingId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50"
+                    className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:opacity-80"
                   >
                     <span className="h-12 w-12 shrink-0 overflow-hidden rounded border border-border bg-muted">
                       {thumb && (
@@ -93,13 +100,16 @@ export default async function MyUsedTradesPage() {
                         {listing?.title ?? "매물"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        ₩{trade.price.toLocaleString()}
+                        ₩{trade.price.toLocaleString()} · {USED_TRADE_STATUS_LABEL[trade.status]}
                       </span>
                     </span>
-                    <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-                      {USED_TRADE_STATUS_LABEL[trade.status]}
-                    </span>
                   </Link>
+                  {trade.status === "completed" &&
+                    (reviewedTradeIds.has(trade.id) ? (
+                      <span className="shrink-0 text-xs text-muted-foreground">후기 완료</span>
+                    ) : (
+                      <UsedReviewDialog tradeId={trade.id} />
+                    ))}
                 </li>
               );
             })}
