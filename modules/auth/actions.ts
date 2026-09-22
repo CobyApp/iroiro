@@ -51,6 +51,11 @@ export async function completeSignupAction(formData: FormData): Promise<void> {
     redirect("/login?error=signup_expired");
   }
 
+  // 필수 약관 동의 — 클라이언트 required의 백스톱(서버 검증).
+  if (formData.get("agree_terms") !== "on" || formData.get("agree_privacy") !== "on") {
+    redirect("/signup?error=consent_required");
+  }
+
   let nickname: string;
   try {
     nickname = parseNickname(String(formData.get("nickname") ?? ""));
