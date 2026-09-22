@@ -23,6 +23,8 @@ vi.mock("@/lib/catalog-db", () => ({
     team: { findMany: teamFindMany },
     member: { findMany: memberFindMany },
     series: { findMany: vi.fn(async () => []) },
+    // 상품 표시 정보 실시간 overlay(overlayCardDisplay)용 — 기본은 빈 배열(카드 없음 → product 값 유지).
+    card: { findMany: vi.fn(async () => []) },
   },
 }));
 
