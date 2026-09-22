@@ -2179,7 +2179,7 @@ GRANT UPDATE, DELETE ON series TO app;
 -- [20260922010000_catalog_ordering_i18n_kinds]
 -- ============================================================================
 
--- catalog_ordering_i18n_kinds: 카탈로그 전용 공간(/catalog)에서 그룹 정렬·시리즈 한국어 병기·
+-- catalog_ordering_i18n_kinds: 카탈로그 전용 공간(/admin/catalog)에서 그룹 정렬·시리즈 한국어 병기·
 -- 종류(kind) 편집을 가능하게 하는 세 가지.
 --
 -- 1) team.display_order — 그룹 노출 순서. 사람이 정하는 순번이라 1부터, DEFAULT 없음
@@ -2350,7 +2350,7 @@ UPDATE account
 -- ============================================================================
 
 -- used_report: 중고 매물 신고 — post_report 패턴을 그대로 따른다(스냅샷 동결 + 처리 3필드 원자성).
--- 관리자 처리(중고거래 관리 공간 /market)는 매물 차단(status='blocked')·해제·신고 기각.
+-- 관리자 처리(중고거래 관리 공간 /admin/used)는 매물 차단(status='blocked')·해제·신고 기각.
 -- 매물 차단 감사용 컬럼(누가·왜·언제)을 used_listing 에 추가한다(post.hidden_* 상당).
 
 ALTER TABLE used_listing
@@ -2489,7 +2489,7 @@ GRANT UPDATE (hidden_at, hidden_reason, hidden_by, updated_at) ON used_review TO
 -- ============================================================================
 
 -- product_review_report: 스토어 상품 리뷰 신고 — used_report 패턴(스냅샷 동결 + 처리 3필드 원자성).
--- 관리자 처리(스토어 관리 공간 /delivery/reviews)는 리뷰 숨김·해제·신고 기각.
+-- 관리자 처리(스토어 관리 공간 /admin/store/reviews)는 리뷰 숨김·해제·신고 기각.
 
 CREATE TABLE IF NOT EXISTS product_review_report
 (
@@ -2531,7 +2531,7 @@ GRANT UPDATE (resolution, resolved_by, resolution_note, resolved_at, updated_at)
 -- ============================================================================
 
 -- used_review_report: 중고 거래 후기 신고 — used_report 패턴.
--- 관리자 처리(중고거래 관리 공간 /market/review-reports)는 후기 숨김·해제·신고 기각.
+-- 관리자 처리(중고거래 관리 공간 /admin/used/review-reports)는 후기 숨김·해제·신고 기각.
 
 CREATE TABLE IF NOT EXISTS used_review_report
 (

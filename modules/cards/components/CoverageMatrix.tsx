@@ -70,7 +70,7 @@ export function CoverageMatrix({
                 className="max-w-[7rem] border-b border-l border-border/70 px-1.5 py-1.5 text-center align-bottom text-[11px] font-medium leading-tight text-foreground"
               >
                 <Link
-                  href={`/catalog/cards?team=${teamId}&series=${s.id}`}
+                  href={`/admin/catalog/cards?team=${teamId}&series=${s.id}`}
                   className="line-clamp-2 break-keep underline-offset-2 hover:text-primary hover:underline"
                 >
                   {s.label}
@@ -97,7 +97,7 @@ export function CoverageMatrix({
                   <td key={s.id} className={cn(cellBase, "group-hover/row:bg-muted/30")}>
                     {n > 0 ? (
                       <Link
-                        href={`/catalog/cards?team=${teamId}&member=${row.member.id}&series=${s.id}`}
+                        href={`/admin/catalog/cards?team=${teamId}&member=${row.member.id}&series=${s.id}`}
                         className="catalog-stat grid h-full w-full place-items-center font-semibold text-foreground hover:text-primary"
                         aria-label={`${row.member.name} · ${s.label} 카드 ${n}장 보기`}
                       >
@@ -105,7 +105,7 @@ export function CoverageMatrix({
                       </Link>
                     ) : (
                       <Link
-                        href={`/catalog/cards/new?team=${teamId}&member=${row.member.id}&series=${s.id}`}
+                        href={`/admin/catalog/cards/new?team=${teamId}&member=${row.member.id}&series=${s.id}`}
                         className="group/cell grid h-full w-full place-items-center p-1"
                         aria-label={`${row.member.name} · ${s.label} 카드 등록`}
                         title="카드 없음 — 눌러서 등록"

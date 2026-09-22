@@ -102,7 +102,7 @@ export function ReviewReportQueue({ items, total, page, pageSize }: Props) {
           <PaginationContent>
             {page > 1 && (
               <PaginationItem>
-                <PaginationPrevious href={`/delivery/reviews?page=${page - 1}`} />
+                <PaginationPrevious href={`/admin/store/reviews?page=${page - 1}`} />
               </PaginationItem>
             )}
             <PaginationItem>
@@ -112,7 +112,7 @@ export function ReviewReportQueue({ items, total, page, pageSize }: Props) {
             </PaginationItem>
             {page < totalPages && (
               <PaginationItem>
-                <PaginationNext href={`/delivery/reviews?page=${page + 1}`} />
+                <PaginationNext href={`/admin/store/reviews?page=${page + 1}`} />
               </PaginationItem>
             )}
           </PaginationContent>

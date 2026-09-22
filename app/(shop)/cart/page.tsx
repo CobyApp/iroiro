@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/EmptyState";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getCartItems } from "@/modules/cart/lib/queries";
 import { getProductsByIds } from "@/modules/products/lib/queries";
@@ -73,16 +73,12 @@ export default async function CartPage() {
             주문 내역
           </Link>
         </div>
-        <div className="rounded-md border border-border bg-card p-12 text-center shadow-card">
-          <p className="mb-2 text-4xl">🛍️</p>
-          <p className="font-display text-foreground">장바구니가 비어 있어요</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            마음에 드는 토레카를 담아보세요
-          </p>
-          <Button asChild className="mt-5">
-            <Link href="/products">상품 둘러보기</Link>
-          </Button>
-        </div>
+        <EmptyState
+          emoji="🛍️"
+          title="장바구니가 비어 있어요"
+          description="마음에 드는 토레카를 담아보세요"
+          action={{ href: "/products", label: "상품 둘러보기" }}
+        />
       </div>
     );
   }

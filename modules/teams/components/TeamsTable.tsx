@@ -23,7 +23,7 @@ export function TeamsTable({ teams }: Props) {
   const router = useRouter();
 
   function navigateTo(id: number) {
-    router.push(`/catalog/teams/${id}/edit`);
+    router.push(`/admin/catalog/teams/${id}/edit`);
   }
 
   if (teams.length === 0) {
@@ -68,7 +68,7 @@ export function TeamsTable({ teams }: Props) {
               </p>
             </div>
             <Link
-              href={`/catalog/teams/${team.id}/edit`}
+              href={`/admin/catalog/teams/${team.id}/edit`}
               aria-label={`${team.name} 편집`}
               className="inline-flex h-11 shrink-0 items-center gap-1 rounded-md px-3 text-xs font-medium text-primary hover:bg-muted"
             >
@@ -123,7 +123,7 @@ export function TeamsTable({ teams }: Props) {
                 </TableCell>
                 <TableCell className="text-right">
                   <Link
-                    href={`/catalog/teams/${team.id}/edit`}
+                    href={`/admin/catalog/teams/${team.id}/edit`}
                     aria-label={`${team.name} 편집`}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-primary hover:bg-muted"

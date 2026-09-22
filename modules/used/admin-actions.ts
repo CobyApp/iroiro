@@ -6,14 +6,14 @@ import { requireUsedManager } from "@/modules/admin/lib/requireAdminSpace";
 import { usedBlockSchema, usedDismissReportSchema, usedListingIdSchema } from "./lib/schema";
 import * as reportLib from "./lib/report";
 
-// 중고거래 관리 공간(/market)의 처리 액션 — 모두 used 부분 권한(또는 site admin)만.
+// 중고거래 관리 공간(/admin/used)의 처리 액션 — 모두 used 부분 권한(또는 site admin)만.
 // 도메인 로직은 lib/report.ts(순수·테스트 대상), 여기선 가드·검증·revalidate 만 담당(룰 2·3).
 
 function revalidateMarket(): void {
-  revalidatePath("/market");
-  revalidatePath("/market/reports");
-  revalidatePath("/market/listings");
-  revalidatePath("/market/blocked");
+  revalidatePath("/admin/used");
+  revalidatePath("/admin/used/reports");
+  revalidatePath("/admin/used/listings");
+  revalidatePath("/admin/used/blocked");
 }
 
 // 매물 차단 — status=blocked 스탬프 + 미해결 신고 일괄 처리. 고객 목록·상세에서도 사라지므로 함께 revalidate.

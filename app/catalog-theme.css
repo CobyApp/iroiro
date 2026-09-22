@@ -1,4 +1,4 @@
-/* 카탈로그 공간(/catalog) 전용 유틸 — 토큰은 덮어쓰지 않는다.
+/* 카탈로그 공간(/admin/catalog) 전용 유틸 — 토큰은 덮어쓰지 않는다.
    시각 언어는 소비자·관리자와 같은 이로이로 디자인 시스템(app/globals.css · Storybook "Design System")을 그대로 쓰고,
    카탈로그만의 것은 "그룹 고유색"과 수치 표기 두 가지뿐이다. app/(catalog)/layout.tsx 가 import 한다. */
 

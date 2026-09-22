@@ -60,7 +60,7 @@ type Props = {
   filter: ProductFilter;
   teams: Team[];
   members: MemberWithTeams[];
-  /** 라우팅 prefix — 공개 페이지는 "/", 어드민은 "/delivery/products". */
+  /** 라우팅 prefix — 공개 페이지는 "/", 어드민은 "/admin/store/products". */
   basePath?: string;
   /** 판매 상태 필터 노출 — 어드민에서만 true (공개 페이지는 active 고정). */
   showSaleStatus?: boolean;

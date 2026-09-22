@@ -10,7 +10,7 @@ type Props = {
 export function ProductPhotoDownload({ product }: Props) {
   if (product.photos.length === 0) return null;
 
-  const zipHref = `/delivery/products/${product.id}/photos/download-all`;
+  const zipHref = `/admin/store/products/${product.id}/photos/download-all`;
 
   return (
     <Card>
@@ -27,7 +27,7 @@ export function ProductPhotoDownload({ product }: Props) {
 
         <ul className="divide-y rounded-sm border border-border">
           {product.photos.map((photo) => {
-            const href = `/delivery/products/${product.id}/photos/${photo.id}/download`;
+            const href = `/admin/store/products/${product.id}/photos/${photo.id}/download`;
             const order = String(photo.displayOrder + 1).padStart(2, "0");
             const filename = photo.r2Key.split("/").pop() ?? photo.r2Key;
             return (

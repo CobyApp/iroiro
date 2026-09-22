@@ -11,7 +11,7 @@ function revalidateModeration(code: string): void {
   revalidatePath("/posts");
   revalidatePath(`/posts/${code}`);
   revalidatePath("/posts/my");
-  revalidatePath("/board/posts");
+  revalidatePath("/admin/posts/posts");
 }
 
 export async function hidePost(
@@ -82,6 +82,6 @@ export async function dismissReport(input: unknown): Promise<ActionResult> {
     const admin = await requireBoardManager();
     const data = parseActionInput(dismissSchema, input);
     await m.dismissReport(admin, data);
-    revalidatePath("/board/posts");
+    revalidatePath("/admin/posts/posts");
   });
 }

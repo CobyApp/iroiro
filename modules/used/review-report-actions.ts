@@ -19,11 +19,11 @@ export async function reportUsedReview(input: unknown): Promise<ActionResult> {
     if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
     const data = parseActionInput(usedReviewReportCreateSchema, input);
     await reportLib.createUsedReviewReport(account.id, data);
-    revalidatePath("/market/review-reports");
+    revalidatePath("/admin/used/review-reports");
   });
 }
 
-// ── 중고거래 관리 공간(/market)의 후기 신고 처리 — 모두 used 부분 권한(또는 site admin)만.
+// ── 중고거래 관리 공간(/admin/used)의 후기 신고 처리 — 모두 used 부분 권한(또는 site admin)만.
 
 /** 후기 숨김 — hidden_* 스탬프 + 미해결 신고 일괄 처리. 판매자 상점에서 사라지므로 함께 revalidate. */
 export async function hideUsedReview(input: unknown): Promise<ActionResult> {
@@ -31,7 +31,7 @@ export async function hideUsedReview(input: unknown): Promise<ActionResult> {
     const admin = await requireUsedManager();
     const data = parseActionInput(usedReviewHideSchema, input);
     await reportLib.hideUsedReview(admin.id, data);
-    revalidatePath("/market/review-reports");
+    revalidatePath("/admin/used/review-reports");
     revalidatePath("/used");
   });
 }
@@ -42,7 +42,7 @@ export async function unhideUsedReview(input: unknown): Promise<ActionResult> {
     const admin = await requireUsedManager();
     const { reviewId } = parseActionInput(usedReviewIdSchema, input);
     await reportLib.unhideUsedReview(admin.id, reviewId);
-    revalidatePath("/market/review-reports");
+    revalidatePath("/admin/used/review-reports");
     revalidatePath("/used");
   });
 }
@@ -53,6 +53,6 @@ export async function dismissUsedReviewReport(input: unknown): Promise<ActionRes
     const admin = await requireUsedManager();
     const data = parseActionInput(usedReviewDismissSchema, input);
     await reportLib.dismissUsedReviewReport(admin.id, data);
-    revalidatePath("/market/review-reports");
+    revalidatePath("/admin/used/review-reports");
   });
 }

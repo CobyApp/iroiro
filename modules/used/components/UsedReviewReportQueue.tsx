@@ -119,7 +119,7 @@ export function UsedReviewReportQueue({ items, total, page, pageSize }: Props) {
           <PaginationContent>
             {page > 1 && (
               <PaginationItem>
-                <PaginationPrevious href={`/market/review-reports?page=${page - 1}`} />
+                <PaginationPrevious href={`/admin/used/review-reports?page=${page - 1}`} />
               </PaginationItem>
             )}
             <PaginationItem>
@@ -129,7 +129,7 @@ export function UsedReviewReportQueue({ items, total, page, pageSize }: Props) {
             </PaginationItem>
             {page < totalPages && (
               <PaginationItem>
-                <PaginationNext href={`/market/review-reports?page=${page + 1}`} />
+                <PaginationNext href={`/admin/used/review-reports?page=${page + 1}`} />
               </PaginationItem>
             )}
           </PaginationContent>

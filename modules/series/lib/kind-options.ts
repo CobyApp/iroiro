@@ -2,7 +2,7 @@ import { SERIES_KIND_LABEL, SERIES_KIND_OPTIONS } from "../kinds";
 
 // 시리즈 종류 — 클라이언트에서도 쓸 수 있는 순수 헬퍼. 정본은 DB(series_kind, kinds-queries.ts 로 조회)이고,
 // 코드 상수(kinds.ts)는 시드·폴백일 뿐이다. 서버 페이지가 listSeriesKinds() 결과를 폼에 prop 으로
-// 내려주고, 폼은 여기 헬퍼로 라벨·정렬·선택지를 만든다 — 관리자가 /catalog/kinds 에서 바꾼 값이 그대로 반영된다.
+// 내려주고, 폼은 여기 헬퍼로 라벨·정렬·선택지를 만든다 — 관리자가 /admin/catalog/kinds 에서 바꾼 값이 그대로 반영된다.
 
 /** DB series_kind 한 행에서 폼이 필요로 하는 부분(id 는 클라이언트에 필요 없다). */
 export type KindOption = { key: string; label: string; displayOrder: number };

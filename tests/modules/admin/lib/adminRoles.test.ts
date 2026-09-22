@@ -113,8 +113,8 @@ describe("primaryAdminHref — 최초 진입 홈", () => {
 
   it("부분 권한자는 ADMIN_SPACES 순서상 가진 첫 공간으로", () => {
     // ADMIN_SPACES 순서: delivery, used, community, catalog
-    expect(primaryAdminHref(account({ adminRoles: ["catalog", "community"] }))).toBe("/board");
-    expect(primaryAdminHref(account({ adminRoles: ["catalog"] }))).toBe("/catalog");
+    expect(primaryAdminHref(account({ adminRoles: ["catalog", "community"] }))).toBe("/admin/posts");
+    expect(primaryAdminHref(account({ adminRoles: ["catalog"] }))).toBe("/admin/catalog");
   });
 
   it("권한 없는 계정·null 은 null", () => {
