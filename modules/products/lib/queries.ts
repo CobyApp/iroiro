@@ -38,6 +38,7 @@ async function overlayCardDisplay<T extends ProductWithPhotos>(
       teamId: true,
       memberId: true,
       seriesId: true,
+      frontR2Key: true,
     },
   });
   const byId = new Map(cards.map((c) => [Number(c.id), c]));
@@ -45,6 +46,19 @@ async function overlayCardDisplay<T extends ProductWithPhotos>(
     if (p.catalogCardId == null) return p;
     const card = byId.get(p.catalogCardId);
     if (!card) return p;
+    // 이미지도 카드 앞면(front_r2_key)에서 실시간으로 — 카탈로그 이미지 교체가 즉시 반영된다.
+    // 카드 이미지는 products 버킷 cards/wm 에 있어 상품 사진과 같은 공개 베이스로 렌더된다.
+    const photos = card.frontR2Key
+      ? [
+          {
+            id: 0,
+            r2Key: card.frontR2Key,
+            altText: card.name,
+            displayOrder: 0,
+            isThumbnail: true,
+          },
+        ]
+      : p.photos;
     return {
       ...p,
       name: card.name,
@@ -52,6 +66,7 @@ async function overlayCardDisplay<T extends ProductWithPhotos>(
       teamId: card.teamId !== null ? Number(card.teamId) : null,
       memberId: card.memberId !== null ? Number(card.memberId) : null,
       seriesId: card.seriesId !== null ? Number(card.seriesId) : null,
+      photos,
     };
   });
 }
