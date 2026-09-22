@@ -16,9 +16,7 @@ import { settleProductIfDue } from "@/modules/auction/lib/settle";
 import {
   getProductById,
   listRelatedProducts,
-  listSiblingListings,
 } from "@/modules/products/lib/queries";
-import { SiblingListings } from "@/modules/products/components/SiblingListings";
 import { RecentPriceInfo } from "@/modules/products/components/RecentPriceInfo";
 import { ProductRow } from "@/modules/products/components/ProductRow";
 import { fetchJpyKrwRate, jpyToKrwPrice } from "@/modules/products/lib/fx";
@@ -98,15 +96,14 @@ export default async function ProductPage({ params }: { params: Params }) {
   const isAuction =
     product.saleMode === "auction" && product.auctionStatus !== null;
   // 최근 거래가는 정가 판매에도 참고 정보로 보여준다(같은 카드 기준).
-  // 형제 매물·연관 추천은 모든 상세에서 병렬 로드.
-  const [bids, recentTrades, siblings, related, fxRate] = await Promise.all([
+  // 스토어 상품은 카드별로 겹치지 않아 "이 카드의 다른 매물" 섹션은 두지 않는다. 연관 추천만 로드.
+  const [bids, recentTrades, related, fxRate] = await Promise.all([
     isAuction ? listRecentBids(product.id, account?.id ?? null, 50) : [],
     listRecentTradePrices({
       id: product.id,
       itemCode: product.itemCode,
       name: product.name,
     }),
-    listSiblingListings(product),
     listRelatedProducts(product, 8),
     product.marketAvgJpy > 0
       ? fetchJpyKrwRate(todayKstYmd())
@@ -179,7 +176,6 @@ export default async function ProductPage({ params }: { params: Params }) {
           marketAvgKrw={marketAvgKrw}
           marketSoldCount={product.marketSoldCount}
         />
-        <SiblingListings listings={siblings} />
       </div>
       <ProductReviewsSection
         productId={product.id}
