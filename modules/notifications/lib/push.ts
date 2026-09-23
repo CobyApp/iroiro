@@ -33,16 +33,35 @@ export type PushPayload = {
   link?: string;
 };
 
+// 발송 결과 요약 — 테스트/진단에서 실제 도달 여부를 사용자에게 보여주기 위해 반환한다.
+export type PushSendResult = {
+  configured: boolean;
+  total: number;
+  sent: number;
+  removed: number; // 만료(404/410)로 정리된 구독
+  failed: number; // 그 외 실패
+  errorCodes: number[]; // 실패 상태 코드(진단용)
+};
+
 export async function sendPushToAccount(
   accountId: string,
   payload: PushPayload,
-): Promise<void> {
-  if (!ensureConfigured()) return;
+): Promise<PushSendResult> {
+  const result: PushSendResult = {
+    configured: ensureConfigured(),
+    total: 0,
+    sent: 0,
+    removed: 0,
+    failed: 0,
+    errorCodes: [],
+  };
+  if (!result.configured) return result;
 
   const subscriptions = await db.pushSubscription.findMany({
     where: { accountId },
   });
-  if (subscriptions.length === 0) return;
+  result.total = subscriptions.length;
+  if (subscriptions.length === 0) return result;
 
   const body = JSON.stringify(payload);
   await Promise.all(
@@ -55,17 +74,22 @@ export async function sendPushToAccount(
           },
           body,
         );
+        result.sent += 1;
       } catch (error) {
         const statusCode = (error as { statusCode?: number }).statusCode;
         if (statusCode === 404 || statusCode === 410) {
           // 구독 만료/해지 — 죽은 endpoint 정리
+          result.removed += 1;
           await db.pushSubscription
             .delete({ where: { id: sub.id } })
             .catch(() => {});
         } else {
+          result.failed += 1;
+          if (typeof statusCode === "number") result.errorCodes.push(statusCode);
           console.error("[push] 발송 실패", { endpoint: sub.endpoint, error });
         }
       }
     }),
   );
+  return result;
 }
