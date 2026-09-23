@@ -10,6 +10,7 @@ import {
 } from "@/lib/action-result";
 import { db } from "@/lib/db";
 import { getCurrentAccount } from "@/modules/auth/dal";
+import { sendPushToAccount } from "./lib/push";
 
 async function requireAccountId(): Promise<string> {
   const account = await getCurrentAccount();
@@ -72,6 +73,25 @@ export async function savePushSubscription(input: {
       },
       update: { accountId, p256dh: data.keys.p256dh, auth: data.keys.auth },
     });
+  });
+}
+
+/** 이 기기(내 구독)로 테스트 푸시 발송 — 사용자가 실제 도착 여부를 직접 확인. */
+export async function sendTestPush(): Promise<ActionResult<{ sent: number }>> {
+  return runAction(async () => {
+    const accountId = await requireAccountId();
+    const subs = await db.pushSubscription.count({ where: { accountId } });
+    if (subs === 0) {
+      throw new DomainError(
+        "이 계정에 등록된 기기가 없어요. 먼저 이 기기에서 푸시 알림을 켜주세요.",
+      );
+    }
+    await sendPushToAccount(accountId, {
+      title: "이로이로 테스트 알림",
+      body: "이 알림이 보이면 이 기기 푸시가 정상 동작해요! 🎉",
+      link: "/mypage",
+    });
+    return { sent: subs };
   });
 }
 
