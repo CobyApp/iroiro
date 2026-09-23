@@ -151,7 +151,7 @@ export function MessageThreadClient({
   }
 
   return (
-    <div className="flex h-[calc(100vh-13rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="flex h-[calc(100dvh-15.5rem)] min-h-80 flex-col overflow-hidden rounded-2xl border border-border bg-card sm:h-[calc(100vh-12rem)]">
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {optimistic.length === 0 ? (
           <p className="py-16 text-center text-sm text-muted-foreground">
@@ -247,8 +247,8 @@ export function MessageThreadClient({
           }}
           rows={1}
           maxLength={2000}
-          placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
-          className="max-h-32 min-h-10 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="메시지 입력"
+          className="max-h-32 min-h-10 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
         />
         <Button
           type="button"
