@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createECDH } from "node:crypto";
 import webpush from "web-push";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -9,11 +10,29 @@ import { env } from "@/lib/env";
 
 let configured: boolean | null = null;
 
+// NEXT_PUBLIC_VAPID_PUBLIC_KEY 는 빌드타임 인라인 변수라 서버 런타임 process.env 에는
+// 없을 수 있다(ECS 태스크 env 미주입). 그럴 땐 개인키에서 공개키를 파생해 쓴다 —
+// 구독 시 쓰인 applicationServerKey(= 같은 개인키의 공개키)와 동일하므로 VAPID 서명이 유효하다.
+function derivePublicKey(privateKeyB64Url: string): string | null {
+  try {
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(Buffer.from(privateKeyB64Url, "base64url"));
+    return ecdh.getPublicKey().toString("base64url");
+  } catch {
+    return null;
+  }
+}
+
 function ensureConfigured(): boolean {
   if (configured !== null) return configured;
-  const pub = env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = env.VAPID_PRIVATE_KEY;
-  if (!pub || !priv) {
+  if (!priv) {
+    configured = false;
+    return false;
+  }
+  // 공개키: 빌드 인라인 값이 런타임에 있으면 사용, 없으면 개인키에서 파생.
+  const pub = env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || derivePublicKey(priv);
+  if (!pub) {
     configured = false;
     return false;
   }
