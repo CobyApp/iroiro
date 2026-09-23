@@ -603,6 +603,7 @@ model Order {
   deliveryAmount Int                  @map("delivery_amount")
   totalAmount    Int                  @map("total_amount")
   trackingCode   String?              @map("tracking_code")
+  courier        String?
   shippedAt      DateTime?            @map("shipped_at") @db.Timestamptz(6)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -947,6 +948,7 @@ model UsedTrade {
   recipientPhone   String?   @map("recipient_phone")
   recipientAddress String?   @map("recipient_address")
   postTrackingCode String?   @map("post_tracking_code")
+  courier          String?
   postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
   shippedAt        DateTime? @map("shipped_at") @db.Timestamptz(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
@@ -976,6 +978,7 @@ model UsedBundle {
   recipientPhone   String?   @map("recipient_phone")
   recipientAddress String?   @map("recipient_address")
   postTrackingCode String?   @map("post_tracking_code")
+  courier          String?
   postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
   shippedAt        DateTime? @map("shipped_at") @db.Timestamptz(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)

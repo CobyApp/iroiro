@@ -1,35 +1,29 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PackageCheck, QrCode, Truck } from "lucide-react";
+import { PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  confirmBundleReceived,
-  issueBundlePostQr,
-  markBundleShipped,
-} from "../bundle-actions";
+import { ShipmentForm } from "@/components/ShipmentForm";
+import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
+import { confirmBundleReceived, markBundleShipped } from "../bundle-actions";
 import { USED_BUNDLE_STATUS_LABEL, type UsedBundle } from "../types";
-import { MockQr } from "./MockQr";
 
 type Role = "seller" | "buyer";
 
-// 묶음 거래 진행 — 결제 → (판매자) QR·발송 → (구매자) 수령 확정.
+// 묶음 거래 진행 — 결제 → (판매자) 송장입력·발송 → (구매자) 수령 확정.
 export function BundleProgress({
   bundle,
   role,
-  tracking = null,
   autoConfirmNote = null,
 }: {
   bundle: UsedBundle;
   role: Role;
-  tracking?: { stateLabel: string; isMock: boolean } | null;
   autoConfirmNote?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [qrCode, setQrCode] = useState<string | null>(bundle.postTrackingCode);
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>, done: string) {
     startTransition(async () => {
@@ -78,45 +72,19 @@ export function BundleProgress({
       </dl>
 
       {role === "seller" && bundle.status === "paid" && (
-        <div className="space-y-2">
-          {qrCode ? (
-            <>
-              <MockQr code={qrCode} />
-              <p className="text-center text-xs text-muted-foreground">
-                한 상자에 함께 담아 이 QR로 접수해요 (체험판)
-              </p>
-              <Button
-                size="sm"
-                className="w-full gap-1.5"
-                disabled={pending}
-                onClick={() => run(() => markBundleShipped(bundle.id), "발송 처리했어요")}
-              >
-                <Truck className="h-4 w-4" />
-                발송 완료로 표시
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full gap-1.5"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  const result = await issueBundlePostQr(bundle.id);
-                  if (!result.ok) {
-                    toast.error(result.message);
-                    return;
-                  }
-                  setQrCode(result.data.trackingCode);
-                  toast.success("우체국 접수 QR을 발급했어요 (체험판)");
-                })
-              }
-            >
-              <QrCode className="h-4 w-4" />
-              우체국 접수 QR 발급
-            </Button>
-          )}
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">
+            한 상자에 함께 담아 접수한 뒤 택배사·송장번호를 입력하세요.
+          </p>
+          <ShipmentForm
+            pending={pending}
+            onSubmit={(courier, trackingCode) =>
+              run(
+                () => markBundleShipped(bundle.id, { courier, trackingCode }),
+                "발송 처리했어요",
+              )
+            }
+          />
         </div>
       )}
 
@@ -145,15 +113,20 @@ export function BundleProgress({
       )}
       {bundle.status === "shipped" && bundle.postTrackingCode && (
         <div className="space-y-0.5 border-t border-border pt-2 text-center text-xs text-muted-foreground">
-          {tracking && (
-            <p className="font-medium text-foreground">
-              배송 상태: {tracking.stateLabel}
-              {tracking.isMock && " (체험판)"}
-            </p>
-          )}
           <p>
-            등기번호 <span className="font-mono">{bundle.postTrackingCode}</span>
+            {courierLabel(bundle.courier)}{" "}
+            <span className="font-mono">{bundle.postTrackingCode}</span>
           </p>
+          {courierTrackingUrl(bundle.courier, bundle.postTrackingCode) && (
+            <a
+              href={courierTrackingUrl(bundle.courier, bundle.postTrackingCode)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-primary underline underline-offset-2"
+            >
+              배송 조회 →
+            </a>
+          )}
         </div>
       )}
     </div>

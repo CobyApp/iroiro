@@ -27,6 +27,7 @@ export function toOrder(row: PrismaOrder): Order {
     deliveryAmount: row.deliveryAmount,
     totalAmount: row.totalAmount,
     trackingCode: row.trackingCode ?? null,
+    courier: row.courier ?? null,
     shippedAt: row.shippedAt ? row.shippedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

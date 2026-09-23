@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatKstDateTime } from "@/lib/datetime";
-import { trackingPageUrl } from "@/lib/korea-post";
+import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
 import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
 import { OrderItemReviewButton } from "@/modules/reviews/components/OrderItemReviewButton";
 import { canReviewOrderStatus } from "@/modules/reviews/lib/rules";
@@ -113,19 +113,21 @@ export function OrderDetail({
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="text-muted-foreground">
-              등기번호{" "}
+              {courierLabel(order.courier)}{" "}
               <span className="font-medium text-foreground">
                 {order.trackingCode}
               </span>
             </p>
-            <a
-              href={trackingPageUrl(order.trackingCode)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary underline underline-offset-2"
-            >
-              우체국 배송 조회 →
-            </a>
+            {courierTrackingUrl(order.courier, order.trackingCode) && (
+              <a
+                href={courierTrackingUrl(order.courier, order.trackingCode)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary underline underline-offset-2"
+              >
+                배송 조회 →
+              </a>
+            )}
           </CardContent>
         </Card>
       )}
