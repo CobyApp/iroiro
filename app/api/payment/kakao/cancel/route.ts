@@ -3,6 +3,7 @@ import { publicUrl } from "@/lib/public-origin";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { failUsedTradePayment } from "@/modules/used/lib/checkout";
 import { failUsedBundlePayment } from "@/modules/used/lib/bundle-checkout";
+import { failOrderPayment } from "@/modules/orders/actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +15,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const account = await getCurrentAccount();
   const bundleId = Number(sp.get("bundle"));
   const tradeId = Number(sp.get("trade"));
+  const orderNo = sp.get("order");
   if (!account) {
     return NextResponse.redirect(publicUrl(request, "/used"));
+  }
+  if (orderNo) {
+    await failOrderPayment(orderNo, account.id);
+    return NextResponse.redirect(publicUrl(request, "/cart?paycancel=1"));
   }
   if (Number.isInteger(bundleId) && bundleId > 0) {
     await failUsedBundlePayment(bundleId, account.id);

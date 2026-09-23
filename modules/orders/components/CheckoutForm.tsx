@@ -123,6 +123,11 @@ export function CheckoutForm({
         toast.error(result.message);
         return;
       }
+      // 카카오페이 등 리다이렉트 결제 — 결제창으로 이동. 아니면 mock 결제 화면.
+      if (result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
+        return;
+      }
       router.push(`/checkout/${result.data.orderNo}/pay`);
     });
   }
