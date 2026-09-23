@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { redirect } from "next/navigation";
+import { AdminAccessNotice } from "@/modules/admin/components/AdminAccessNotice";
 import { connection } from "next/server";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { getCurrentAccount } from "@/modules/auth/dal";
@@ -41,8 +41,10 @@ export default async function BoardLayout({
   // 권한 가드 (룰 3) — 게시판 관리자(admin+moderator)만. 비로그인은 로그인으로, 권한 없으면 홈으로.
   // Server Action은 requireBoardManager/requireAdmin에서 재검증.
   const account = await getCurrentAccount();
-  if (!account) redirect("/login?returnTo=/admin/posts");
-  if (!hasAdminSpace(account, "community")) redirect("/");
+  if (!account) return <AdminAccessNotice mode="login" returnTo="/admin/posts" />;
+  if (!hasAdminSpace(account, "community")) {
+    return <AdminAccessNotice mode="forbidden" spaceLabel="커뮤니티" />;
+  }
 
   return (
     <AdminShell

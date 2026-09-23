@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { redirect } from "next/navigation";
+import { AdminAccessNotice } from "@/modules/admin/components/AdminAccessNotice";
 import { connection } from "next/server";
 import "@/app/catalog-theme.css";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
@@ -43,8 +43,10 @@ export default async function CatalogLayout({
   // 권한 가드 (룰 3) — 토레카 관리 권한(catalog) 또는 site admin. 비로그인은 로그인으로,
   // 권한 없으면 홈으로. Server Action은 requireCatalogManager에서 재검증.
   const account = await getCurrentAccount();
-  if (!account) redirect("/login?returnTo=/admin/catalog");
-  if (!hasAdminSpace(account, "catalog")) redirect("/");
+  if (!account) return <AdminAccessNotice mode="login" returnTo="/admin/catalog" />;
+  if (!hasAdminSpace(account, "catalog")) {
+    return <AdminAccessNotice mode="forbidden" spaceLabel="토레카" />;
+  }
 
   return (
     <AdminShell
