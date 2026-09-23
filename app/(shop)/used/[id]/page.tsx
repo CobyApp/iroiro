@@ -104,6 +104,12 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
             url: `${env.R2_PUBLIC_BASE}/${p.r2Key}`,
           }))}
           alt={listing.title}
+          unavailable={listing.status !== "active"}
+          statusLabel={
+            listing.status !== "active" && listing.status !== "reserved"
+              ? USED_STATUS_LABEL[listing.status]
+              : undefined
+          }
         />
         <div className="space-y-5">
           <div className="space-y-1.5">

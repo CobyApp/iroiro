@@ -17,11 +17,19 @@ export type CustomerProductPhoto = {
 type Props = {
   photos: CustomerProductPhoto[];
   altFallback: string;
+  // 품절·판매완료 등 구매 불가 상태면 대표 이미지를 흐리게 + 라벨을 얹는다(리스트 카드와 일관).
+  unavailable?: boolean;
+  statusLabel?: string;
 };
 
 // 상품 사진 히어로 + 3D 확대. 토레카는 앞면만 다루므로 뒤집기는 없다 —
 // 사진이 여러 장이면 아래 썸네일로 히어로를 바꾸고, 확대 버튼은 현재 사진을 3D 뷰어로 연다.
-export function ProductGallery({ photos, altFallback }: Props) {
+export function ProductGallery({
+  photos,
+  altFallback,
+  unavailable = false,
+  statusLabel,
+}: Props) {
   const [index, setIndex] = useState(0);
   const [viewer, setViewer] = useState<Viewer3DCard | null>(null);
 
@@ -40,9 +48,19 @@ export function ProductGallery({ photos, altFallback }: Props) {
           <ProductImage
             src={current.url}
             alt={current.altText ?? altFallback}
-            className="h-full w-full object-cover"
+            className={cn(
+              "h-full w-full object-cover",
+              unavailable && "opacity-50",
+            )}
             loading="eager"
           />
+          {unavailable && statusLabel && (
+            <div className="absolute inset-0 z-10 grid place-items-center">
+              <span className="rounded-full bg-foreground/70 px-4 py-1.5 text-sm font-semibold text-background">
+                {statusLabel}
+              </span>
+            </div>
+          )}
           <Button
             type="button"
             variant="outline"

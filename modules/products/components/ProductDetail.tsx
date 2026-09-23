@@ -33,6 +33,20 @@ export function ProductDetail({
   const isLastOne = product.stockQuantity === 1;
   const memberJa = member?.nameI18n?.["ja-jpan"];
 
+  // 대표 이미지 상태 처리 — 품절/판매완료/유찰이면 흐리게 + 라벨(리스트 카드와 일관).
+  const auctionLive = isAuction && product.auctionStatus === "live";
+  const auctionEnded = isAuction && !auctionLive && product.auctionStatus !== null;
+  const galleryUnavailable = isAuction ? auctionEnded : isSoldOut;
+  const galleryStatusLabel = isAuction
+    ? product.auctionStatus === "awarded"
+      ? "판매완료"
+      : product.auctionStatus === "passed"
+        ? "유찰"
+        : undefined
+    : isSoldOut
+      ? "품절"
+      : undefined;
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[420px_minmax(0,1fr)]">
       <div className="lg:sticky lg:top-24 lg:self-start">
@@ -43,6 +57,8 @@ export function ProductDetail({
             url: productDetailPhotoSrc(photo),
           }))}
           altFallback={product.name}
+          unavailable={galleryUnavailable}
+          statusLabel={galleryStatusLabel}
         />
       </div>
       <div className="space-y-6">
