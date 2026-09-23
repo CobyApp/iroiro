@@ -31,7 +31,7 @@ async function attachPhotosAndSellers(
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const sellerIds = [...new Set(rows.map((r) => r.sellerAccountId))];
-  const [photoRows, sellers] = await Promise.all([
+  const [photoRows, sellers, wishRows, commentRows] = await Promise.all([
     db.usedListingPhoto.findMany({
       where: { listingId: { in: ids } },
       orderBy: { displayOrder: "asc" },
@@ -39,6 +39,18 @@ async function attachPhotosAndSellers(
     db.account.findMany({
       where: { id: { in: sellerIds } },
       select: { id: true, displayName: true },
+    }),
+    // 매물별 찜 수 — 리스트 카드에 노출(관심도 지표).
+    db.usedWishlist.groupBy({
+      by: ["listingId"],
+      where: { listingId: { in: ids } },
+      _count: { _all: true },
+    }),
+    // 매물별 공개 댓글 수(삭제 제외) — 리스트 카드에 노출.
+    db.usedListingComment.groupBy({
+      by: ["listingId"],
+      where: { listingId: { in: ids }, deletedAt: null },
+      _count: { _all: true },
     }),
   ]);
   const photosBy = new Map<number, ReturnType<typeof toUsedListingPhoto>[]>();
@@ -49,10 +61,18 @@ async function attachPhotosAndSellers(
     photosBy.set(key, arr);
   }
   const nameBy = new Map(sellers.map((s) => [s.id, s.displayName]));
+  const wishBy = new Map(
+    wishRows.map((w) => [Number(w.listingId), w._count._all]),
+  );
+  const commentBy = new Map(
+    commentRows.map((c) => [Number(c.listingId), c._count._all]),
+  );
   return rows.map((row) => ({
     ...toUsedListing(row),
     photos: photosBy.get(Number(row.id)) ?? [],
     sellerName: nameBy.get(row.sellerAccountId) ?? "판매자",
+    wishCount: wishBy.get(Number(row.id)) ?? 0,
+    commentCount: commentBy.get(Number(row.id)) ?? 0,
   }));
 }
 
@@ -267,6 +287,18 @@ export async function listMyUsedPurchases(
 ): Promise<UsedTrade[]> {
   const rows = await db.usedTrade.findMany({
     where: { buyerAccountId: accountId, status: { not: "canceled" } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return rows.map(toUsedTrade);
+}
+
+// 내가 판매자인 거래 내역 — 완료 거래는 구매자에게 후기를 남길 수 있다(상호 후기).
+export async function listMyUsedSalesTrades(
+  accountId: string,
+): Promise<UsedTrade[]> {
+  const rows = await db.usedTrade.findMany({
+    where: { sellerAccountId: accountId, status: { not: "canceled" } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });

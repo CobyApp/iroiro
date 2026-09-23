@@ -1,8 +1,10 @@
 # 계정 연동·병합 설계
 
-소셜 로그인(카카오·네이버)으로 **같은 사람이 여러 `account`를 만드는 문제**를, 전화 인증을 축으로 하나의 회원으로 합치는 설계.
+소셜 로그인으로 **같은 사람이 여러 `account`를 만드는 문제**를, 검증 축으로 하나의 회원으로 합치는 설계(설계 기록).
 
-**구현 상태**: ✅ deferred 가입(닉네임 필수 입력 후 account 생성, `display_name` NOT NULL) 완료 — `pending_account` 테이블(쿠키엔 무작위 토큰, 세션과 동일 패턴)·`/signup`·`completeSignupAction`. ⏳ 전화 인증 온보딩 + dedup/병합(아래 슬라이스 3~6)은 미구현.
+> ⚠️ **현행(2026-09)**: 로그인 제공자는 **카카오 단일**(네이버 제거)이라 "여러 제공자로 중복 가입" 문제의 현실성은 낮아졌고, **전화 인증 온보딩은 도입하지 않기로 했다.** 아래 전화 인증·병합 슬라이스(3~6)는 미구현이며 당장 계획 없음. 본문의 카카오/네이버·전화 인증 표현은 설계 당시 다중 제공자 가정으로 읽어라.
+
+**구현 상태**: ✅ deferred 가입(닉네임 필수 입력 후 account 생성, `display_name` NOT NULL) 완료 — `pending_account` 테이블(쿠키엔 무작위 토큰, 세션과 동일 패턴)·`/signup`·`completeSignupAction`. ⏳ 전화 인증 온보딩 + dedup/병합은 미구현(도입 안 함).
 
 > 관련 코드: `modules/auth/`. 스키마: [`db/schema.sql`](../db/schema.sql)의 `init_account` 섹션. 무FK 정책: [lessons/05](./lessons/05-foreign-keys.md). 세션: [lessons/13](./lessons/13-session-vs-jwt.md).
 

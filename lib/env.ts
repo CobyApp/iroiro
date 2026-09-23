@@ -27,9 +27,9 @@ const envSchema = z
     // UGC 전용 비공개 버킷(§결정 8) — products 공개 버킷과 분리. 서빙은 서명 GET만.
     // 자격증명은 상품용 R2_*를 공유한다(2026-08-02) — 운영 토큰 스코프에 이 버킷도 포함할 것.
     R2_UGC_BUCKET: z.string().min(1).default("iroiro-ugc-dev"),
-    // 카탈로그(토레카 마스터) 이미지 버킷 — dev·prd 가 **하나를 공유**한다(카탈로그 DB 와 짝).
+    // 카탈로그(토레카 마스터) 이미지 버킷 — 환경별로 분리한다(iroiro-kr-catalog-<env>).
     // cards/wm/ 만 버킷 정책으로 공개(고객 화면), cards/clean/ 은 비공개(관리자 라우트 /media/catalog-clean 이 프록시).
-    // 자격증명은 R2_* 를 공유 — 두 환경 앱 IAM 사용자 모두 이 버킷 권한을 가져야 한다.
+    // 자격증명은 R2_* 를 공유(setup.sh catalog 가 앱 IAM 사용자에 버킷 권한 부여).
     CATALOG_BUCKET: z.string().min(1).default("iroiro-catalog-dev"),
     CATALOG_PUBLIC_BASE: z
       .string()
@@ -83,18 +83,6 @@ const envSchema = z
       z.string().min(1).default("amazon.titan-embed-image-v1"),
     ),
     BEDROCK_EMBED_DIMENSION: z.coerce.number().int().positive().default(1024),
-    // 우체국 국내우편 종적조회(배송추적) 오픈 API. 전부 선택 — KOREA_POST_API_KEY 가 없으면
-    // lib/korea-post 어댑터가 실 호출 없이 더미 상태를 돌려준다(CI·로컬 안전). 실 키는 SSM.
-    KOREA_POST_API_BASE: z.preprocess(
-      emptyToUndefined,
-      z
-        .string()
-        .url()
-        .default(
-          "http://openapi.epost.go.kr/trace/retrieveLongitudinalCombinedService/retrieveLongitudinalCombinedService/getLongitudinalCombinedList",
-        ),
-    ),
-    KOREA_POST_API_KEY: optionalString,
   });
 
 export const env = envSchema.parse(process.env);
@@ -102,6 +90,3 @@ export const env = envSchema.parse(process.env);
 // 이미지 분석 활성화 조건 = 리전 설정. 자격증명은 런타임에 정적 키 또는 자격증명 체인에서
 // 해석하며(lib/vision/client.ts), 해석 실패 시 분석만 조용히 건너뛴다(fail-soft).
 export const isVisionConfigured = Boolean(env.BEDROCK_REGION);
-
-// 배송추적 실연동 활성화 조건 = 우체국 API 키. 없으면 lib/korea-post 가 더미 상태로 폴백.
-export const isKoreaPostConfigured = Boolean(env.KOREA_POST_API_KEY);

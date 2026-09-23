@@ -29,9 +29,25 @@ const addrCount = vi.fn();
 const addrCreate = vi.fn();
 const addrDelete = vi.fn();
 
+const paymentUpdateMany = vi.fn();
+
+// 카카오페이(redirect) provider 로 mock — placeOrder 가 ready()→redirectUrl 경로를 타 즉시결제 settle 을 건너뛴다.
+vi.mock("@/lib/payments/checkout", () => ({
+  getCheckoutProvider: () => ({
+    provider: "kakaopay",
+    kind: "redirect",
+    ready: async () => ({ ok: true, tid: "T-1", redirectUrl: "https://kakao/pay" }),
+  }),
+}));
+vi.mock("@/lib/public-origin", () => ({
+  publicOriginFromHeaders: async () => "https://test.iroiro.club",
+  isMobileFromHeaders: async () => false,
+}));
+
 vi.mock("@/lib/db", () => ({
   db: {
     $queryRaw: queryRaw,
+    payment: { updateMany: paymentUpdateMany },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         cartItem: { findMany: cartFindMany, deleteMany: cartDeleteMany },
@@ -124,6 +140,7 @@ beforeEach(() => {
   addrCount.mockReset().mockResolvedValue(0);
   addrCreate.mockReset().mockResolvedValue({});
   addrDelete.mockReset().mockResolvedValue({});
+  paymentUpdateMany.mockReset().mockResolvedValue({ count: 1 });
 });
 
 describe("placeOrder", () => {
@@ -161,7 +178,7 @@ describe("placeOrder", () => {
     });
     expect(paymentCreate.mock.calls[0][0].data).toMatchObject({
       status: "ready",
-      provider: "mock",
+      provider: "kakaopay",
       requestedAmount: 23000,
     });
     expect(historyCreate.mock.calls[0][0].data).toMatchObject({

@@ -19,7 +19,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const orderNo = sp.get("order");
 
   if (!account || !pgToken) {
-    return NextResponse.redirect(publicUrl(request, "/used?payfail=1"));
+    return NextResponse.redirect(
+      publicUrl(request, "/payment/result?status=fail"),
+    );
   }
 
   // 스토어 주문 결제 승인.
@@ -28,9 +30,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(
       publicUrl(
         request,
-        result.ok
-          ? `/orders/${orderNo}/complete`
-          : `/checkout?payfail=1`,
+        `/payment/result?kind=order&order=${encodeURIComponent(orderNo)}&status=${result.ok ? "paid" : "fail"}`,
       ),
     );
   }
@@ -38,19 +38,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // 묶음 결제 승인.
   if (Number.isInteger(bundleId) && bundleId > 0) {
     const result = await approveUsedBundlePayment(bundleId, pgToken, account.id);
-    const base = result.bundleId ? `/used/bundle/${result.bundleId}` : "/mypage/used";
+    const id = result.bundleId ?? bundleId;
     return NextResponse.redirect(
-      publicUrl(request, result.ok ? `${base}?paid=1` : `${base}?payfail=1`),
+      publicUrl(
+        request,
+        `/payment/result?kind=bundle&id=${id}&status=${result.ok ? "paid" : "fail"}`,
+      ),
     );
   }
 
   // 단건 거래 승인.
   if (!Number.isInteger(tradeId) || tradeId <= 0) {
-    return NextResponse.redirect(publicUrl(request, "/used?payfail=1"));
+    return NextResponse.redirect(
+      publicUrl(request, "/payment/result?status=fail"),
+    );
   }
   const result = await approveUsedTradePayment(tradeId, pgToken, account.id);
-  const base = result.listingId ? `/used/${result.listingId}` : "/mypage/used";
+  const listingId = result.listingId;
+  const detail = listingId
+    ? `&kind=trade&id=${listingId}`
+    : "";
   return NextResponse.redirect(
-    publicUrl(request, result.ok ? `${base}?paid=1` : `${base}?payfail=1`),
+    publicUrl(
+      request,
+      `/payment/result?status=${result.ok ? "paid" : "fail"}${detail}`,
+    ),
   );
 }

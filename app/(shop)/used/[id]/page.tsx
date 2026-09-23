@@ -20,6 +20,8 @@ import { UsedRow } from "@/modules/used/components/UsedRow";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { getPointBalance } from "@/modules/points/lib/queries";
 import { UsedPhotoGallery } from "@/modules/used/components/UsedPhotoGallery";
+import { UsedCommentSection } from "@/modules/used/components/UsedCommentSection";
+import { listUsedComments } from "@/modules/used/lib/comments";
 import { MessageUserButton } from "@/modules/messages/components/MessageUserButton";
 import {
   PRODUCT_CONDITION_BADGE_CLASS,
@@ -52,11 +54,12 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
   const listing = await getUsedListingById(listingId);
   if (!listing || listing.status === "blocked") notFound();
 
-  const [account, trade, teams, members] = await Promise.all([
+  const [account, trade, teams, members, comments] = await Promise.all([
     getCurrentAccount(),
     getActiveTradeForListing(listingId),
     listTeams(),
     listMembers(),
+    listUsedComments(listingId),
   ]);
   const [usedWishedIds, pointBalance] = account
     ? await Promise.all([
@@ -101,6 +104,12 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
             url: `${env.R2_PUBLIC_BASE}/${p.r2Key}`,
           }))}
           alt={listing.title}
+          unavailable={listing.status !== "active"}
+          statusLabel={
+            listing.status !== "active" && listing.status !== "reserved"
+              ? USED_STATUS_LABEL[listing.status]
+              : undefined
+          }
         />
         <div className="space-y-5">
           <div className="space-y-1.5">
@@ -219,6 +228,14 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
           />
         </section>
       )}
+
+      {/* 공개 댓글 — 모든 회원이 이 매물에 대해 대화할 수 있다(비공개 쪽지와 별개). */}
+      <UsedCommentSection
+        listingId={listing.id}
+        comments={comments}
+        isLoggedIn={account !== null}
+        viewerAccountId={account?.id ?? null}
+      />
     </div>
   );
 }

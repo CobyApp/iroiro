@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { reencodeToBlob } from "@/lib/photo-client";
 import {
   createBanner,
   uploadBannerImageFile,
@@ -13,6 +14,9 @@ import {
 import type { Banner } from "@/modules/banners/types";
 
 const ALLOWED = ["image/png", "image/jpeg", "image/webp"];
+// 업로드 전 클라이언트 리사이즈 상한(긴 변) — 서버 액션 바디 한도(10MB) 초과로 인한
+// 업로드 실패를 막는다. 배너는 가로가 길어 2048px면 충분히 선명하다.
+const BANNER_MAX_DIMENSION = 2048;
 
 function Field({
   label,
@@ -53,25 +57,41 @@ export function BannerForm({
     initialImageUrl ?? null,
   );
   const [uploading, setUploading] = useState(false);
+  // 생성한 blob 미리보기 URL 추적 — 교체·언마운트 시 해제(메모리 누수 방지).
+  const blobUrlRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    };
+  }, []);
+
+  // 선택 즉시 미리보기를 띄우고, 업로드 전 클라이언트에서 리사이즈해 전송한다.
   function handleFile(file: File) {
     if (!ALLOWED.includes(file.type)) {
       toast.error("PNG·JPG·WEBP 이미지만 가능합니다.");
       return;
     }
-    setUploading(true);
+    // 즉시 로컬 미리보기(업로드 완료를 기다리지 않는다). 이전 blob URL은 해제.
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     const localUrl = URL.createObjectURL(file);
+    blobUrlRef.current = localUrl;
+    setPreview(localUrl);
+    setUploading(true);
     (async () => {
       try {
+        // 업로드 전 리사이즈 — 큰 사진이 서버 액션 바디 한도(10MB)를 넘어 실패하던 문제를 막는다.
+        const resized = await reencodeToBlob(file, BANNER_MAX_DIMENSION);
         // 서버 경유 업로드 — R2 버킷 CORS 미설정으로 직접 PUT은 차단된다.
         const formData = new FormData();
-        formData.set("file", file, file.name);
+        formData.set("file", resized, file.name || "banner");
         const { key } = await uploadBannerImageFile(formData);
         setImageKey(key);
-        setPreview(localUrl);
         toast.success("이미지를 업로드했습니다.");
-      } catch {
-        toast.error("이미지 업로드에 실패했습니다.");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "이미지 업로드에 실패했습니다.",
+        );
       } finally {
         setUploading(false);
       }

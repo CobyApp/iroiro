@@ -1,16 +1,16 @@
 # 인증과 데이터 레이어
 
-> 자체 세션 인증(카카오·네이버 OAuth) · Prisma(`app` 롤) · S3 호환 객체 스토리지(`lib/r2/`)의 **운영 규칙**.
+> 자체 세션 인증(카카오 OAuth) · Prisma(`app` 롤) · S3 호환 객체 스토리지(`lib/r2/`)의 **운영 규칙**.
 > 스키마의 모양은 [data-modeling.md](./data-modeling.md), GRANT-대신-RLS 결정의 근거는 [db-authorization-review.md](./db-authorization-review.md), 배포·인프라는 [../deployment.md](../deployment.md).
 
 > **절대 URL 리다이렉트 규칙.** Route Handler에서 `NextResponse.redirect`에 넘길 절대 URL은 `lib/public-origin.ts`의 `publicUrl(request, path)`로 만든다. ALB 뒤의 컨테이너는 `request.url`에 내부 호스트(`ip-172-31-x.compute.internal:3000`)가 들어오므로 `new URL(path, request.url)`을 쓰면 사용자가 내부 주소로 튕긴다. 우선순위: `APP_URL` → `X-Forwarded-Host/Proto` → 요청 origin.
 
 > **저장 시 이미지 규격(서버, 2026-09-18).** 업로드 서버 액션이 저장 직전에 sharp로 재인코딩한다 — oshikore-card `core/image_utils.py`의 1:1 포팅.
 > 카드 사진(`uploadCardPhoto`)은 `modules/cards/lib/normalize-card-server.ts`: EXIF 보정 → 63:88 중앙 크롭 → 720×1006 → JPEG q82 progressive.
-> 상품(`uploadProductPhotoFile`, 긴 변 2000)·중고 매물(`uploadUsedPhotoFile`, 긴 변 1600) 사진은 `lib/image/compress-image.ts`: 크롭 없이 비율 유지·JPEG q82.
+> 상품(`uploadProductPhotoFile`, 긴 변 2000)·중고 매물(`uploadUsedPhotoFile`, 긴 변 1600) 사진은 `lib/image/compress-image.ts`: 크롭 없이 비율 유지·JPEG q82. **중고 매물 사진은 저장 시 브랜드 워터마크를 굽고 압축본 1장만 저장한다(원본 미저장, 도용 방지).**
 > 세 액션은 저장된 객체의 공개 URL(`previewUrl`)을 돌려주고, 업로더 컴포넌트는 그 URL을 미리보기로 쓴다 — 사용자가 보는 미리보기 = 실제 저장 결과물.
 
-## 인증 — 자체 세션 + 카카오·네이버 OAuth
+## 인증 — 자체 세션 + 카카오 OAuth
 
 외부 인증 SaaS·라이브러리(NextAuth, Better-auth 등)를 쓰지 않는다. OAuth 왕복과 세션 관리를 `modules/auth/`가 직접 구현한다(룰 4).
 
@@ -173,7 +173,8 @@ lib/r2/
 |---|---|
 | 스토리지 | `R2_ENDPOINT`, `R2_REGION`(로컬·MinIO `auto`, AWS `ap-northeast-2`), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE`, `R2_UGC_BUCKET`, `CATALOG_BUCKET`, `CATALOG_PUBLIC_BASE` |
 | DB | `DATABASE_URL`(`app` 롤), 마이그레이션 태스크 전용 `DATABASE_URL_OWNER`, 테스트 정리용 `DATABASE_URL_PRIVILEGED` |
-| OAuth | `APP_URL`, `KAKAO_REST_API_KEY`(필수), `KAKAO_CLIENT_SECRET`, `KAKAO_SCOPE`, `NAVER_CLIENT_ID`·`NAVER_CLIENT_SECRET`(필수) |
-| 기타 | `PAYMENT_PROVIDER=mock`, VAPID 3종, `FX_API_BASE`, `CRON_SECRET` |
+| OAuth | `APP_URL`, `KAKAO_REST_API_KEY`(필수), `KAKAO_CLIENT_SECRET`, `KAKAO_SCOPE` |
+| 결제 | `PAYMENT_PROVIDER=kakaopay`, `KAKAO_PAY_SECRET_KEY`, `KAKAO_PAY_CID` |
+| 기타 | VAPID 3종, `FX_API_BASE`, `CRON_SECRET`, `BEDROCK_*`(카드 임베딩·선택) |
 
 전체 목록·필수 구분·값 출처는 [../environment-variables.md](../environment-variables.md). 운영 값은 SSM Parameter Store `/iroiro/<env>/*`에 두고 ECS 태스크가 기동 시 주입한다([../deployment.md](../deployment.md)).

@@ -49,28 +49,26 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 | `CATALOG_BUCKET` | ⚙️ 운영 필수 | 카탈로그(토레카 앞면) 버킷 — **환경별** `iroiro-kr-catalog-<env>`(운영 `iroiro-kr-catalog-dev` / `iroiro-kr-catalog-prd`, 로컬 MinIO `iroiro-catalog-dev`). 카드 한 장 = `cards/wm/<uuid>.jpg`(워터마크·공개) + `cards/clean/<uuid>.jpg`(원본·비공개, `/media/catalog-clean` 관리자 라우트로만). 버킷 정책은 `cards/wm/*`만 public read. 자격증명은 `R2_*` 공유(`setup.sh catalog`) |
 | `CATALOG_PUBLIC_BASE` | ⚙️ 운영 필수 | 카탈로그 버킷 공개 URL 베이스 — 고객 화면의 카드 이미지(`cardFrontUrl`). 운영 `https://iroiro-kr-catalog-<env>.s3.ap-northeast-2.amazonaws.com` |
 
-## OAuth 소셜 로그인 (카카오 · 네이버)
+## OAuth 소셜 로그인 (카카오)
 
-발급·콘솔 등록·환경별 콜백 URL: [oauth-setup.md](./oauth-setup.md)
+발급·콘솔 등록·환경별 콜백 URL: [oauth-setup.md](./oauth-setup.md) (네이버 로그인은 2026-09 제거 — 카카오 단일)
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `KAKAO_REST_API_KEY` 🔒 | ✅ 필수 | 카카오 REST API 키. 카카오 개발자 › 앱 › 앱 키. SSM |
-| `NAVER_CLIENT_ID` 🔒 | ✅ 필수 | 네이버 Client ID. 네이버 개발자 › 애플리케이션 › 개요. SSM |
-| `NAVER_CLIENT_SECRET` 🔒 | ✅ 필수 | 네이버 Client Secret. SSM |
-| `APP_URL` | ◯ 선택(운영은 고정) | OAuth 콜백 베이스. `redirect_uri = {APP_URL}/api/auth/{provider}/callback`(시작·콜백 양쪽, `buildCallbackUrl`이 끝 슬래시 제거). 미설정 시 요청 origin으로 폴백. 운영은 `setup.sh ecs`가 `https://iroiro.club` / `https://dev.iroiro.club`로 고정 — 콘솔 등록 Redirect URI와 일치해야 함 |
+| `KAKAO_REST_API_KEY` 🔒 | ✅ 필수 | 카카오 REST API 키. 카카오 개발자 › 앱 › 앱 키. SSM. **유일한 필수 env** — 비면 부팅이 ZodError로 실패 |
+| `APP_URL` | ◯ 선택(운영은 고정) | OAuth·결제 콜백 베이스. `redirect_uri = {APP_URL}/api/auth/kakao/callback`(시작·콜백 양쪽, `buildCallbackUrl`이 끝 슬래시 제거). 미설정 시 요청 origin으로 폴백. 운영은 `setup.sh ecs`가 `https://iroiro.club` / `https://dev.iroiro.club`로 고정 — 콘솔 등록 Redirect URI와 일치해야 함 |
 | `KAKAO_CLIENT_SECRET` 🔒 | ◯ 조건부 | 카카오 콘솔에서 Client Secret **'사용' 상태**면 필수(비우면 `oauth_failed`). 안 켰으면 불필요. SSM |
 | `KAKAO_SCOPE` | ◯ 선택 | 동의항목(scope). 기본 `profile_nickname`. 이메일까지 받으려면 비즈 앱 + `profile_nickname,account_email`. 운영 태스크 정의에는 없음(기본값) |
 
 ## 관리자 접근 통제
 
-`/admin` 접근 통제는 `app/(admin)/layout.tsx`의 계정 인가(`account.is_admin`)가 단독으로 담당한다. 전용 환경변수는 없다([admin-architecture](./admin-architecture.md)).
+`/admin` 접근 통제는 각 공간 layout의 계정 인가가 담당한다 — 전권 site admin(`account.is_admin`) + 공간별 부분 권한(`account.admin_roles` 배열: `delivery`·`used`·`community`·`catalog`, `hasAdminSpace` 가드). 전용 환경변수는 없다([admin-architecture](./admin-architecture.md)).
 
 ## 스케줄러
 
 | 변수 | 구분 | 설명 / 값 출처 |
 |---|---|---|
-| `CRON_SECRET` 🔒 | ◯ 선택(운영 권장) | `GET /api/cron/close-auctions`(경매 마감 스윕)·`GET /api/cron/auto-confirm-used`(중고 자동 수령확정 스윕) 보호 토큰. 설정돼 있으면 `Authorization: Bearer ${CRON_SECRET}` 일치 필수, 없으면 라우트가 무인증으로 열린다. `env.ts` 검증 밖(`process.env` 직접 참조). 운영: `setup.sh core`가 자동 생성해 SSM에 넣고, `setup.sh cron`이 EventBridge API destination(10분 간격)에 같은 값을 헤더로 심는다. 로컬은 보통 미설정 |
+| `CRON_SECRET` 🔒 | ◯ 선택(운영 권장) | 크론 라우트 3종 보호 토큰 — `GET /api/cron/close-auctions`(경매 마감 스윕)·`GET /api/cron/auto-confirm-used`(중고 자동 수령확정)·`GET /api/cron/auto-confirm-orders`(스토어 자동 수령확정). 설정돼 있으면 `Authorization: Bearer ${CRON_SECRET}` 일치 필수, 없으면 무인증으로 열린다. `env.ts` 검증 밖(`process.env` 직접 참조). 운영: `setup.sh core`가 자동 생성해 SSM에 넣고, `setup.sh cron`이 EventBridge API destination에 같은 값을 헤더로 심는다. 자동확정 크론은 없어도 페이지 진입 시 lazy 스윕으로 동작한다. 로컬은 보통 미설정 |
 
 ## 웹 푸시 (VAPID)
 
@@ -88,15 +86,26 @@ CI 빌드(`deploy.yml`)는 필수 키에 `build-placeholder`를 넣어 `env.ts` 
 |---|---|---|
 | `FX_API_BASE` | ◯ 선택 | 매입일 환율(JPY→KRW) 조회 API. 기본 [Frankfurter](https://frankfurter.dev)(ECB 기준, 키 불필요, 과거 영업일 지원). 정식 호스트는 `https://api.frankfurter.dev/v1` — `.app` 도메인은 301 리다이렉트 |
 | `KAKAO_PAY_CID` | ◯ 선택 | 카카오페이 단건결제 CID. 기본값은 카카오 공식 테스트 CID `TC0ONETIME`. 실 계약 CID 는 환경별로 지정 |
-| `KAKAO_PAY_SECRET_KEY` 🔒 | ◯ 조건부 | 카카오페이 Secret key. `PAYMENT_PROVIDER=kakaopay` 일 때 필요 — 없으면 mock(즉시 결제)으로 폴백한다(키 없이도 CI·로컬 안전). 실 키는 SSM |
-| `KOREA_POST_API_BASE` | ◯ 선택 | 우체국 국내우편 종적조회(배송추적) 오픈 API 엔드포인트. 기본값 있음(보통 미설정) |
-| `KOREA_POST_API_KEY` 🔒 | ◯ 선택 | 우체국 배송추적 API 서비스키(공공데이터포털 15035122). 없으면 `lib/korea-post` 가 실 호출 없이 더미 상태를 돌려준다. 실 키는 SSM |
+| `KAKAO_PAY_SECRET_KEY` 🔒 | ◯ 조건부 | 카카오페이 Secret key. `PAYMENT_PROVIDER=kakaopay` 일 때 필요 — 없으면 mock(즉시 결제)으로 폴백한다(키 없이도 CI·로컬 안전). 실 키는 SSM. 운영(dev·prd) 활성화됨 |
+
+배송 추적은 유료 API 없이 택배사 공개 조회 링크(`lib/shipping/couriers.ts`) 방식이라 관련 env 가 없다(우체국 API·자동 송장 미사용).
+
+### 카드 이미지 임베딩 (AWS Bedrock, 선택)
+
+관리 카탈로그의 유사 카드 검색용 벡터 임베딩. 미설정이면 임베딩 기능만 비활성(카탈로그 기본 동작은 유지). 모두 `lib/env.ts` 정의.
+
+| 변수 | 구분 | 설명 |
+|---|---|---|
+| `BEDROCK_REGION` | ◯ 선택 | Bedrock 리전(기본 `ap-northeast-2`) |
+| `BEDROCK_ACCESS_KEY_ID` 🔒 / `BEDROCK_SECRET_ACCESS_KEY` 🔒 | ◯ 선택 | Bedrock 전용 자격증명(미지정 시 `BEDROCK_PROFILE` 또는 기본 자격증명 체인) |
+| `BEDROCK_PROFILE` | ◯ 선택 | 로컬에서 쓸 AWS 프로파일명 |
+| `BEDROCK_EMBED_MODEL_ID` / `BEDROCK_EMBED_DIMENSION` | ◯ 선택 | 임베딩 모델 ID·차원 |
 
 ## 런타임 토글
 
 | 변수 | 구분 | 설명 |
 |---|---|---|
-| `PAYMENT_PROVIDER` | ◯ 선택 | 결제 게이트웨이 어댑터. 기본 `mock`(즉시 결제). 중고 안전거래 리다이렉트 결제는 `kakaopay`(단, `KAKAO_PAY_SECRET_KEY` 없으면 mock 폴백). 실 스토어 PG 도입 시 `lib/env.ts` enum 확장 + `lib/payments` 어댑터 구현 |
+| `PAYMENT_PROVIDER` | ◯ 선택 | 결제 어댑터. 기본 `mock`(즉시 결제, 키 없이 CI·로컬). 운영은 `kakaopay`(스토어 주문·중고 안전거래 모두 카카오페이 ready→리다이렉트→approve). `KAKAO_PAY_SECRET_KEY` 없으면 자동 mock 폴백. 운영 태스크 정의는 `kakaopay` 고정([order-checkout-payment.md](./order-checkout-payment.md)) |
 
 ## 자동 설정 (구성 불필요)
 

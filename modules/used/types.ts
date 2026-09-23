@@ -47,7 +47,6 @@ export const USED_CARD_ITEM_TYPE: UsedItemType = "photocard";
 export const USED_SHIPPING_LABEL = {
   post: "우체국 준등기",
   parcel: "택배",
-  direct: "직거래",
 } as const satisfies Record<string, string>;
 export type UsedShippingMethod = keyof typeof USED_SHIPPING_LABEL;
 export const USED_SHIPPING_METHODS = Object.keys(USED_SHIPPING_LABEL) as [
@@ -134,7 +133,27 @@ export type UsedListing = {
 export type UsedListingWithPhotos = UsedListing & {
   photos: UsedListingPhoto[];
   sellerName: string;
+  // 이 매물을 찜한 사용자 수 — 리스트 카드 관심도 표시.
+  wishCount: number;
+  // 이 매물의 공개 댓글 수(삭제 제외) — 리스트 카드 표시.
+  commentCount: number;
 };
+
+// ── 중고 매물 공개 댓글 ─────────────────────────────────────────────────────
+export type UsedComment = {
+  id: number;
+  listingId: number;
+  accountId: string;
+  authorName: string;
+  parentId: number | null;
+  body: string; // 삭제된 댓글은 마스킹된 문구
+  deleted: boolean;
+  edited: boolean;
+  createdAt: string;
+};
+
+// 1단계 스레드 — 최상위 댓글 + 대댓글 배열.
+export type UsedCommentNode = UsedComment & { replies: UsedComment[] };
 
 export type UsedTrade = {
   id: number;

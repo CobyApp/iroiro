@@ -26,6 +26,7 @@ import { UsedFaveSection } from "@/modules/used/components/UsedFaveSection";
 import { EmptyState } from "@/components/EmptyState";
 import { HScroll } from "@/components/HScroll";
 import { InPageSearchBar } from "../_components/HeaderLeading";
+import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 
 export const metadata: Metadata = { title: "중고거래" };
 
@@ -149,15 +150,17 @@ export default async function UsedHomePage({
 
   return (
     <div className="shop-page-frame space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-foreground">중고거래</h1>
-        <Button asChild size="sm" className="gap-1.5">
-          <Link href="/used/new">
-            <Plus className="h-4 w-4" />
-            판매하기
-          </Link>
-        </Button>
-      </div>
+      <ShopPageHeader
+        title="중고거래"
+        action={
+          <Button asChild size="sm" className="gap-1.5">
+            <Link href="/used/new">
+              <Plus className="h-4 w-4" />
+              판매하기
+            </Link>
+          </Button>
+        }
+      />
 
       {/* 데스크톱 검색바 — 타이틀 아래(모바일은 상단 헤더 검색). */}
       <InPageSearchBar />

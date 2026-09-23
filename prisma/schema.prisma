@@ -437,6 +437,24 @@ model PostComment {
   @@map("post_comment")
 }
 
+model UsedListingComment {
+  id        BigInt    @id @default(autoincrement())
+  listingId BigInt    @map("listing_id")
+  accountId String    @map("account_id") @db.Uuid
+  parentId  BigInt?   @map("parent_id")
+  body      String
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  editedAt  DateTime? @map("edited_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([listingId], map: "used_listing_comment_listing_idx")
+  @@index([parentId], map: "used_listing_comment_parent_idx")
+  @@index([accountId, createdAt], map: "used_listing_comment_account_created_at_idx")
+  @@index([createdAt], map: "used_listing_comment_created_at_idx")
+  @@map("used_listing_comment")
+}
+
 model PostReport {
   id                BigInt    @id @default(autoincrement())
   postId            BigInt    @map("post_id")
@@ -867,6 +885,7 @@ model UsedReview {
   listingId         BigInt   @map("listing_id")
   reviewerAccountId String   @map("reviewer_account_id") @db.Uuid
   sellerAccountId   String   @map("seller_account_id") @db.Uuid
+  revieweeAccountId String   @map("reviewee_account_id") @db.Uuid
   rating            Int
   comment           String?
   hiddenAt          DateTime? @map("hidden_at") @db.Timestamptz(6)
@@ -875,10 +894,13 @@ model UsedReview {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  @@unique([tradeId], map: "used_review_trade_unique")
+  @@unique([tradeId, reviewerAccountId], map: "used_review_trade_reviewer_unique")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_created_idx")
   @@index([listingId], map: "used_review_listing_idx")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_visible_idx", where: raw("(hidden_at IS NULL)"))
+  @@index([revieweeAccountId, createdAt(sort: Desc)], map: "used_review_reviewee_created_idx")
+  @@index([revieweeAccountId, createdAt(sort: Desc)], map: "used_review_reviewee_visible_idx", where: raw("(hidden_at IS NULL)"))
+  @@index([reviewerAccountId, createdAt(sort: Desc)], map: "used_review_reviewer_created_idx")
   @@map("used_review")
 }
 

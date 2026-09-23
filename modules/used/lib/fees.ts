@@ -64,7 +64,3 @@ export function calcUsedBundleFees(input: {
     shippingSaved,
   };
 }
-
-// 우체국 등기번호 목업 — 포맷 정의는 lib/korea-post 로 이관(배송추적 어댑터와 단일 소스).
-// 기존 import 경로 호환을 위해 재노출한다.
-export { mockPostTrackingCode } from "@/lib/korea-post/format";

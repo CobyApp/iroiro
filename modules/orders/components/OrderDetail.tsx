@@ -7,9 +7,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatKstDateTime } from "@/lib/datetime";
+import { formatKstDate, formatKstDateTime } from "@/lib/datetime";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
-import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
+import { ORDER_AUTO_CONFIRM_MS } from "../lib/settle-order";
+import { OrderReceiptConfirm } from "./OrderReceiptConfirm";
+import {
+  collectionThumbnailUrl,
+  productGridThumbnailUrl,
+} from "@/modules/products/lib/customer-media";
 import { OrderItemReviewButton } from "@/modules/reviews/components/OrderItemReviewButton";
 import { canReviewOrderStatus } from "@/modules/reviews/lib/rules";
 import type { MyOrderReview } from "@/modules/reviews/lib/queries";
@@ -30,6 +35,19 @@ export function OrderDetail({
 }) {
   const reviewable = canReviewOrderStatus(order.status);
   const reviewByProduct = new Map(myReviews.map((r) => [r.productId, r]));
+  // 결제 완료 이후(보유 확정)에는 워터마크 없는 소유자 이미지(clean)를 보여준다.
+  // 결제 대기·취소는 아직/더는 보유가 아니므로 공개 워터마크 이미지를 쓴다.
+  const owned =
+    order.status === "paid" ||
+    order.status === "shipped" ||
+    order.status === "delivered";
+  const itemThumbnailUrl = (productId: number) =>
+    owned ? collectionThumbnailUrl(productId) : productGridThumbnailUrl(productId);
+  // 발송 주문의 자동 구매확정 예정일 안내(있으면).
+  const autoConfirmNote =
+    order.status === "shipped" && order.shippedAt
+      ? `${formatKstDate(new Date(new Date(order.shippedAt).getTime() + ORDER_AUTO_CONFIRM_MS))}에 자동으로 구매확정돼요`
+      : null;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -47,9 +65,11 @@ export function OrderDetail({
       {order.status === "pending" && (
         <Card className="border-primary/40">
           <CardContent className="flex items-center justify-between gap-4 p-4">
-            <p className="text-sm">결제가 완료되지 않은 주문입니다.</p>
-            <Button asChild size="sm">
-              <Link href={`/checkout/${order.orderNo}/pay`}>결제 계속하기</Link>
+            <p className="text-sm text-muted-foreground">
+              결제가 완료되지 않은 주문이에요. 장바구니에서 다시 주문해 주세요.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/cart">장바구니</Link>
             </Button>
           </CardContent>
         </Card>
@@ -62,11 +82,16 @@ export function OrderDetail({
         <CardContent className="space-y-3">
           {order.items.map((item) => (
             <div key={item.id} className="flex gap-3">
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xs bg-muted">
+              {/* 상품 상세로 이동 — 구매한 상품 페이지를 다시 열어볼 수 있게. */}
+              <Link
+                href={`/products/${item.productId}`}
+                className="block h-16 w-16 shrink-0 overflow-hidden rounded-xs bg-muted"
+                aria-label={`${item.productName} 상품 상세`}
+              >
                 {item.productThumbnailKey ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={productGridThumbnailUrl(item.productId)}
+                    src={itemThumbnailUrl(item.productId)}
                     alt={item.productName}
                     className="h-full w-full object-cover"
                     loading="lazy"
@@ -77,12 +102,15 @@ export function OrderDetail({
                     <ImageOff className="h-5 w-5" aria-hidden />
                   </div>
                 )}
-              </div>
+              </Link>
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
+                  <Link
+                    href={`/products/${item.productId}`}
+                    className="block truncate text-sm font-medium hover:underline"
+                  >
                     {item.productName}
-                  </p>
+                  </Link>
                   <p className="text-xs text-muted-foreground">
                     {formatWon(item.unitPrice)} · {item.quantity}개
                   </p>
@@ -128,6 +156,18 @@ export function OrderDetail({
                 배송 조회 →
               </a>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {order.status === "shipped" && (
+        <Card className="border-primary/40">
+          <CardContent className="space-y-2 p-4">
+            <p className="text-sm text-muted-foreground">
+              상품을 받으셨다면 수령확정을 눌러주세요.
+              {autoConfirmNote ? ` ${autoConfirmNote}` : ""}
+            </p>
+            <OrderReceiptConfirm orderNo={order.orderNo} />
           </CardContent>
         </Card>
       )}

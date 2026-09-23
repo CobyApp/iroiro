@@ -2,7 +2,7 @@
 
 K-pop·J-pop 굿즈 커머스 — 카탈로그·주문·결제부터 구매한 굿즈의 컬렉션 전시, 중고 거래, 팬 커뮤니티까지.
 
-**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · S3 호환 오브젝트 스토리지 (운영 AWS S3 · 로컬 MinIO) · 카카오·네이버 자체 OAuth · Vitest · AWS ECS Express Mode + GitHub Actions
+**Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 + shadcn/ui · PostgreSQL 17 (AWS RDS / 로컬 Docker) · Prisma 7 · S3 호환 오브젝트 스토리지 (운영 AWS S3 · 로컬 MinIO) · 카카오 자체 OAuth · 카카오페이 결제 · Vitest · AWS ECS Express Mode + GitHub Actions
 
 ```mermaid
 flowchart TD
@@ -11,16 +11,16 @@ flowchart TD
     subgraph App ["Next.js — app/ · modules/"]
         Shop["(shop)/<br/>카탈로그·장바구니·주문·컬렉션·중고·커뮤니티"]
         Auth["(auth)/<br/>로그인·가입"]
-        Admin["(admin)/<br/>어드민 · account.is_admin 인가"]
+        Admin["(admin)/<br/>어드민 · is_admin + admin_roles 부분권한"]
         Mkt["(marketing)/<br/>약관·개인정보·웰컴·가이드"]
-        Api["api/<br/>auth 콜백 · cron · health"]
+        Api["api/<br/>auth 콜백 · cron ×3 · health"]
     end
 
     Browser --> App
 
     App --> Prisma["Prisma 7<br/>adapter-pg · app 롤"]
     App --> S3[("S3 호환 스토리지<br/>상품(공개)·UGC(비공개)")]
-    App --> Pay["lib/payments<br/>mock 게이트웨이"]
+    App --> Pay["lib/payments<br/>카카오페이 결제"]
 
     Prisma --> PG[("PostgreSQL 17<br/>GRANT 매트릭스 방어선")]
     S3 -. 로컬 .-> MinIO[("MinIO")]
@@ -43,7 +43,7 @@ flowchart TD
 |---|---|---|
 | **Node.js 24** | Next.js 런타임·빌드 (CI·컨테이너와 동일 메이저) | [nodejs.org](https://nodejs.org) 또는 nvm |
 | **Docker Desktop** | 로컬 Postgres·MinIO 컨테이너 | [docker.com](https://www.docker.com/products/docker-desktop) |
-| 카카오·네이버 개발자 앱 | 소셜 로그인 흐름을 실제로 검증할 때만 | [docs/oauth-setup.md](./docs/oauth-setup.md) |
+| 카카오 개발자 앱 | 소셜 로그인 흐름을 실제로 검증할 때만 | [docs/oauth-setup.md](./docs/oauth-setup.md) |
 
 ## 빠른 시작
 
@@ -55,12 +55,10 @@ cd iroiro
 npm install
 ```
 
-`.env.local`에서 **다음 3개를 채웁니다.** 비어 있으면 부팅이 ZodError로 즉시 실패합니다 (휴면 배포를 막는 fail-fast 설계). 로그인 흐름을 검증하지 않을 거라면 임시 더미 문자열로도 부팅됩니다.
+`.env.local`에서 **다음 1개를 채웁니다.** 비어 있으면 부팅이 ZodError로 즉시 실패합니다 (휴면 배포를 막는 fail-fast 설계). 로그인 흐름을 검증하지 않을 거라면 임시 더미 문자열로도 부팅됩니다.
 
 ```
 KAKAO_REST_API_KEY=
-NAVER_CLIENT_ID=
-NAVER_CLIENT_SECRET=
 ```
 
 나머지 변수는 로컬 공개 디폴트로 동작합니다 → [환경변수 레퍼런스](./docs/environment-variables.md)
@@ -76,15 +74,16 @@ npm run dev           # http://localhost:3000
 
 ### 어드민 열기
 
-`/admin`은 로그인한 계정의 `is_admin`을 실검증합니다. 관리자 지정은 첫 1회 수동입니다.
+`/admin`은 로그인한 계정의 권한을 실검증합니다. 권한 모델은 두 단계입니다 — 전권을 가진 **site admin**(`account.is_admin`)과, 공간별 **부분 관리 권한**(`account.admin_roles` 배열: `delivery`·`used`·`community`·`catalog`). site admin은 모든 공간을 암묵 보유합니다([modules/admin/lib/adminRoles.ts](./modules/admin/lib/adminRoles.ts)). 첫 관리자 지정은 1회 수동입니다.
 
-1. `/login`에서 카카오 또는 네이버로 로그인하고 `/signup`에서 닉네임까지 입력해 계정을 만듭니다.
-2. 본인 계정에 관리자를 지정합니다.
+1. `/login`에서 카카오로 로그인하고 `/signup`에서 닉네임까지 입력해 계정을 만듭니다.
+2. 본인 계정을 site admin으로 지정합니다.
    ```bash
    docker compose exec postgres psql -U postgres -d iroiro \
      -c "UPDATE account SET is_admin = TRUE, updated_at = now() WHERE id = '<본인 account id>';"
    ```
-3. `/admin`에 접속합니다. 비로그인은 `/login`으로, `is_admin`이 아니면 `/`로 이동됩니다.
+   (부분 권한만 주려면 `admin_roles`에 공간 코드를 넣습니다: `UPDATE account SET admin_roles = ARRAY['delivery'] …`.)
+3. `/admin`에 접속합니다. 비로그인은 `/login`으로, 권한이 없으면 안내 화면이 표시됩니다.
 
 > `npm run db:reset`은 DB를 초기화하므로 `is_admin`을 다시 지정해야 합니다.
 
@@ -137,7 +136,7 @@ app/                     Next.js App Router (얇은 라우트 셸)
 ├── (admin)/             어드민 — layout에서 account.is_admin 인가
 ├── (marketing)/         /terms · /privacy · /welcome · /guide
 ├── media/               HMAC 서명된 same-origin 이미지 서빙 (sharp)
-└── api/                 auth 콜백 · cron/close-auctions · health (webhook 성격만 api/에 둔다)
+└── api/                 auth 콜백 · 결제 콜백 · cron(close-auctions·auto-confirm-used·auto-confirm-orders) · health
 components/ui/           shadcn/ui — 외부 검증 완료, 테스트 면제
 modules/                 도메인 모듈 (formbricks 컨벤션) — products · cart · orders · collection
                          used · auction · posts · notices · messages · auth · admin · …
@@ -160,7 +159,7 @@ docs/                    설계·의사결정·운영 문서
 
 | 주제 | 요약 | 원천 |
 |---|---|---|
-| **아키텍처 룰 4가지** | 도메인은 `modules/`·인프라는 `lib/` · Server Actions는 `modules/<도메인>/actions.ts` · 권한 가드는 layout · 인증은 자체 세션 + 카카오·네이버 OAuth만 | [overview.md](./docs/architecture/overview.md) |
+| **아키텍처 룰 4가지** | 도메인은 `modules/`·인프라는 `lib/` · Server Actions는 `modules/<도메인>/actions.ts` · 권한 가드는 layout · 인증은 자체 세션 + 카카오 OAuth만 | [overview.md](./docs/architecture/overview.md) |
 | **DB 스키마** | 네이밍·키·타입·제약 규칙. 테이블·컬럼 작업 전 필수 통과 | [data-modeling.md](./docs/architecture/data-modeling.md) |
 | **DB 인가** | 앱은 비특권 `app` 롤로 접속, GRANT 매트릭스가 방어선(RLS 미사용) | [db-authorization-review.md](./docs/architecture/db-authorization-review.md) |
 | 테스트 | 도메인 로직·서버 액션·보안 함수·횡단 유틸은 1:1 필수, 인터랙션 컴포넌트는 권장 | [test-policy.md](./agent/rules/test-policy.md) |
@@ -190,22 +189,22 @@ DB 스키마는 `db/schema.sql`이 단일 진실입니다. 변경은 이 파일�
 | 라우팅·가드 | [routing.md](./docs/architecture/routing.md) | 라우트·layout·middleware 작업 |
 | 새 패턴 도입 절차 | [references.md](./docs/architecture/references.md) | 새 라이브러리·패턴 검토 시 |
 | **배포·브랜치 전략** | [deployment.md](./docs/deployment.md) | 인프라·CI/CD·환경 운영 |
-| 소셜 로그인 설정 | [oauth-setup.md](./docs/oauth-setup.md) | 카카오·네이버 콘솔·콜백 URL |
+| 소셜 로그인 설정 | [oauth-setup.md](./docs/oauth-setup.md) | 카카오 콘솔·콜백 URL |
 | 환경변수 레퍼런스 | [environment-variables.md](./docs/environment-variables.md) | env 추가·변경·배포 설정 시 |
 | 주문·결제 설계 | [order-checkout-payment.md](./docs/order-checkout-payment.md) | 주문·결제·재고 로직 작업 |
-| 기능 스펙 | [specs/](./docs/specs/) | OAuth·컬렉션·커뮤니티 도메인 작업 |
+| 주문·결제 설계 | [order-checkout-payment.md](./docs/order-checkout-payment.md) | 주문·결제(카카오페이)·재고 로직 |
 | DB 설계 학습 노트 | [lessons/README.md](./docs/lessons/README.md) | PK·롤·세션·트랜잭션 등 |
 | 문서 인덱스 | [docs/README.md](./docs/README.md) | 의사결정 기록 전체 |
 
 ## 문제 해결
 
-**부팅이 ZodError로 실패해요** — `KAKAO_REST_API_KEY` / `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET`가 비어 있습니다. `.env.local`에 실제 키나 임시 더미값을 채우세요.
+**부팅이 ZodError로 실패해요** — `KAKAO_REST_API_KEY`가 비어 있습니다. `.env.local`에 실제 키나 임시 더미값을 채우세요.
 
 **`Can't reach database server at 127.0.0.1:5432`** — 로컬 스택이 꺼져 있습니다. `npm run services:up` 후 `npm run db:reset`을 한 번 실행하세요.
 
 **`permission denied for table …`** — 새 테이블에 `GRANT ... TO app`이 빠졌거나, `DATABASE_URL`이 `app` 롤이 아닙니다. `db/schema.sql`의 GRANT 절과 접속 문자열을 확인하세요.
 
-**`/admin`에 들어가면 홈으로 튕겨요** — 로그인한 계정의 `is_admin`이 `FALSE`입니다. [어드민 열기](#어드민-열기)의 `UPDATE` 문을 실행하세요.
+**`/admin`에서 권한 안내 화면이 떠요** — 계정에 `is_admin`(또는 해당 공간의 `admin_roles`) 권한이 없습니다. [어드민 열기](#어드민-열기)의 `UPDATE` 문을 실행하세요.
 
 **화면이 비어 있어요** — 초기 DB에는 데이터가 없습니다. 어드민에서 그룹·멤버·상품을 등록하면 카탈로그에 노출됩니다.
 
@@ -225,4 +224,4 @@ kill -9 <PID>
 
 ---
 
-비공개 저장소입니다. 외부 배포·재사용을 위한 라이선스를 두지 않습니다.
+이 저장소는 공개되어 있으나, 별도 라이선스를 두지 않습니다 — 기본적으로 모든 권리가 저작자에게 있으며(All rights reserved) 외부 배포·재사용을 허용하지 않습니다. 코드는 참고용으로 열람할 수 있습니다.

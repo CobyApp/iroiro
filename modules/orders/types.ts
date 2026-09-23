@@ -123,10 +123,12 @@ export type Order = {
   updatedAt: string;
 };
 
-// 목록 표시용 — 대표 상품명 + 상품 종류 수.
+// 목록 표시용 — 대표 상품명 + 상품 종류 수 + 대표 썸네일(첫 상품).
 export type OrderSummary = Order & {
   itemCount: number;
   firstItemName: string | null;
+  firstItemProductId: number | null;
+  firstItemThumbnailKey: string | null;
 };
 
 // 상세 표시용 — 아이템 스냅샷 + 배송지 + 결제.

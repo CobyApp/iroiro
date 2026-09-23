@@ -13,7 +13,7 @@ import { OwnedCardsExplorer } from "@/modules/collection/components/OwnedCardsEx
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import {
-  collectionPhotoSrc,
+  collectionDetailUrl,
   collectionThumbnailUrl,
 } from "@/modules/products/lib/customer-media";
 
@@ -67,11 +67,13 @@ export default async function CollectionsPage() {
   const products = inventory.length
     ? await getProductsByIds(inventory.map((e) => Number(e.productId)))
     : [];
+  // 3D 뷰어(상세) 대표 이미지 — 그리드와 동일한 productId 소유자 clean(cd) 라우트로.
+  // (카드 오버레이 공개 URL 을 쓰지 않아 워터마크가 없다.)
   const imagesByProduct: Record<number, { front: string | null }> = {};
   for (const p of products) {
-    const thumb = p.photos.find((ph) => ph.isThumbnail) ?? p.photos[0];
+    const hasPhoto = p.photos.length > 0;
     imagesByProduct[Number(p.id)] = {
-      front: thumb ? collectionPhotoSrc(thumb) : null,
+      front: hasPhoto ? collectionDetailUrl(p.id) : null,
     };
   }
 

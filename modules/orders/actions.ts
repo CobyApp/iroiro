@@ -5,9 +5,21 @@ import { Prisma } from "@prisma/client";
 import { type ActionResult, DomainError, parseActionInput, runAction } from "@/lib/action-result";
 import { db } from "@/lib/db";
 import { todayKstYmd } from "@/lib/datetime";
-import { getPaymentGateway, type GatewayConfirmResult } from "@/lib/payments";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
-import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { publicOriginFromHeaders, isMobileFromHeaders } from "@/lib/public-origin";
+
+// 승인 결과 정규화 타입 — settleOrder 가 mock 즉시결제·카카오페이 approve 양쪽에서 공유.
+type OrderApproval =
+  | {
+      ok: true;
+      approvedAmount: number;
+      approvedAt: string;
+      tradeNo: string;
+      method: string;
+      rawRequest: unknown;
+      rawResponse: unknown;
+    }
+  | { ok: false; failMessage: string; rawRequest?: unknown; rawResponse?: unknown };
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import { notify } from "@/modules/notifications/lib/notify";
@@ -23,12 +35,10 @@ import { decrementStock, restoreStock, SoldOutError } from "./lib/stock";
 import {
   cancelOrderSchema,
   checkoutSchema,
-  confirmPaymentSchema,
   deliveryPolicyUpdateSchema,
   type CancelOrderInput,
   type CheckoutInput,
   type CheckoutParsed,
-  type ConfirmPaymentInput,
   type DeliveryPolicyUpdateInput,
 } from "./lib/schema";
 import type { DeliveryPolicy } from "./types";
@@ -58,9 +68,7 @@ export async function placeOrder(
     const data = parseActionInput(checkoutSchema, input);
     const accountId = await requireAccountId();
     const checkout = getCheckoutProvider();
-    // 결제 provider 라벨 — 카카오페이(redirect)면 kakaopay, 아니면 mock 게이트웨이.
-    const provider =
-      checkout.kind === "redirect" ? checkout.provider : getPaymentGateway().provider;
+    const provider = checkout.provider; // 결제 provider 라벨(kakaopay | mock)
 
     const orderNo = await nextOrderNo();
     const created = await db.$transaction((tx) =>
@@ -70,7 +78,10 @@ export async function placeOrder(
 
     // 카카오페이 등 리다이렉트 결제 — 결제창 URL 을 만들어 반환(승인은 approve 콜백).
     if (checkout.kind === "redirect") {
-      const origin = await publicOriginFromHeaders();
+      const [origin, isMobile] = await Promise.all([
+        publicOriginFromHeaders(),
+        isMobileFromHeaders(),
+      ]);
       const ready = await checkout.ready({
         orderNo,
         userId: accountId,
@@ -80,6 +91,7 @@ export async function placeOrder(
         approvalUrl: `${origin}/api/payment/kakao/approve?order=${orderNo}`,
         cancelUrl: `${origin}/api/payment/kakao/cancel?order=${orderNo}`,
         failUrl: `${origin}/api/payment/kakao/fail?order=${orderNo}`,
+        isMobile,
       });
       if (!ready.ok) {
         await failOrderPayment(orderNo, accountId);
@@ -91,6 +103,19 @@ export async function placeOrder(
       });
       return { orderNo, redirectUrl: ready.redirectUrl };
     }
+
+    // 결제 provider 미설정(로컬·CI) — 결제창 없이 즉시 결제완료 처리(헤드리스 폴백).
+    await settleOrder(orderNo, accountId, ({ totalAmount }) =>
+      Promise.resolve({
+        ok: true,
+        approvedAmount: totalAmount,
+        approvedAt: new Date().toISOString(),
+        tradeNo: `local-${orderNo}`,
+        method: "none",
+        rawRequest: {},
+        rawResponse: {},
+      }),
+    );
     return { orderNo };
   });
 }
@@ -376,18 +401,12 @@ function revalidateOrder(orderNo: string): void {
   revalidatePath(`/orders/${orderNo}`);
 }
 
-export async function confirmPayment(
-  input: ConfirmPaymentInput,
-): Promise<ActionResult<{ orderNo: string }>> {
-  return runAction(() => confirmPaymentImpl(input));
-}
-
-// 본문이 커서 runAction 콜백으로 추출 — 내부 throw(DomainError)는 결과로 변환된다.
+// settleOrder — reserve→approve(주입)→finalize 를 mock/카카오페이가 공유.
 type OrderApproveFn = (ctx: {
   orderNo: string;
   totalAmount: number;
   tradeNo: string | null;
-}) => Promise<GatewayConfirmResult>;
+}) => Promise<OrderApproval>;
 
 // 주문 결제 정산 — reserve(재고 선점)→approve(주입)→finalize(paid·보유원장), 실패 시 취소·복원.
 // 승인 호출부만 주입해 mock confirm 과 카카오페이 redirect approve 가 같은 로직을 공유한다.
@@ -570,18 +589,6 @@ async function settleOrder(
   throw new DomainError(failMessage);
 }
 
-// mock(즉시 확인) 결제 — /checkout/[orderNo]/pay 체험 화면에서 호출. 실서비스는 카카오페이 redirect.
-async function confirmPaymentImpl(
-  input: ConfirmPaymentInput,
-): Promise<{ orderNo: string }> {
-  const data = parseActionInput(confirmPaymentSchema, input);
-  const accountId = await requireAccountId();
-  const gateway = getPaymentGateway();
-  return settleOrder(data.orderNo, accountId, ({ orderNo, totalAmount, tradeNo }) =>
-    gateway.confirm({ orderNo, amount: totalAmount, tradeNo: data.tradeNo ?? tradeNo }),
-  );
-}
-
 // 카카오페이 승인 — 결제창에서 pg_token 과 함께 돌아온 콜백(app/api/payment/kakao/approve?order=)이 호출.
 // settleOrder 로 mock 과 동일한 재고 선점·보유원장 적재를 재사용한다.
 export async function approveOrderPayment(
@@ -762,6 +769,46 @@ export async function advanceOrderStatus(input: {
     revalidateOrder(order.orderNo);
     revalidatePath("/admin/store/orders");
     return { status: next };
+  });
+}
+
+// ── confirmOrderReceipt — 구매자 수령확정 (shipped → delivered). ────────────────
+// 구매자가 상품을 받은 뒤 직접 확정한다. 7일이 지나면 크론이 자동 확정한다(settle-order).
+export async function confirmOrderReceipt(input: {
+  orderNo: string;
+}): Promise<ActionResult<{ status: string }>> {
+  return runAction(async () => {
+    const account = await getCurrentAccount();
+    if (!account) throw new DomainError("로그인이 필요합니다");
+    const data = parseActionInput(cancelOrderSchema, { orderNo: input.orderNo });
+
+    const order = await db.order.findFirst({ where: { orderNo: data.orderNo } });
+    if (!order) throw new DomainError("주문을 찾을 수 없습니다");
+    // 본인 주문만 — 주문번호를 알아도 남의 주문은 확정할 수 없다.
+    if (order.accountId !== account.id) {
+      throw new DomainError("본인 주문만 수령확정할 수 있습니다");
+    }
+    if (order.status !== "shipped") {
+      throw new DomainError("발송된 주문만 수령확정할 수 있습니다");
+    }
+
+    const now = new Date();
+    // 조건부 updateMany — 자동확정 크론·중복 클릭과 경합 시 0행이면 이미 처리된 것.
+    await db.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, status: "shipped" },
+        data: { status: "delivered", updatedAt: now },
+      });
+      if (updated.count === 0) {
+        throw new DomainError("주문 상태가 이미 변경되었습니다. 새로고침해주세요");
+      }
+      await tx.orderStatusHistory.create({
+        data: { orderId: order.id, status: "delivered", statusChangedAt: now },
+      });
+    });
+
+    revalidateOrder(order.orderNo);
+    return { status: "delivered" };
   });
 }
 

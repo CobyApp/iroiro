@@ -120,3 +120,10 @@ export function verifyCustomerMediaSignature(
     timingSafeEqual(expectedBytes, candidateBytes)
   );
 }
+
+// 소유자 컬렉션 3D 뷰어(상세) — 상품 대표 사진을 productId 기준 소유자 clean(cd)으로.
+// 카드=상품 오버레이 사진은 공개(cards/wm) URL 이라 워터마크가 보였는데, 그리드가 이미 쓰는
+// productId 소유자 라우트(product_photo 조회 → clean)를 상세에도 써서 동일하게 워터마크를 없앤다.
+export function collectionDetailUrl(productId: number): string {
+  return thumbnailUrl(productId, "cd");
+}

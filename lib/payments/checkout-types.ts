@@ -26,6 +26,11 @@ export type CheckoutReadyInput = {
   cancelUrl: string;
   /** 결제가 실패했을 때 이동할 URL. */
   failUrl: string;
+  /**
+   * 모바일 기기 여부 — 카카오페이가 PC(QR) 대신 카카오톡 앱 연동 결제창으로 보내도록.
+   * 미지정이면 PC(QR)로 폴백. 서버 액션에서 isMobileFromHeaders()로 채운다.
+   */
+  isMobile?: boolean;
 };
 
 export type CheckoutReadyResult =

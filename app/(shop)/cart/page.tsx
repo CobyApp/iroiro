@@ -11,6 +11,7 @@ import {
   type CartLineView,
 } from "@/modules/cart/components/CartView";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
+import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
 
 export const metadata: Metadata = { title: "장바구니" };
@@ -63,15 +64,17 @@ export default async function CartPage() {
   if (lines.length === 0) {
     return (
       <div className="shop-page-frame space-y-6">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="font-display text-2xl">장바구니</h1>
-          <Link
-            href="/orders"
-            className="text-sm text-muted-foreground underline-offset-2 hover:underline"
-          >
-            주문 내역
-          </Link>
-        </div>
+        <ShopPageHeader
+          title="장바구니"
+          action={
+            <Link
+              href="/orders"
+              className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              주문 내역
+            </Link>
+          }
+        />
         <EmptyState
           emoji="🛍️"
           title="장바구니가 비어 있어요"
@@ -84,7 +87,17 @@ export default async function CartPage() {
 
   return (
     <div className="shop-page-frame space-y-6">
-      <h1 className="font-display text-2xl">장바구니</h1>
+      <ShopPageHeader
+        title="장바구니"
+        action={
+          <Link
+            href="/orders"
+            className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+          >
+            주문 내역
+          </Link>
+        }
+      />
       <CartView
         lines={lines}
         policy={{

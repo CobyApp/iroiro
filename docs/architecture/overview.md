@@ -38,17 +38,19 @@ db/schema.sql  DB 스키마 단일 진실 (Prisma schema는 db:pull 파생물)
 | 커지면 `modules/products/actions/` 폴더로 승격 | `app/actions.ts` 같은 전역 |
 | OAuth 콜백·헬스체크·크론·webhook만 `app/api/` | `app/api/products/route.ts` (CRUD용) |
 
-### 룰 3 — 권한 가드는 layout, 함수는 `modules/admin/lib/isAdmin.ts`
-> 상세: [routing.md](./routing.md)
+### 룰 3 — 권한 가드는 layout, 함수는 `modules/admin/lib/`
+> 상세: [routing.md](./routing.md), [admin-architecture.md](../admin-architecture.md)
+
+권한 모델은 전권 **site admin**(`account.is_admin`) + 공간별 **부분 권한**(`account.admin_roles` 배열: `delivery`·`used`·`community`·`catalog`). site admin은 모든 공간을 암묵 보유.
 
 | ✅ | ❌ |
 |---|---|
-| `(admin)/layout.tsx`에서 `getCurrentAccount() + isBoardManager()/isAdmin()` 1회 | 페이지마다 가드 호출 |
-| 미인증 시 `redirect("/login")`, 권한 없음은 `redirect("/")` | 빈 페이지·404 반환 |
-| `isAdmin`은 `modules/admin/lib/isAdmin.ts` 단일 진실 (`account.is_admin`) | 여러 곳에 중복 정의 |
-| Server Action은 `requireAdmin()`으로 재검증 | layout 가드만 신뢰 |
+| 각 공간 `(admin)/…/layout.tsx`에서 `getCurrentAccount() + hasAdminSpace()` 1회 | 페이지마다 가드 호출 |
+| 미인증 시 로그인 유도, 권한 없음은 안내 화면 | 빈 페이지·404 반환 |
+| `isAdmin`/`hasAdminSpace`는 `modules/admin/lib/`(isAdmin.ts·adminRoles.ts) 단일 진실 | 여러 곳에 중복 정의 |
+| Server Action은 `requireAdmin()`/`requireAdminSpace()`로 재검증 | layout 가드만 신뢰 |
 
-### 룰 4 — 인증은 자체 세션 + 카카오·네이버 OAuth만
+### 룰 4 — 인증은 자체 세션 + 카카오 OAuth만
 > 상세: [auth-and-data.md](./auth-and-data.md)
 
 | ✅ | ❌ |

@@ -1,8 +1,17 @@
 # 장바구니·주문·결제 플로우 설계
 
-**구현 상태**: ✅ 구현 완료 (`feat/cart-order-payment` 브랜치) — 장바구니 담기부터 주문·결제·어드민 배송비 설정까지 전 단계 구현 + 테스트 통과(`npm run validate`).
+**구현 상태**: ✅ 구현 완료 — 장바구니 담기부터 주문·결제·어드민 배송비 설정까지.
 
-> 관련 코드: `modules/cart/`(장바구니), `modules/orders/`(주문·결제·배송비 정책), `lib/payments/`(게이트웨이 포트 + mock 어댑터, `PAYMENT_PROVIDER=mock`), `delivery_policy` 테이블(`db/schema.sql`의 `init_order` 섹션). 결제 상태에 `in_progress` 추가(승인 직전 재고 선점 락). 실 PG 전환·환불·`pending` 만료 배치는 아래 "미해결·후속" 참조.
+> ⚠️ **현행 구현 (2026-09 갱신)** — 이 문서의 상당 부분(재고 원자 차감, 배송비 정책, 상태 모델, 트랜잭션 분리)은 그대로 유효하나, **결제 게이트웨이 부분은 설계 당시 mock/Toss 가정에서 카카오페이로 바뀌었다.** 현재 사실:
+> - 실 PG는 **카카오페이 단건결제**(리다이렉트: ready → 결제창 → approve). 어댑터 `lib/payments/kakaopay.ts`, 파일 구성은 `checkout.ts`(팩토리 `getCheckoutProvider`)·`checkout-types.ts`(포트)·`checkout-mock.ts`(즉시결제 폴백)·`kakaopay.ts`. (구 `types.ts`/`mock.ts`/`index.ts`·`PaymentGateway`·Toss `confirm(paymentKey…)`는 없다.)
+> - `PAYMENT_PROVIDER=kakaopay`가 운영(dev·prd) 활성. `KAKAO_PAY_SECRET_KEY`(SSM) 없으면 mock(즉시결제)으로 폴백 — CI·로컬 안전. CID 기본 `TC0ONETIME`(테스트).
+> - 스토어 주문과 중고 안전거래가 같은 리다이렉트 결제 경로를 쓴다. 모바일은 `next_redirect_mobile_url`(카카오톡 앱), PC는 `next_redirect_pc_url`(QR).
+> - 결제 승인/취소/실패 콜백(`app/api/payment/kakao/{approve,cancel,fail}`)은 **통합 결제 결과 화면 `app/(shop)/payment/result`** 로 리다이렉트한다(상황별 성공·취소·실패). 별도 mock 결제 페이지(`/checkout/[orderNo]/pay`)는 없다.
+> - 스토어 주문도 구매자 수령확정 + 발송 7일 후 자동 구매확정(`modules/orders/lib/settle-order.ts`, 크론 `/api/cron/auto-confirm-orders` + 페이지 진입 lazy 스윕)을 지원한다.
+>
+> 아래 본문은 재고·배송비·상태·트랜잭션 설계의 근거 기록으로 읽되, PG 관련 파일명·Toss·mock 페이지 표현은 위 현행 사실로 대체해 이해하라.
+
+> 관련 코드: `modules/cart/`(장바구니), `modules/orders/`(주문·결제·배송비 정책), `lib/payments/`(체크아웃 포트 + 카카오페이·mock 어댑터), `delivery_policy` 테이블(`db/schema.sql`의 `init_order` 섹션). 결제 상태에 `in_progress` 추가(승인 직전 재고 선점 락).
 > DB 경로 적용: 스키마는 `db/schema.sql` 단일 파일이라 로컬은 `npm run db:reset`로 재적용. 인증이 DB 세션 기반이라 로컬 수동 테스트는 `npm run dev:all`(compose의 postgres)에서 로그인 후 가능.
 
 > 관련: [db/schema.sql](../db/schema.sql)(`init_order` 섹션) ·
@@ -154,6 +163,18 @@ GRANT SELECT, UPDATE ON delivery_policy TO app;   -- INSERT 불필요: 시드 1�
 
 횡단 인프라(룰 1: 다른 커머스로 옮길 때 따라간다) → `lib/`. 도메인 상태 전이는 전부 `modules/orders`에 남고, 이 레이어는 외부 PG 통신만 안다.
 
+> ⚠️ 아래 코드 블록은 **설계 당시(mock/Toss)** 기준이다. 현행 파일 구성은 다음과 같다:
+>
+> ```
+> lib/payments/
+> ├── checkout-types.ts   CheckoutProvider 포트 + ready/approve 입출력 타입
+> ├── checkout-mock.ts    MockCheckoutProvider (즉시결제 폴백)
+> ├── kakaopay.ts         KakaoPayCheckoutProvider (ready→리다이렉트→approve)
+> └── checkout.ts         getCheckoutProvider(): PAYMENT_PROVIDER + 키 유무로 어댑터 선택
+> ```
+
+<details><summary>설계 당시 포트(mock/Toss) — 역사 기록</summary>
+
 ```
 lib/payments/
 ├── types.ts     PaymentGateway 인터페이스 + 입출력 타입
@@ -189,6 +210,10 @@ export type GatewayConfirmResult =
 - 스키마 매핑: `payment.provider ← gateway.provider`, `trade_no ← tradeNo`(partial unique), `raw_request/raw_response ← raw*`. **raw 페이로드는 DB 컬럼에만 — console 로깅 금지**(criterion 11).
 - 실 PG 전환: `lib/payments/toss.ts` 추가 + `PAYMENT_PROVIDER=toss` + 결제 페이지의 `MockCheckout`을 위젯으로 교체 + `app/api/payments/webhook` 신설(룰 2가 허용하는 유일한 `app/api/` 용도). 도메인 액션은 무변경.
 - env: `PAYMENT_PROVIDER`(optional, 기본 `"mock"`)를 `lib/env.ts`에 추가하고 `.env.local.example` 갱신.
+
+</details>
+
+> 실제로는 위 "실 PG 전환" 계획대로 카카오페이 어댑터(`kakaopay.ts`)가 추가됐고, mock 결제 페이지 대신 카카오페이 결제창 리다이렉트 + 통합 결과 화면(`/payment/result`)으로 구현됐다. 승인 콜백은 `app/api/payment/kakao/approve`(webhook 아님, 리다이렉트 콜백).
 
 ## 모듈·라우트 배치
 

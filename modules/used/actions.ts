@@ -9,13 +9,13 @@ import {
   type ActionResult,
 } from "@/lib/action-result";
 import { getCurrentAccount } from "@/modules/auth/dal";
-import { buildR2Key, getPublicUrl, getSignedUploadUrl } from "@/lib/r2/presign";
+import { buildR2Key, getPublicUrl } from "@/lib/r2/presign";
 import { compressImageBuffer } from "@/lib/image/compress-image";
 import { relayUploadToR2 } from "@/lib/r2/relay";
 import { evaluateBid, payDueFrom } from "@/modules/auction/lib/rules";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
-import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { publicOriginFromHeaders, isMobileFromHeaders } from "@/lib/public-origin";
 import { isCourierCode } from "@/lib/shipping/couriers";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedTradeFees } from "./lib/fees";
@@ -28,7 +28,6 @@ import {
   type UsedListingCreateInput,
 } from "./lib/schema";
 
-const PRESIGN_TTL_SECONDS = 3600;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 
@@ -45,45 +44,14 @@ function revalidateUsed(listingId?: number) {
   revalidatePath("/mypage");
 }
 
-// 판매자 사진 업로드 presign — 로그인 유저 누구나(자기 매물 사진).
-export async function presignUsedPhotos(
-  files: { filename: string; mimeType: string; sizeBytes: number }[],
-): Promise<ActionResult<{ r2Key: string; uploadUrl: string }[]>> {
-  return runAction(async () => {
-    await requireLogin();
-    if (files.length === 0) throw new DomainError("파일이 없습니다");
-    if (files.length > 8) throw new DomainError("매물당 최대 8장");
-    for (const file of files) {
-      if (!ALLOWED_MIME.includes(file.mimeType)) {
-        throw new DomainError(`지원하지 않는 포맷: ${file.mimeType}`);
-      }
-      if (file.sizeBytes > MAX_FILE_BYTES) {
-        throw new DomainError(`파일 크기 초과 (8MB 이하): ${file.filename}`);
-      }
-    }
-    return Promise.all(
-      files.map(async (file) => {
-        const r2Key = buildR2Key(file.filename).replace(
-          "products/original/",
-          "used/original/",
-        );
-        const uploadUrl = await getSignedUploadUrl(
-          r2Key,
-          file.mimeType,
-          PRESIGN_TTL_SECONDS,
-        );
-        return { r2Key, uploadUrl };
-      }),
-    );
-  });
-}
-
 // 저장 규격 — Card(oshikore-card) 매물 스냅샷과 같은 방식(크롭 없음·비율 유지). 판매자 사진은
 // 포장·배경이 구도의 일부라 자르지 않는다. 갤러리 확대를 위해 긴 변 1600px.
 const USED_PHOTO_MAX_DIM = 1600;
 const USED_PHOTO_QUALITY = 82;
 
-// 서버 경유 업로드. 저장 직전에 서버가 압축(크롭 없음)하고, 저장된 객체의 URL을 미리보기용으로 돌려준다.
+// 서버 경유 업로드. 저장 직전에 서버가 압축하고 브랜드 워터마크를 구워 넣는다(크롭 없음).
+// 원본은 저장하지 않는다 — 워터마크가 들어간 압축본 1장만 R2에 남긴다(사진 도용 방지).
+// 저장된 객체의 URL을 미리보기용으로 돌려준다.
 export async function uploadUsedPhotoFile(
   formData: FormData,
 ): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
@@ -103,6 +71,7 @@ export async function uploadUsedPhotoFile(
       compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
         maxDim: USED_PHOTO_MAX_DIM,
         quality: USED_PHOTO_QUALITY,
+        watermark: true,
       });
     } catch {
       throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
@@ -346,7 +315,10 @@ export async function buyUsedListing(
     }
 
     // 리다이렉트결제 — 결제 준비(ready) 후 결제창 URL 반환. HTTP 호출은 트랜잭션 밖.
-    const origin = await publicOriginFromHeaders();
+    const [origin, isMobile] = await Promise.all([
+      publicOriginFromHeaders(),
+      isMobileFromHeaders(),
+    ]);
     const tradeId = Number(created.trade.id);
     const ready = await provider.ready({
       orderNo: `used-${tradeId}`,
@@ -357,6 +329,7 @@ export async function buyUsedListing(
       approvalUrl: `${origin}/api/payment/kakao/approve?trade=${tradeId}`,
       cancelUrl: `${origin}/api/payment/kakao/cancel?trade=${tradeId}`,
       failUrl: `${origin}/api/payment/kakao/fail?trade=${tradeId}`,
+      isMobile,
     });
     if (!ready.ok) {
       // 준비 실패 — pending 취소하고 매물을 다시 판매중으로 되돌린다.

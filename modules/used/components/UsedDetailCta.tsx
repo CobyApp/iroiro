@@ -113,7 +113,7 @@ export function UsedDetailCta({
         window.location.href = result.data.redirectUrl;
         return;
       }
-      toast.success("구매 완료! 판매자가 발송을 준비해요 (결제 체험판)");
+      toast.success("구매 완료! 판매자가 발송을 준비해요");
       setBuyOpen(false);
       router.refresh();
     });
@@ -529,8 +529,7 @@ export function UsedDetailCta({
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            결제는 체험판이라 실제로 청구되지 않아요. 확정 시 판매자에게 발송이
-            요청됩니다.
+            카카오페이 안전결제 — 수령 확정 시 판매자에게 정산돼요.
           </p>
           <Button
             className="w-full"

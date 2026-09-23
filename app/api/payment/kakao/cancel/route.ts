@@ -17,22 +17,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tradeId = Number(sp.get("trade"));
   const orderNo = sp.get("order");
   if (!account) {
-    return NextResponse.redirect(publicUrl(request, "/used"));
+    return NextResponse.redirect(
+      publicUrl(request, "/payment/result?status=cancel"),
+    );
   }
   if (orderNo) {
     await failOrderPayment(orderNo, account.id);
-    return NextResponse.redirect(publicUrl(request, "/cart?paycancel=1"));
+    return NextResponse.redirect(
+      publicUrl(
+        request,
+        `/payment/result?status=cancel&kind=order&order=${encodeURIComponent(orderNo)}`,
+      ),
+    );
   }
   if (Number.isInteger(bundleId) && bundleId > 0) {
     await failUsedBundlePayment(bundleId, account.id);
     return NextResponse.redirect(
-      publicUrl(request, `/used/bundle/${bundleId}?paycancel=1`),
+      publicUrl(
+        request,
+        `/payment/result?status=cancel&kind=bundle&id=${bundleId}`,
+      ),
     );
   }
   if (!Number.isInteger(tradeId) || tradeId <= 0) {
-    return NextResponse.redirect(publicUrl(request, "/used"));
+    return NextResponse.redirect(
+      publicUrl(request, "/payment/result?status=cancel"),
+    );
   }
   const { listingId } = await failUsedTradePayment(tradeId, account.id);
-  const base = listingId ? `/used/${listingId}` : "/used";
-  return NextResponse.redirect(publicUrl(request, `${base}?paycancel=1`));
+  const detail = listingId ? `&kind=trade&id=${listingId}` : "";
+  return NextResponse.redirect(
+    publicUrl(request, `/payment/result?status=cancel${detail}`),
+  );
 }
