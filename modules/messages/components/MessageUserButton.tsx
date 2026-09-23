@@ -19,7 +19,7 @@ import { LoginPromptDialog } from "@/modules/auth/components/LoginPromptDialog";
 import { sendMessageToAccount, sendMessageToPostAuthor } from "../actions";
 
 type Props = {
-  // 대상 지정 — 계정 직접(중고 판매자) 또는 게시글 publicCode(작성자).
+  // 대상 지정 — 계정 직접 또는 커뮤니티 게시글 publicCode(작성자).
   toAccountId?: string;
   postPublicCode?: string;
   toName: string;
