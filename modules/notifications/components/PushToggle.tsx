@@ -6,6 +6,7 @@ import { BellRing, BellOff } from "lucide-react";
 import {
   deletePushSubscription,
   savePushSubscription,
+  sendTestPush,
 } from "../actions";
 
 // 벨 팝오버 하단의 웹 푸시 토글 — 브라우저 미지원/키 미설정이면 렌더하지 않는다.
@@ -98,6 +99,17 @@ export function PushToggle({
     });
   }
 
+  function sendTest() {
+    startTransition(async () => {
+      const result = await sendTestPush();
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success("테스트 알림을 보냈어요. 잠시 후 기기 알림을 확인해 주세요!");
+    });
+  }
+
   function disable() {
     startTransition(async () => {
       try {
@@ -129,6 +141,7 @@ export function PushToggle({
               : "꺼짐";
     const canToggle = state === "on" || state === "off";
     return (
+      <div className="space-y-1">
       <div className="flex items-center gap-2.5 rounded-lg px-3 py-2.5">
         <BellRing className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1">
@@ -164,6 +177,17 @@ export function PushToggle({
         ) : (
           <span className="shrink-0 text-xs text-muted-foreground">{statusLabel}</span>
         )}
+      </div>
+      {state === "on" && (
+        <button
+          type="button"
+          onClick={sendTest}
+          disabled={pending}
+          className="ml-3 text-xs text-primary underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          이 기기로 테스트 알림 보내기
+        </button>
+      )}
       </div>
     );
   }

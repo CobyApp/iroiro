@@ -35,9 +35,9 @@ export default async function MessageThreadPage({
 
   return (
     <div className="shop-page-frame space-y-3">
-      {/* 모바일 채팅 공간 확보 — 무거운 페이지 헤더 대신 상대 이름만 한 줄로.
-         뒤로가기는 상단 쇼핑 헤더가 이미 제공한다(HeaderLeading). */}
-      <div className="flex items-center gap-2.5">
+      {/* 데스크톱은 페이지 헤더로 상대 이름 표시. 모바일은 대화가 전체화면이라
+         자체 상단바(뒤로가기+이름)를 가지므로 이 헤더를 숨긴다. */}
+      <div className="hidden items-center gap-2.5 sm:flex">
         <div
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
           aria-hidden="true"
@@ -54,6 +54,7 @@ export default async function MessageThreadPage({
       <MessageThreadClient
         threadId={thread.id}
         otherAccountId={thread.otherAccountId}
+        otherName={thread.otherName}
         messages={thread.messages}
       />
     </div>
