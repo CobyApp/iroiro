@@ -258,19 +258,28 @@ export function UsedDetailCta({
     return (
       <div className="space-y-2 rounded-md border border-border bg-card p-4">
         <p className="text-sm text-muted-foreground">내가 올린 매물이에요.</p>
-        {listing.status === "active" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            disabled={pending}
-            onClick={() =>
-              run(() => cancelUsedListing(listing.id), "매물을 내렸어요")
-            }
-          >
-            판매 취소
-          </Button>
-        )}
+        <div className="flex items-stretch gap-2">
+          <UsedWishlistButton
+            listingId={listing.id}
+            initialWished={wished}
+            isLoggedIn={isLoggedIn}
+            variant="detail"
+            className="h-9 px-3.5"
+          />
+          {listing.status === "active" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 flex-1"
+              disabled={pending}
+              onClick={() =>
+                run(() => cancelUsedListing(listing.id), "매물을 내렸어요")
+              }
+            >
+              판매 취소
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
