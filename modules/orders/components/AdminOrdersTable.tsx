@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -145,7 +146,14 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="py-2.5 font-mono text-xs">{order.orderNo}</TableCell>
+                <TableCell className="py-2.5 font-mono text-xs">
+                  <Link
+                    href={`/admin/store/orders/${order.orderNo}`}
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    {order.orderNo}
+                  </Link>
+                </TableCell>
                 <TableCell className="max-w-[220px] py-2.5">
                   <span className="line-clamp-1">{itemLabel(order)}</span>
                 </TableCell>
@@ -186,9 +194,12 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
               className="space-y-2 rounded-md border border-border bg-card p-3 shadow-card"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+                <Link
+                  href={`/admin/store/orders/${order.orderNo}`}
+                  className="min-w-0 truncate font-mono text-xs text-primary underline-offset-2 hover:underline"
+                >
                   {order.orderNo}
-                </span>
+                </Link>
                 <div className="flex flex-col items-end gap-0.5">
                   <OrderStatusBadge status={order.status} />
                   {order.trackingCode && (
