@@ -107,35 +107,36 @@ export function CartView({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="space-y-4">
+      {/* 장바구니 내 검색 — 다른 목록 화면처럼 타이틀 바로 아래·가로 꽉. 담긴 상품만 필터. */}
+      {lines.length > 1 && (
+        <div className="relative w-full">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="장바구니에서 검색"
+            aria-label="장바구니 검색"
+            className="h-10 w-full rounded-full border border-border bg-card/80 pl-9 pr-9 text-base outline-none transition-colors placeholder:text-muted-foreground focus:border-primary sm:text-sm"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="지우기"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-3">
-        {/* 장바구니 내 검색 — 담긴 상품 안에서만 필터. */}
-        {lines.length > 1 && (
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="장바구니에서 검색"
-              aria-label="장바구니 검색"
-              className="h-10 w-full rounded-full border border-border bg-card/80 pl-9 pr-9 text-base outline-none transition-colors placeholder:text-muted-foreground focus:border-primary sm:text-sm"
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="지우기"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        )}
         {/* 전체 선택 — 구매 가능한 항목만 대상. */}
         {availableLines.length > 0 && (
           <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-medium text-foreground">
@@ -323,6 +324,7 @@ export function CartView({
             </Button>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );
