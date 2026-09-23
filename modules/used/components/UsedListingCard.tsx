@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, Heart } from "lucide-react";
+import { Clock, Heart, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "@/modules/products/components/ProductImage";
@@ -84,12 +84,20 @@ export function UsedListingCard({
           <p className="truncate text-xs text-muted-foreground">
             {listing.sellerName}
           </p>
-          {listing.wishCount > 0 && (
-            <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
-              <Heart className="h-3 w-3" aria-hidden />
-              {listing.wishCount}
-            </span>
-          )}
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+            {listing.wishCount > 0 && (
+              <span className="flex items-center gap-0.5">
+                <Heart className="h-3 w-3" aria-hidden />
+                {listing.wishCount}
+              </span>
+            )}
+            {listing.commentCount > 0 && (
+              <span className="flex items-center gap-0.5">
+                <MessageSquare className="h-3 w-3" aria-hidden />
+                {listing.commentCount}
+              </span>
+            )}
+          </span>
         </div>
         <p className="line-clamp-2 min-h-10 text-sm font-semibold text-foreground">
           {listing.title}

@@ -31,7 +31,7 @@ async function attachPhotosAndSellers(
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const sellerIds = [...new Set(rows.map((r) => r.sellerAccountId))];
-  const [photoRows, sellers, wishRows] = await Promise.all([
+  const [photoRows, sellers, wishRows, commentRows] = await Promise.all([
     db.usedListingPhoto.findMany({
       where: { listingId: { in: ids } },
       orderBy: { displayOrder: "asc" },
@@ -46,6 +46,12 @@ async function attachPhotosAndSellers(
       where: { listingId: { in: ids } },
       _count: { _all: true },
     }),
+    // 매물별 공개 댓글 수(삭제 제외) — 리스트 카드에 노출.
+    db.usedListingComment.groupBy({
+      by: ["listingId"],
+      where: { listingId: { in: ids }, deletedAt: null },
+      _count: { _all: true },
+    }),
   ]);
   const photosBy = new Map<number, ReturnType<typeof toUsedListingPhoto>[]>();
   for (const p of photoRows) {
@@ -58,11 +64,15 @@ async function attachPhotosAndSellers(
   const wishBy = new Map(
     wishRows.map((w) => [Number(w.listingId), w._count._all]),
   );
+  const commentBy = new Map(
+    commentRows.map((c) => [Number(c.listingId), c._count._all]),
+  );
   return rows.map((row) => ({
     ...toUsedListing(row),
     photos: photosBy.get(Number(row.id)) ?? [],
     sellerName: nameBy.get(row.sellerAccountId) ?? "판매자",
     wishCount: wishBy.get(Number(row.id)) ?? 0,
+    commentCount: commentBy.get(Number(row.id)) ?? 0,
   }));
 }
 
