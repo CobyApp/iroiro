@@ -39,7 +39,13 @@ export async function putWithRetry(put: PutFn, url: string, blob: Blob): Promise
 }
 
 // 브라우저 전용 — canvas 재인코딩·리사이즈(긴 변 maxDimension). EXIF 등 메타데이터 제거 시도(보조 수단).
-export async function reencodeToBlob(file: File, maxDimension: number): Promise<Blob> {
+// quality/outputType 로 압축 강도·포맷을 조절한다(기본: 원본 포맷·0.9). JPEG 출력 시 알파는 흰 배경으로.
+export async function reencodeToBlob(
+  file: File,
+  maxDimension: number,
+  quality = 0.9,
+  outputType?: string,
+): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   try {
     const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
@@ -50,9 +56,15 @@ export async function reencodeToBlob(file: File, maxDimension: number): Promise<
     canvas.height = height;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("canvas 미지원");
+    const type = outputType ?? file.type;
+    // JPEG 는 투명도가 없으므로 흰 배경을 먼저 깔아 검게 변하지 않게 한다.
+    if (type === "image/jpeg") {
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+    }
     context.drawImage(bitmap, 0, 0, width, height);
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, file.type, 0.9),
+      canvas.toBlob(resolve, type, quality),
     );
     if (!blob) throw new Error("재인코딩 실패");
     return blob;
