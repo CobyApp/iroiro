@@ -2,7 +2,8 @@
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Send, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ImagePlus, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import {
 type Props = {
   threadId: number;
   otherAccountId: string;
+  otherName: string;
   messages: MessageItem[];
 };
 
@@ -33,6 +35,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export function MessageThreadClient({
   threadId,
   otherAccountId,
+  otherName,
   messages,
 }: Props) {
   const router = useRouter();
@@ -151,7 +154,26 @@ export function MessageThreadClient({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-15.5rem)] min-h-80 flex-col overflow-hidden rounded-2xl border border-border bg-card sm:h-[calc(100vh-12rem)]">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-card sm:static sm:z-auto sm:h-[calc(100vh-12rem)] sm:min-h-80 sm:rounded-2xl sm:border sm:border-border">
+      {/* 모바일 전체화면 상단바 — 뒤로가기 + 상대 이름(데스크톱은 페이지 헤더가 담당). */}
+      <div className="flex items-center gap-2 border-b border-border bg-card px-2 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] sm:hidden">
+        <Link
+          href="/messages"
+          aria-label="쪽지함으로"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-foreground hover:bg-muted"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        <div
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
+          aria-hidden="true"
+        >
+          {otherName.slice(0, 1)}
+        </div>
+        <span className="min-w-0 truncate text-base font-bold text-foreground">
+          {otherName}
+        </span>
+      </div>
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {optimistic.length === 0 ? (
           <p className="py-16 text-center text-sm text-muted-foreground">
@@ -217,7 +239,7 @@ export function MessageThreadClient({
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t border-border bg-card p-3">
+      <div className="flex items-end gap-2 border-t border-border bg-card p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
         <input
           ref={fileRef}
           type="file"
