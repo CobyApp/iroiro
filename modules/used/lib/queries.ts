@@ -293,6 +293,18 @@ export async function listMyUsedPurchases(
   return rows.map(toUsedTrade);
 }
 
+// 내가 판매자인 거래 내역 — 완료 거래는 구매자에게 후기를 남길 수 있다(상호 후기).
+export async function listMyUsedSalesTrades(
+  accountId: string,
+): Promise<UsedTrade[]> {
+  const rows = await db.usedTrade.findMany({
+    where: { sellerAccountId: accountId, status: { not: "canceled" } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return rows.map(toUsedTrade);
+}
+
 // 같은 시리즈 중고의 최근 완료 거래가 — 등록 화면 가격 추천·상세 참고용.
 export async function listUsedSoldPrices(
   seriesId: number,

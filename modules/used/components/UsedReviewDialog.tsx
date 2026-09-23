@@ -18,13 +18,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { createUsedReview } from "../review-actions";
 import { USED_REVIEW_COMMENT_MAX } from "../lib/schema";
 
-// 중고 거래 후기 작성 — 거래당 1개(구매자→판매자). 별점 필수 + 코멘트 선택.
+// 중고 거래 후기 작성 — 거래·작성자당 1개(양방향). 별점 필수 + 코멘트 선택.
+// counterpartLabel: 후기 대상 호칭(판매자/구매자) — 기본 "상대방".
 export function UsedReviewDialog({
   tradeId,
   trigger,
+  counterpartLabel = "상대방",
 }: {
   tradeId: number;
   trigger?: React.ReactNode;
+  counterpartLabel?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -66,7 +69,9 @@ export function UsedReviewDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>거래 후기</DialogTitle>
-          <DialogDescription>판매자와의 거래는 어떠셨나요? 별점과 후기를 남겨주세요.</DialogDescription>
+          <DialogDescription>
+            {counterpartLabel}와의 거래는 어떠셨나요? 별점과 후기를 남겨주세요.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="flex items-center gap-1" role="radiogroup" aria-label="별점">
