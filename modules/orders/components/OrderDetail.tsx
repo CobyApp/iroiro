@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/card";
 import { formatKstDateTime } from "@/lib/datetime";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
-import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
+import {
+  collectionThumbnailUrl,
+  productGridThumbnailUrl,
+} from "@/modules/products/lib/customer-media";
 import { OrderItemReviewButton } from "@/modules/reviews/components/OrderItemReviewButton";
 import { canReviewOrderStatus } from "@/modules/reviews/lib/rules";
 import type { MyOrderReview } from "@/modules/reviews/lib/queries";
@@ -30,6 +33,14 @@ export function OrderDetail({
 }) {
   const reviewable = canReviewOrderStatus(order.status);
   const reviewByProduct = new Map(myReviews.map((r) => [r.productId, r]));
+  // 결제 완료 이후(보유 확정)에는 워터마크 없는 소유자 이미지(clean)를 보여준다.
+  // 결제 대기·취소는 아직/더는 보유가 아니므로 공개 워터마크 이미지를 쓴다.
+  const owned =
+    order.status === "paid" ||
+    order.status === "shipped" ||
+    order.status === "delivered";
+  const itemThumbnailUrl = (productId: number) =>
+    owned ? collectionThumbnailUrl(productId) : productGridThumbnailUrl(productId);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -68,7 +79,7 @@ export function OrderDetail({
                 {item.productThumbnailKey ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={productGridThumbnailUrl(item.productId)}
+                    src={itemThumbnailUrl(item.productId)}
                     alt={item.productName}
                     className="h-full w-full object-cover"
                     loading="lazy"
