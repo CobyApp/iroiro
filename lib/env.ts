@@ -27,9 +27,9 @@ const envSchema = z
     // UGC 전용 비공개 버킷(§결정 8) — products 공개 버킷과 분리. 서빙은 서명 GET만.
     // 자격증명은 상품용 R2_*를 공유한다(2026-08-02) — 운영 토큰 스코프에 이 버킷도 포함할 것.
     R2_UGC_BUCKET: z.string().min(1).default("iroiro-ugc-dev"),
-    // 카탈로그(토레카 마스터) 이미지 버킷 — dev·prd 가 **하나를 공유**한다(카탈로그 DB 와 짝).
+    // 카탈로그(토레카 마스터) 이미지 버킷 — 환경별로 분리한다(iroiro-kr-catalog-<env>).
     // cards/wm/ 만 버킷 정책으로 공개(고객 화면), cards/clean/ 은 비공개(관리자 라우트 /media/catalog-clean 이 프록시).
-    // 자격증명은 R2_* 를 공유 — 두 환경 앱 IAM 사용자 모두 이 버킷 권한을 가져야 한다.
+    // 자격증명은 R2_* 를 공유(setup.sh catalog 가 앱 IAM 사용자에 버킷 권한 부여).
     CATALOG_BUCKET: z.string().min(1).default("iroiro-catalog-dev"),
     CATALOG_PUBLIC_BASE: z
       .string()

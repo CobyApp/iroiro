@@ -129,7 +129,7 @@ Server Action은 layout을 신뢰하지 않고 진입부에서 `requireAdmin()`(
 ## 룰 4 — 인증 스택
 
 ### ✅ 채택
-- **자체 구현** 카카오·네이버 OAuth (`app/api/auth/[provider]/…`, `modules/auth/lib/oauth/`)
+- **자체 구현** 카카오 OAuth (`app/api/auth/[provider]/…`, `modules/auth/lib/oauth/`)
 - **DB 세션** `account_session` — 쿠키에는 무작위 토큰, DB에는 해시 (`modules/auth/lib/session.ts`)
 - 세션 검증은 DAL `getCurrentAccount()` 한 곳 (`modules/auth/dal.ts`)
 - `middleware.ts`는 `x-pathname` 헤더 전달만
