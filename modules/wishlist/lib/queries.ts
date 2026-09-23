@@ -15,6 +15,11 @@ export async function getWishlistProductIds(
   return new Set(rows.map((r) => r.productId.toString()));
 }
 
+// 헤더 찜 아이콘 뱃지용 — 찜한 상품 수.
+export async function getWishlistCount(accountId: string): Promise<number> {
+  return db.wishlist.count({ where: { accountId } });
+}
+
 // 찜한 상품 목록(최신순). 판매중 여부와 무관하게 찜한 그대로 반환.
 export async function listWishlistProducts(
   accountId: string,

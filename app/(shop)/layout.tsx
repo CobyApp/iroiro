@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartButton } from "@/modules/cart/components/CartButton";
+import { WishlistButton } from "@/modules/wishlist/components/WishlistButton";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { AccountNav } from "@/modules/auth/components/AccountNav";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
@@ -79,6 +80,10 @@ export default async function ShopLayout({
                 className="hidden h-6 w-px bg-border/60 sm:block"
                 aria-hidden="true"
               />
+              {/* 찜 — 장바구니 왼쪽. 하단 탭바에서 이리로 옮겼다(로그인 시에만 렌더). */}
+              <Suspense fallback={null}>
+                <WishlistButton />
+              </Suspense>
               <Suspense
                 fallback={
                   <Button

@@ -1,6 +1,5 @@
 import {
   Store,
-  Heart,
   MessageSquare,
   Repeat,
   User,
@@ -12,7 +11,6 @@ import type { TabKey } from "./mobile-tabs";
 export const SHOP_NAVIGATION_ICONS: Record<TabKey, LucideIcon> = {
   discover: Store,
   used: Repeat,
-  wishlist: Heart,
   community: MessageSquare,
   mypage: User,
 };
