@@ -13,10 +13,16 @@ import { UserRound } from "lucide-react";
 import {
   listMyUsedListings,
   listMyUsedPurchases,
+  listMyUsedSalesTrades,
   listUsedListingsByIds,
 } from "@/modules/used/lib/queries";
-import { reviewedTradeIdsOf } from "@/modules/used/lib/review-queries";
+import {
+  listReviewsReceived,
+  listReviewsWritten,
+  reviewedTradeIdsOf,
+} from "@/modules/used/lib/review-queries";
 import { UsedReviewDialog } from "@/modules/used/components/UsedReviewDialog";
+import { Star } from "lucide-react";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { USED_TRADE_STATUS_LABEL } from "@/modules/used/types";
@@ -43,19 +49,42 @@ export default async function MyUsedTradesPage() {
   // 진입 시 기한 지난 발송 건을 자동 수령확정(lazy 스윕) — cron 이 없어도 확정이 진행된다.
   await autoConfirmDueUsedTrades();
 
-  const [sales, purchases, wishedIds] = await Promise.all([
-    listMyUsedListings(account.id),
-    listMyUsedPurchases(account.id),
-    getUsedWishlistIds(account.id),
-  ]);
+  const [sales, purchases, salesTrades, wishedIds, reviewsReceived, reviewsWritten] =
+    await Promise.all([
+      listMyUsedListings(account.id),
+      listMyUsedPurchases(account.id),
+      listMyUsedSalesTrades(account.id),
+      getUsedWishlistIds(account.id),
+      listReviewsReceived(account.id),
+      listReviewsWritten(account.id),
+    ]);
   const purchaseListings = await listUsedListingsByIds(
     purchases.map((t) => t.listingId),
   );
   const listingById = new Map(purchaseListings.map((l) => [l.id, l]));
-  // 완료된 거래 중 이미 후기를 남긴 것 — '후기 남기기' 노출 판단.
+
+  // 상호 후기 — 내가 당사자인 완료 거래(구매·판매) 중 내가 아직 후기를 안 남긴 것.
+  const completedTrades = [
+    ...purchases
+      .filter((t) => t.status === "completed")
+      .map((t) => ({ trade: t, counterpartLabel: "판매자" })),
+    ...salesTrades
+      .filter((t) => t.status === "completed")
+      .map((t) => ({ trade: t, counterpartLabel: "구매자" })),
+  ];
   const reviewedTradeIds = await reviewedTradeIdsOf(
     account.id,
-    purchases.filter((t) => t.status === "completed").map((t) => t.id),
+    completedTrades.map((c) => c.trade.id),
+  );
+  const salesListings = await listUsedListingsByIds(
+    salesTrades.map((t) => t.listingId),
+  );
+  const titleByListing = new Map<number, string>([
+    ...purchaseListings.map((l) => [l.id, l.title] as const),
+    ...salesListings.map((l) => [l.id, l.title] as const),
+  ]);
+  const pendingReviews = completedTrades.filter(
+    (c) => !reviewedTradeIds.has(c.trade.id),
   );
 
   return (
@@ -126,7 +155,7 @@ export default async function MyUsedTradesPage() {
                     (reviewedTradeIds.has(trade.id) ? (
                       <span className="shrink-0 text-xs text-muted-foreground">후기 완료</span>
                     ) : (
-                      <UsedReviewDialog tradeId={trade.id} />
+                      <UsedReviewDialog tradeId={trade.id} counterpartLabel="판매자" />
                     ))}
                 </li>
               );
@@ -138,6 +167,94 @@ export default async function MyUsedTradesPage() {
           </p>
         )}
       </section>
+
+      {/* 상호 거래 후기 — 완료 거래의 상대방에게 후기를 남기고, 받은/보낸 후기를 확인. */}
+      <section className="space-y-3">
+        <h2 className="text-base font-bold text-foreground">거래 후기</h2>
+
+        {pendingReviews.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              남길 수 있는 후기 {pendingReviews.length}
+            </p>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {pendingReviews.map(({ trade, counterpartLabel }) => (
+                <li
+                  key={`${counterpartLabel}-${trade.id}`}
+                  className="flex items-center justify-between gap-3 px-3 py-2.5"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {titleByListing.get(trade.listingId) ?? "매물"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {counterpartLabel} 후기 남기기
+                    </span>
+                  </span>
+                  <UsedReviewDialog
+                    tradeId={trade.id}
+                    counterpartLabel={counterpartLabel}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <ReviewColumn title="받은 후기" reviews={reviewsReceived} emptyLabel="아직 받은 후기가 없어요." />
+          <ReviewColumn title="보낸 후기" reviews={reviewsWritten} emptyLabel="아직 보낸 후기가 없어요." />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReviewColumn({
+  title,
+  reviews,
+  emptyLabel,
+}: {
+  title: string;
+  reviews: Array<{
+    id: number;
+    reviewerMasked: string;
+    rating: number;
+    comment: string | null;
+    createdAt: string;
+  }>;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">
+        {title} {reviews.length}
+      </p>
+      {reviews.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-xs text-muted-foreground">
+          {emptyLabel}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {reviews.map((r) => (
+            <li key={r.id} className="rounded-lg border border-border px-3 py-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-0.5 text-amber-500">
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+                  {r.rating}
+                </span>
+                <span>{r.reviewerMasked}</span>
+                <span>{formatKstDate(r.createdAt)}</span>
+              </div>
+              {r.comment && (
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                  {r.comment}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

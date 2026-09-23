@@ -885,6 +885,7 @@ model UsedReview {
   listingId         BigInt   @map("listing_id")
   reviewerAccountId String   @map("reviewer_account_id") @db.Uuid
   sellerAccountId   String   @map("seller_account_id") @db.Uuid
+  revieweeAccountId String   @map("reviewee_account_id") @db.Uuid
   rating            Int
   comment           String?
   hiddenAt          DateTime? @map("hidden_at") @db.Timestamptz(6)
@@ -893,10 +894,13 @@ model UsedReview {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  @@unique([tradeId], map: "used_review_trade_unique")
+  @@unique([tradeId, reviewerAccountId], map: "used_review_trade_reviewer_unique")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_created_idx")
   @@index([listingId], map: "used_review_listing_idx")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_review_seller_visible_idx", where: raw("(hidden_at IS NULL)"))
+  @@index([revieweeAccountId, createdAt(sort: Desc)], map: "used_review_reviewee_created_idx")
+  @@index([revieweeAccountId, createdAt(sort: Desc)], map: "used_review_reviewee_visible_idx", where: raw("(hidden_at IS NULL)"))
+  @@index([reviewerAccountId, createdAt(sort: Desc)], map: "used_review_reviewer_created_idx")
   @@map("used_review")
 }
 

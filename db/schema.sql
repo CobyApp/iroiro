@@ -2893,3 +2893,29 @@ GRANT SELECT, INSERT, UPDATE ON used_listing_comment TO app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app;
 
 -- ============================================================================
+-- [20261006000000_used_mutual_review]
+-- ============================================================================
+
+-- 중고 거래 후기를 양방향으로 확장 — 구매자→판매자뿐 아니라 판매자→구매자도 남긴다.
+-- reviewee_account_id(후기 대상)를 추가하고, 거래당 1개(trade_id 유니크)를
+-- 거래·작성자당 1개(trade_id, reviewer_account_id 유니크)로 바꾼다.
+ALTER TABLE used_review ADD COLUMN IF NOT EXISTS reviewee_account_id UUID;
+-- 기존 후기는 구매자→판매자였으므로 대상 = 판매자.
+UPDATE used_review SET reviewee_account_id = seller_account_id WHERE reviewee_account_id IS NULL;
+ALTER TABLE used_review ALTER COLUMN reviewee_account_id SET NOT NULL;
+
+DROP INDEX IF EXISTS used_review_trade_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS used_review_trade_reviewer_unique
+    ON used_review (trade_id, reviewer_account_id);
+CREATE INDEX IF NOT EXISTS used_review_reviewee_created_idx
+    ON used_review (reviewee_account_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS used_review_reviewee_visible_idx
+    ON used_review (reviewee_account_id, created_at DESC) WHERE (hidden_at IS NULL);
+CREATE INDEX IF NOT EXISTS used_review_reviewer_created_idx
+    ON used_review (reviewer_account_id, created_at DESC);
+
+COMMENT ON COLUMN used_review.reviewee_account_id IS '후기 대상 account.id(구매자→판매자 또는 판매자→구매자)';
+COMMENT ON TABLE used_review IS '중고 거래 후기 — 거래·작성자당 1개(양방향 상호 후기)';
+-- reviewee_account_id 는 INSERT 시 채워지고 이후 수정 대상이 아니라 기존 GRANT 로 충분하다.
+
+-- ============================================================================
