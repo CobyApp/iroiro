@@ -772,6 +772,46 @@ export async function advanceOrderStatus(input: {
   });
 }
 
+// ── confirmOrderReceipt — 구매자 수령확정 (shipped → delivered). ────────────────
+// 구매자가 상품을 받은 뒤 직접 확정한다. 7일이 지나면 크론이 자동 확정한다(settle-order).
+export async function confirmOrderReceipt(input: {
+  orderNo: string;
+}): Promise<ActionResult<{ status: string }>> {
+  return runAction(async () => {
+    const account = await getCurrentAccount();
+    if (!account) throw new DomainError("로그인이 필요합니다");
+    const data = parseActionInput(cancelOrderSchema, { orderNo: input.orderNo });
+
+    const order = await db.order.findFirst({ where: { orderNo: data.orderNo } });
+    if (!order) throw new DomainError("주문을 찾을 수 없습니다");
+    // 본인 주문만 — 주문번호를 알아도 남의 주문은 확정할 수 없다.
+    if (order.accountId !== account.id) {
+      throw new DomainError("본인 주문만 수령확정할 수 있습니다");
+    }
+    if (order.status !== "shipped") {
+      throw new DomainError("발송된 주문만 수령확정할 수 있습니다");
+    }
+
+    const now = new Date();
+    // 조건부 updateMany — 자동확정 크론·중복 클릭과 경합 시 0행이면 이미 처리된 것.
+    await db.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, status: "shipped" },
+        data: { status: "delivered", updatedAt: now },
+      });
+      if (updated.count === 0) {
+        throw new DomainError("주문 상태가 이미 변경되었습니다. 새로고침해주세요");
+      }
+      await tx.orderStatusHistory.create({
+        data: { orderId: order.id, status: "delivered", statusChangedAt: now },
+      });
+    });
+
+    revalidateOrder(order.orderNo);
+    return { status: "delivered" };
+  });
+}
+
 // ── updateDeliveryPolicy — 어드민 배송비 정책 수정 (singleton 1행). ─────────────────
 
 export async function updateDeliveryPolicy(

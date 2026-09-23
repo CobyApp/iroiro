@@ -4,6 +4,7 @@ import { PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listOrdersByAccount } from "@/modules/orders/lib/queries";
+import { autoConfirmDueOrders } from "@/modules/orders/lib/settle-order";
 import { OrderList } from "@/modules/orders/components/OrderList";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
 import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
@@ -22,6 +23,9 @@ export default async function OrdersPage() {
       />
     );
   }
+
+  // 진입 시 기한 지난 발송 주문을 자동 수령확정(lazy 스윕) — cron 이 없어도 확정이 진행된다.
+  await autoConfirmDueOrders();
 
   const orders = await listOrdersByAccount(account.id);
 
