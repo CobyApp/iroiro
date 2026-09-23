@@ -85,7 +85,7 @@ aws ssm put-parameter --profile personal --region ap-northeast-2 --overwrite --t
 
 ### OAuth 콜백 URL
 
-카카오·네이버 콘솔에는 환경마다 콜백을 등록한다 — `{APP_URL}/api/auth/kakao/callback`, `{APP_URL}/api/auth/naver/callback` (`APP_URL` = `https://iroiro.club` / `https://dev.iroiro.club` / `http://localhost:3000`). `APP_URL`은 `setup.sh ecs`가 태스크 정의에 환경별 도메인으로 고정한다. 콘솔 단계별 절차·검수·문제 해결은 [oauth-setup.md](./oauth-setup.md).
+카카오 콘솔에는 환경마다 콜백을 등록한다 — `{APP_URL}/api/auth/kakao/callback` (`APP_URL` = `https://iroiro.club` / `https://dev.iroiro.club` / `http://localhost:3000`). `APP_URL`은 `setup.sh ecs`가 태스크 정의에 환경별 도메인으로 고정한다. 콘솔 단계별 절차·문제 해결은 [oauth-setup.md](./oauth-setup.md).
 
 ### DNS (Squarespace)
 
