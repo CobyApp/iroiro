@@ -23,6 +23,14 @@ export function publicUrl(request: NextRequest, path: string): URL {
   return new URL(path, publicOrigin(request));
 }
 
+// 요청 User-Agent 로 모바일 기기 여부를 판정한다(카카오페이 결제 리다이렉트 URL 선택용).
+// PC 는 QR(next_redirect_pc_url), 모바일은 카카오톡 앱 연동(next_redirect_mobile_url)을 쓴다.
+export async function isMobileFromHeaders(): Promise<boolean> {
+  const h = await headers();
+  const ua = h.get("user-agent") ?? "";
+  return /Android|iPhone|iPad|iPod|Mobile|KAKAOTALK/i.test(ua);
+}
+
 // Server Action 등 NextRequest 가 없는 곳에서 쓰는 공개 origin 해석.
 // Route Handler 의 publicOrigin 과 같은 우선순위(APP_URL → X-Forwarded-* → Host).
 export async function publicOriginFromHeaders(): Promise<string> {

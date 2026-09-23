@@ -82,10 +82,15 @@ export class KakaoPayCheckoutProvider implements CheckoutProvider {
           raw,
         };
       }
+      // 모바일은 카카오톡 앱 연동 결제창(next_redirect_mobile_url)으로,
+      // PC 는 QR 결제(next_redirect_pc_url)로 보낸다.
+      const redirectUrl =
+        (input.isMobile && raw.next_redirect_mobile_url) ||
+        raw.next_redirect_pc_url;
       return {
         ok: true,
         tid: raw.tid,
-        redirectUrl: raw.next_redirect_pc_url,
+        redirectUrl,
         raw,
       };
     } catch (error) {
