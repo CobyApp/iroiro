@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 import { TAB_DEFS, isTabActive } from "./mobile-tabs";
 import { SHOP_NAVIGATION_ICONS } from "./shop-navigation-icons";
 
-// 데스크톱 주요 메뉴 — 모바일과 같은 탭 구조(마이 제외).
+// 데스크톱 주요 메뉴 — 모바일 하단 탭과 동일한 4개(둘러보기·중고거래·커뮤니티·마이).
+// 오른쪽 유틸 아이콘(찜·장바구니·알림)과는 구분선으로 나뉜다(레이아웃).
 export function DesktopNavLinks() {
   const pathname = usePathname();
-  const links = TAB_DEFS.filter((tab) => tab.key !== "mypage");
+  const links = TAB_DEFS;
 
   return (
     <nav className="flex items-center gap-0.5" aria-label="주요 메뉴">
