@@ -2,14 +2,16 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { notify } from "@/modules/notifications/lib/notify";
+import {
+  ORDER_AUTO_CONFIRM_DAYS,
+  ORDER_AUTO_CONFIRM_MS,
+} from "./settle-order-constants";
 
 // 스토어 주문 자동 수령확정 — 발송(shipped) 후 이 기간이 지나면 구매자가 확정하지 않아도
 // 자동으로 배송완료(delivered)로 전이한다(중고 안전거래와 같은 원칙·기간).
 // 모든 전이는 조건부 updateMany 라 멱등·경합 안전. shipped_at 이 NULL 이면 자동확정 제외(안전).
-export const ORDER_AUTO_CONFIRM_MS = 7 * 24 * 60 * 60 * 1000; // 발송 후 7일
-export const ORDER_AUTO_CONFIRM_DAYS = Math.round(
-  ORDER_AUTO_CONFIRM_MS / (24 * 60 * 60 * 1000),
-);
+// 상수(_MS·_DAYS)는 클라이언트도 쓰므로 settle-order-constants.ts 로 분리했다(재-export).
+export { ORDER_AUTO_CONFIRM_DAYS, ORDER_AUTO_CONFIRM_MS };
 
 function cutoffFrom(now: Date): Date {
   return new Date(now.getTime() - ORDER_AUTO_CONFIRM_MS);
