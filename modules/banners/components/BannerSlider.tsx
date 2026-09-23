@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Banner } from "@/modules/banners/types";
@@ -15,6 +15,8 @@ export function BannerSlider({
 }) {
   const [index, setIndex] = useState(0);
   const count = banners.length;
+  const touchStartXRef = useRef<number | null>(null);
+  const swipedRef = useRef(false);
 
   useEffect(() => {
     if (count <= 1) return;
@@ -31,6 +33,23 @@ export function BannerSlider({
     setIndex((current) => (current + offset + count) % count);
   }
 
+  // 터치 스와이프 — 가로로 40px 이상 끌면 이전/다음. 스와이프 후엔 링크 클릭을 억제한다.
+  const touchStartX = touchStartXRef;
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+    swipedRef.current = false;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStartX.current;
+    touchStartX.current = null;
+    if (start === null || count <= 1) return;
+    const dx = (e.changedTouches[0]?.clientX ?? start) - start;
+    if (Math.abs(dx) > 40) {
+      move(dx < 0 ? 1 : -1);
+      swipedRef.current = true;
+    }
+  }
+
   return (
     <section
       className="kawaii-banner-slider"
@@ -38,8 +57,10 @@ export function BannerSlider({
       aria-roledescription="carousel"
     >
       <div
-        className="flex transition-transform duration-500 ease-out"
+        className="flex touch-pan-y transition-transform duration-500 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
         {banners.map((b) => (
           <a
@@ -48,6 +69,13 @@ export function BannerSlider({
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full shrink-0"
+            onClick={(e) => {
+              // 스와이프로 넘긴 직후의 클릭(링크 이동)은 막는다.
+              if (swipedRef.current) {
+                e.preventDefault();
+                swipedRef.current = false;
+              }
+            }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- R2 배너 이미지 */}
             <img

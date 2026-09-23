@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ImagePlus, Send, X } from "lucide-react";
@@ -31,6 +39,21 @@ type Props = {
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
+// 모바일(sm 미만) 여부 — useSyncExternalStore로 SSR 안전하게 구독(서버 스냅샷=false).
+const MOBILE_MQ = "(max-width: 639px)";
+function subscribeMobile(cb: () => void): () => void {
+  const mq = window.matchMedia(MOBILE_MQ);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function useIsMobile(): boolean {
+  return useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_MQ).matches,
+    () => false,
+  );
+}
+
 // 쪽지 대화 화면 — 말풍선 + 하단 입력창(텍스트·이미지 첨부). 진입 시 읽음 처리, 전송 후 새로고침.
 export function MessageThreadClient({
   threadId,
@@ -51,6 +74,9 @@ export function MessageThreadClient({
     (state, next: MessageItem) => [...state, next],
   );
   const bottomRef = useRef<HTMLDivElement>(null);
+  // 모바일은 전체화면(fixed) — 단, PageTransition의 transform 조상이 fixed의 기준이 되어
+  // 화면이 깨지므로(빈 화면) document.body로 포탈해 조상 밖에서 렌더한다.
+  const useMobileFull = useIsMobile();
 
   useEffect(() => {
     void markThreadRead({ threadId });
@@ -153,10 +179,16 @@ export function MessageThreadClient({
     });
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-card sm:static sm:z-auto sm:h-[calc(100vh-12rem)] sm:min-h-80 sm:rounded-2xl sm:border sm:border-border">
+  const tree = (
+    <div
+      className={
+        useMobileFull
+          ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-card"
+          : "flex h-[calc(100vh-12rem)] min-h-80 flex-col overflow-hidden rounded-2xl border border-border bg-card"
+      }
+    >
       {/* 모바일 전체화면 상단바 — 뒤로가기 + 상대 이름(데스크톱은 페이지 헤더가 담당). */}
-      <div className="flex items-center gap-2 border-b border-border bg-card px-2 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] sm:hidden">
+      <div className="flex items-center gap-2 border-b border-border bg-card px-2 pb-2.5 pt-[calc(env(safe-area-inset-top)_+_0.625rem)] sm:hidden">
         <Link
           href="/messages"
           aria-label="쪽지함으로"
@@ -239,7 +271,7 @@ export function MessageThreadClient({
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t border-border bg-card p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
+      <div className="flex items-end gap-2 border-t border-border bg-card p-3 pb-[calc(env(safe-area-inset-bottom)_+_0.75rem)] sm:pb-3">
         <input
           ref={fileRef}
           type="file"
@@ -285,4 +317,7 @@ export function MessageThreadClient({
       </div>
     </div>
   );
+
+  // 모바일 전체화면은 transform 조상(PageTransition) 밖(body)으로 포탈해야 fixed가 뷰포트 기준이 된다.
+  return useMobileFull ? createPortal(tree, document.body) : tree;
 }
