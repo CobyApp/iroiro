@@ -66,10 +66,10 @@ export const LOGIN_REQUIRED_FEATURES = {
   messages: {
     title: "쪽지를 주고받으려면 로그인해주세요",
     description:
-      "쪽지는 회원끼리 1:1로 주고받는 개인 대화라 본인 확인이 필요합니다. 로그인하면 판매자·회원에게 바로 문의할 수 있어요.",
-    benefits: ["판매자·회원과 1:1 대화", "새 쪽지 도착 알림 확인"],
-    secondaryHref: "/used",
-    secondaryLabel: "중고거래 둘러보기",
+      "쪽지는 회원끼리 1:1로 주고받는 개인 대화라 본인 확인이 필요합니다. 로그인하면 커뮤니티 회원에게 바로 쪽지를 보낼 수 있어요.",
+    benefits: ["커뮤니티 회원과 1:1 대화", "새 쪽지 도착 알림 확인"],
+    secondaryHref: "/posts",
+    secondaryLabel: "커뮤니티 둘러보기",
   },
 } as const;
 

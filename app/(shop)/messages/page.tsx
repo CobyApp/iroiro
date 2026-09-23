@@ -23,7 +23,7 @@ export default async function MessagesInboxPage() {
       <ShopPageHeader
         eyebrow="MESSAGES"
         title="쪽지함"
-        description="판매자·회원과 주고받은 1:1 쪽지를 확인하세요."
+        description="커뮤니티 회원과 주고받은 1:1 쪽지를 확인하세요."
       />
 
       {threads.length === 0 ? (
@@ -32,7 +32,7 @@ export default async function MessagesInboxPage() {
           <p className="text-sm text-muted-foreground">
             아직 주고받은 쪽지가 없어요.
             <br />
-            중고 매물이나 게시글에서 상대에게 쪽지를 보내보세요.
+            커뮤니티 게시글에서 회원에게 쪽지를 보내보세요.
           </p>
         </div>
       ) : (
