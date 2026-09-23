@@ -15,7 +15,7 @@ import { notify } from "@/modules/notifications/lib/notify";
 import { materializeItems } from "@/modules/collection/lib/materialize";
 import { calculateOrderAmounts } from "./lib/amounts";
 import { rememberAddress } from "@/modules/addresses/lib/remember";
-import { issueTracking } from "@/lib/korea-post";
+import { isCourierCode } from "@/lib/shipping/couriers";
 import { formatOrderNo } from "./lib/order-no";
 import { decrementStock, restoreStock, SoldOutError } from "./lib/stock";
 import {
@@ -577,10 +577,12 @@ const ADMIN_ORDER_TRANSITIONS: Record<string, "shipped" | "delivered"> = {
 
 export async function advanceOrderStatus(input: {
   orderNo: string;
+  courier?: string;
+  trackingCode?: string;
 }): Promise<ActionResult<{ status: string }>> {
   return runAction(async () => {
     await requireDeliveryManager();
-    const data = parseActionInput(cancelOrderSchema, input);
+    const data = parseActionInput(cancelOrderSchema, { orderNo: input.orderNo });
 
     const order = await db.order.findFirst({
       where: { orderNo: data.orderNo },
@@ -589,13 +591,20 @@ export async function advanceOrderStatus(input: {
     const next = ADMIN_ORDER_TRANSITIONS[order.status];
     if (!next) throw new DomainError("전이할 수 없는 주문 상태입니다");
 
-    // 발송 전이 시 우체국 등기번호를 발급(더미/실키)해 함께 저장한다 — 중고와 동일한 자동화.
+    // 발송 전이 시 관리자가 입력한 실제 택배사·송장번호를 저장한다(수동). 무료 조회는 링크로.
     const now = new Date();
-    const trackingCode =
-      next === "shipped"
-        ? (order.trackingCode ??
-          issueTracking({ seed: Number(order.id) * 7919 }).trackingCode)
-        : null;
+    let courier: string | null = order.courier ?? null;
+    let trackingCode: string | null = order.trackingCode ?? null;
+    if (next === "shipped") {
+      const c = input.courier?.trim();
+      const t = input.trackingCode?.trim();
+      if (!c || !isCourierCode(c)) throw new DomainError("택배사를 선택해주세요");
+      if (!t || t.length < 6 || t.length > 40) {
+        throw new DomainError("송장번호를 정확히 입력해주세요");
+      }
+      courier = c;
+      trackingCode = t;
+    }
 
     // 조건부 updateMany — 동시 클릭·다른 전이와 경합 시 0행이면 거부(중복 전이 방지).
     await db.$transaction(async (tx) => {
@@ -605,7 +614,7 @@ export async function advanceOrderStatus(input: {
           status: next,
           updatedAt: now,
           ...(next === "shipped"
-            ? { trackingCode, shippedAt: order.shippedAt ?? now }
+            ? { courier, trackingCode, shippedAt: order.shippedAt ?? now }
             : {}),
         },
       });

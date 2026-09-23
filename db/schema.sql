@@ -2839,3 +2839,18 @@ COMMENT ON COLUMN login_pairing.expires_at IS '만료 시각(생성 +5분)';
 GRANT SELECT, INSERT, UPDATE, DELETE ON login_pairing TO app;
 
 -- ============================================================================
+-- [20261004000000_shipping_courier]
+-- ============================================================================
+
+-- 수동 송장 입력 — 판매자/관리자가 실제 택배사·송장번호를 넣고, 구매자는 택배사 공개 조회 페이지로
+-- 무료 조회한다(유료 API 없이). courier 는 lib/shipping/couriers 의 코드(cj/epost/hanjin/… ).
+-- 송장번호는 기존 컬럼 재사용: used_trade/used_bundle=post_tracking_code, order=tracking_code.
+ALTER TABLE used_trade  ADD COLUMN IF NOT EXISTS courier TEXT;
+ALTER TABLE used_bundle ADD COLUMN IF NOT EXISTS courier TEXT;
+ALTER TABLE "order"     ADD COLUMN IF NOT EXISTS courier TEXT;
+
+COMMENT ON COLUMN used_trade.courier  IS '택배사 코드(cj/epost/…) — 수동 송장 입력 시';
+COMMENT ON COLUMN used_bundle.courier IS '택배사 코드 — 수동 송장 입력 시';
+COMMENT ON COLUMN "order".courier     IS '택배사 코드 — 발송 처리 시 관리자가 입력';
+
+-- ============================================================================

@@ -11,7 +11,7 @@ import { getCurrentAccount } from "@/modules/auth/dal";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
 import { publicOriginFromHeaders } from "@/lib/public-origin";
-import { issueTracking } from "@/lib/korea-post";
+import { isCourierCode } from "@/lib/shipping/couriers";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedBundleFees } from "./lib/fees";
 import { AUTO_CONFIRM_DAYS } from "./lib/settle-trade";
@@ -191,42 +191,31 @@ export async function buyUsedBundle(
   });
 }
 
-// 묶음 QR 발급 — 판매자.
-export async function issueBundlePostQr(
+// 묶음 발송 처리 — 판매자가 실제 택배사·송장번호를 입력한다(수동). 소속 개별 거래도 함께 발송.
+export async function markBundleShipped(
   bundleId: number,
-): Promise<ActionResult<{ trackingCode: string }>> {
+  input: { courier: string; trackingCode: string },
+): Promise<ActionResult> {
   return runAction(async () => {
     const account = await requireLogin();
-    const bundle = await db.usedBundle.findUnique({ where: { id: BigInt(bundleId) } });
-    if (!bundle || bundle.sellerAccountId !== account.id) {
-      throw new DomainError("내 판매 건이 아닙니다");
+    const courier = input.courier?.trim();
+    const trackingCode = input.trackingCode?.trim();
+    if (!courier || !isCourierCode(courier)) {
+      throw new DomainError("택배사를 선택해주세요");
     }
-    if (bundle.status !== "paid") {
-      throw new DomainError("결제 완료 상태에서만 발급할 수 있어요");
+    if (!trackingCode || trackingCode.length < 6 || trackingCode.length > 40) {
+      throw new DomainError("송장번호를 정확히 입력해주세요");
     }
-    const trackingCode =
-      bundle.postTrackingCode ??
-      issueTracking({ seed: Number(bundle.id) * 6271 }).trackingCode;
-    await db.usedBundle.update({
-      where: { id: bundle.id },
-      data: {
-        postTrackingCode: trackingCode,
-        postQrIssuedAt: bundle.postQrIssuedAt ?? new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    revalidateBundle(bundleId);
-    return { trackingCode };
-  });
-}
-
-export async function markBundleShipped(bundleId: number): Promise<ActionResult> {
-  return runAction(async () => {
-    const account = await requireLogin();
     const now = new Date();
     const res = await db.usedBundle.updateMany({
       where: { id: BigInt(bundleId), sellerAccountId: account.id, status: "paid" },
-      data: { status: "shipped", shippedAt: now, updatedAt: now },
+      data: {
+        status: "shipped",
+        courier,
+        postTrackingCode: trackingCode,
+        shippedAt: now,
+        updatedAt: now,
+      },
     });
     if (res.count === 0) throw new DomainError("발송 처리할 수 없는 상태입니다");
     await db.usedTrade.updateMany({

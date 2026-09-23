@@ -243,6 +243,7 @@ export async function getUsedBundleById(
       recipientPhone: row.recipientPhone,
       recipientAddress: row.recipientAddress,
       postTrackingCode: row.postTrackingCode,
+      courier: row.courier ?? null,
       shippedAt: row.shippedAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
     },

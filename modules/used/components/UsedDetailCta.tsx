@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Gavel, PackageCheck, QrCode, Truck } from "lucide-react";
+import { Clock, Gavel, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +19,13 @@ import {
   minNextBid,
   remainingLabel,
 } from "@/modules/auction/lib/rules";
-import { MockQr } from "./MockQr";
+import { ShipmentForm } from "@/components/ShipmentForm";
+import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
 import { UsedWishlistButton } from "./UsedWishlistButton";
 import {
   buyUsedListing,
   cancelUsedListing,
   confirmUsedReceived,
-  issueUsedPostQr,
   markUsedShipped,
   placeUsedBid,
 } from "../actions";
@@ -44,7 +44,6 @@ export function UsedDetailCta({
   isLoggedIn,
   wished = false,
   pointBalance = 0,
-  tracking = null,
   autoConfirmNote = null,
 }: {
   listing: UsedListingWithPhotos;
@@ -67,10 +66,6 @@ export function UsedDetailCta({
   const [address, setAddress] = useState("");
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [bidConfirmOpen, setBidConfirmOpen] = useState(false);
-  const [qrCode, setQrCode] = useState<string | null>(
-    trade?.postTrackingCode ?? null,
-  );
-
   const [pointsInput, setPointsInput] = useState("0");
 
   const isAuction = listing.saleMode === "auction";
@@ -195,47 +190,19 @@ export function UsedDetailCta({
         </dl>
 
         {role === "seller" && trade.status === "paid" && (
-          <div className="space-y-2">
-            {qrCode ? (
-              <>
-                <MockQr code={qrCode} />
-                <p className="text-center text-xs text-muted-foreground">
-                  우체국에서 이 QR을 보여주면 접수돼요 (체험판)
-                </p>
-                <Button
-                  size="sm"
-                  className="w-full gap-1.5"
-                  disabled={pending}
-                  onClick={() =>
-                    run(() => markUsedShipped(trade.id), "발송 처리했어요")
-                  }
-                >
-                  <Truck className="h-4 w-4" />
-                  발송 완료로 표시
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-1.5"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    const result = await issueUsedPostQr(trade.id);
-                    if (!result.ok) {
-                      toast.error(result.message);
-                      return;
-                    }
-                    setQrCode(result.data.trackingCode);
-                    toast.success("우체국 접수 QR을 발급했어요 (체험판)");
-                  })
-                }
-              >
-                <QrCode className="h-4 w-4" />
-                우체국 접수 QR 발급
-              </Button>
-            )}
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">
+              택배 접수 후 택배사·송장번호를 입력하면 발송 완료돼요.
+            </p>
+            <ShipmentForm
+              pending={pending}
+              onSubmit={(courier, trackingCode) =>
+                run(
+                  () => markUsedShipped(trade.id, { courier, trackingCode }),
+                  "발송 처리했어요",
+                )
+              }
+            />
           </div>
         )}
 
@@ -266,15 +233,20 @@ export function UsedDetailCta({
         )}
         {trade.status === "shipped" && trade.postTrackingCode && (
           <div className="space-y-0.5 border-t border-border pt-2 text-center text-xs text-muted-foreground">
-            {tracking && (
-              <p className="font-medium text-foreground">
-                배송 상태: {tracking.stateLabel}
-                {tracking.isMock && " (체험판)"}
-              </p>
-            )}
             <p>
-              등기번호 <span className="font-mono">{trade.postTrackingCode}</span>
+              {courierLabel(trade.courier)}{" "}
+              <span className="font-mono">{trade.postTrackingCode}</span>
             </p>
+            {courierTrackingUrl(trade.courier, trade.postTrackingCode) && (
+              <a
+                href={courierTrackingUrl(trade.courier, trade.postTrackingCode)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-primary underline underline-offset-2"
+              >
+                배송 조회 →
+              </a>
+            )}
           </div>
         )}
       </div>
