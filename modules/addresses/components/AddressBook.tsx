@@ -20,6 +20,7 @@ import {
   updateAddress,
   type AddressInput,
 } from "../actions";
+import { PostcodeSearchField } from "@/modules/orders/components/PostcodeSearchField";
 import type { AccountAddress } from "../types";
 
 type FormState = {
@@ -258,28 +259,33 @@ export function AddressBook({ addresses }: { addresses: AccountAddress[] }) {
                 placeholder="010-0000-0000"
               />
             </div>
-            <div className="grid grid-cols-[100px_1fr] gap-2">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">
-                  우편번호
-                </label>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">주소</label>
+              <div className="flex gap-2">
                 <Input
                   value={form.zipcode}
-                  onChange={(e) =>
-                    setForm({ ...form, zipcode: e.target.value })
+                  readOnly
+                  placeholder="우편번호"
+                  aria-label="우편번호"
+                  className="w-28 bg-muted/40"
+                />
+                <PostcodeSearchField
+                  onComplete={(result) =>
+                    setForm({
+                      ...form,
+                      zipcode: result.zipcode,
+                      baseAddress: result.baseAddress,
+                    })
                   }
-                  inputMode="numeric"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">주소</label>
-                <Input
-                  value={form.baseAddress}
-                  onChange={(e) =>
-                    setForm({ ...form, baseAddress: e.target.value })
-                  }
-                />
-              </div>
+              <Input
+                value={form.baseAddress}
+                readOnly
+                placeholder="우편번호 찾기로 주소를 입력하세요"
+                aria-label="기본 주소"
+                className="bg-muted/40"
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">
