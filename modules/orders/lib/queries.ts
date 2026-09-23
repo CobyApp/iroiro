@@ -76,10 +76,13 @@ export async function listOrdersByAccount(
   return orderRows.map((row) => {
     const order = toOrder(row);
     const items = itemsByOrder.get(order.id) ?? [];
+    const first = items[0];
     return {
       ...order,
       itemCount: items.length,
-      firstItemName: items[0]?.productName ?? null,
+      firstItemName: first?.productName ?? null,
+      firstItemProductId: first?.productId ?? null,
+      firstItemThumbnailKey: first?.productThumbnailKey ?? null,
     };
   });
 }
