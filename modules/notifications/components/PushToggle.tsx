@@ -106,7 +106,9 @@ export function PushToggle({
         toast.error(result.message);
         return;
       }
-      toast.success("테스트 알림을 보냈어요. 잠시 후 기기 알림을 확인해 주세요!");
+      toast.success(
+        `테스트 알림을 ${result.data.sent}개 기기로 보냈어요. 잠시 후 확인해 주세요!`,
+      );
     });
   }
 

@@ -77,21 +77,34 @@ export async function savePushSubscription(input: {
 }
 
 /** 이 기기(내 구독)로 테스트 푸시 발송 — 사용자가 실제 도착 여부를 직접 확인. */
-export async function sendTestPush(): Promise<ActionResult<{ sent: number }>> {
+export async function sendTestPush(): Promise<
+  ActionResult<{ sent: number; total: number }>
+> {
   return runAction(async () => {
     const accountId = await requireAccountId();
-    const subs = await db.pushSubscription.count({ where: { accountId } });
-    if (subs === 0) {
-      throw new DomainError(
-        "이 계정에 등록된 기기가 없어요. 먼저 이 기기에서 푸시 알림을 켜주세요.",
-      );
-    }
-    await sendPushToAccount(accountId, {
+    const r = await sendPushToAccount(accountId, {
       title: "이로이로 테스트 알림",
       body: "이 알림이 보이면 이 기기 푸시가 정상 동작해요! 🎉",
       link: "/mypage",
     });
-    return { sent: subs };
+    if (!r.configured) {
+      throw new DomainError("서버에 푸시 키(VAPID)가 설정되지 않았어요.");
+    }
+    if (r.total === 0) {
+      throw new DomainError(
+        "이 계정에 등록된 기기가 없어요. 먼저 이 기기에서 푸시 알림을 켜주세요(iOS는 홈 화면에 추가한 앱에서).",
+      );
+    }
+    if (r.sent === 0) {
+      const detail =
+        r.removed > 0
+          ? "구독이 만료돼 정리했어요. 푸시를 껐다가 다시 켜주세요."
+          : r.errorCodes.length > 0
+            ? `발송 실패(코드 ${[...new Set(r.errorCodes)].join(",")}).`
+            : "발송에 실패했어요.";
+      throw new DomainError(detail);
+    }
+    return { sent: r.sent, total: r.total };
   });
 }
 
