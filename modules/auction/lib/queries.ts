@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export type BidRow = {
@@ -32,13 +33,24 @@ export type TradeRow = { price: number; agoLabel: string };
  * 같은 카드 판별: item_code가 있으면 동일 코드, 없으면 동일 상품명.
  */
 export async function listRecentTradePrices(
-  product: { id: number; itemCode: string | null; name: string },
+  product: {
+    id: number;
+    catalogCardId: number | null;
+    itemCode: string | null;
+    name: string;
+  },
   limit = 5,
 ): Promise<TradeRow[]> {
+  // 같은 "카드"(=포즈)의 거래만 — 상품은 카탈로그 카드와 1:1이라 catalog_card_id 가 포즈 단위 키다.
+  // 카드 연결이 없으면 item_code, 그것도 없으면 이름으로 폴백(둘 다 포즈까지 구분되진 않음).
+  const where: Prisma.ProductWhereInput =
+    product.catalogCardId !== null
+      ? { catalogCardId: BigInt(product.catalogCardId) }
+      : product.itemCode
+        ? { itemCode: product.itemCode }
+        : { name: product.name };
   const sameCard = await db.product.findMany({
-    where: product.itemCode
-      ? { itemCode: product.itemCode }
-      : { name: product.name },
+    where,
     select: { id: true },
   });
   if (sameCard.length === 0) return [];

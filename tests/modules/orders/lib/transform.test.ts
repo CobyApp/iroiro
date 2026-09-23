@@ -25,6 +25,9 @@ describe("toOrder", () => {
       discountAmount: 0,
       deliveryAmount: 3000,
       totalAmount: 13000,
+      trackingCode: null,
+      courier: null,
+      shippedAt: null,
       createdAt: CREATED,
       updatedAt: CREATED,
     };

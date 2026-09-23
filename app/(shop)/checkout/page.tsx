@@ -6,7 +6,7 @@ import { getProductsByIds } from "@/modules/products/lib/queries";
 import { getDeliveryPolicy } from "@/modules/orders/lib/queries";
 import { calculateOrderAmounts } from "@/modules/orders/lib/amounts";
 import { CheckoutForm } from "@/modules/orders/components/CheckoutForm";
-import { getDefaultAddress } from "@/modules/addresses/lib/queries";
+import { getDefaultAddress, listAddresses } from "@/modules/addresses/lib/queries";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
 import {
   countUsableFreeShippingCoupons,
@@ -15,14 +15,29 @@ import {
 
 export const metadata: Metadata = { title: "주문/결제" };
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ items?: string }>;
+}) {
   const account = await getCurrentAccount();
   if (!account) redirect(loginRequiredHref("checkout"));
 
-  const [cartItems, policy] = await Promise.all([
+  const { items } = await searchParams;
+  // 장바구니에서 고른 항목만 결제 — items=1,2,3. 없으면 전체(구버전 링크 호환).
+  const selectedIds = (items ?? "")
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  const selectedSet = selectedIds.length > 0 ? new Set(selectedIds) : null;
+
+  const [allCartItems, policy] = await Promise.all([
     getCartItems(account.id),
     getDeliveryPolicy(),
   ]);
+  const cartItems = selectedSet
+    ? allCartItems.filter((item) => selectedSet.has(item.id))
+    : allCartItems;
   if (cartItems.length === 0) redirect("/cart");
 
   const products = await getProductsByIds(
@@ -50,7 +65,10 @@ export default async function CheckoutPage() {
     getPointBalance(account.id),
     countUsableFreeShippingCoupons(account.id),
   ]);
-  const defaultAddress = await getDefaultAddress(account.id);
+  const [defaultAddress, savedAddresses] = await Promise.all([
+    getDefaultAddress(account.id),
+    listAddresses(account.id),
+  ]);
 
   return (
     <div className="shop-page-frame space-y-6">
@@ -58,6 +76,7 @@ export default async function CheckoutPage() {
         <h1 className="text-2xl font-bold">주문/결제</h1>
       </div>
       <CheckoutForm
+        cartItemIds={cartItems.map((item) => item.id)}
         summary={{
           productAmount: amounts.productAmount,
           deliveryAmount: amounts.deliveryAmount,
@@ -66,6 +85,7 @@ export default async function CheckoutPage() {
         pointBalance={pointBalance}
         freeShippingCoupons={freeShippingCoupons}
         defaultAddress={defaultAddress}
+        savedAddresses={savedAddresses}
       />
     </div>
   );

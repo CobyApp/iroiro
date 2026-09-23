@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
+import { AdminAccessNotice } from "@/modules/admin/components/AdminAccessNotice";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
 import { adminRolesOf, hasAdminSpace } from "@/modules/admin/lib/adminRoles";
@@ -37,8 +37,10 @@ export default async function DeliveryLayout({
   await connection();
 
   const account = await getCurrentAccount();
-  if (!account) redirect("/login?returnTo=/admin/store");
-  if (!hasAdminSpace(account, "delivery")) redirect("/");
+  if (!account) return <AdminAccessNotice mode="login" returnTo="/admin/store" />;
+  if (!hasAdminSpace(account, "delivery")) {
+    return <AdminAccessNotice mode="forbidden" spaceLabel="스토어" />;
+  }
 
   return (
     <AdminShell

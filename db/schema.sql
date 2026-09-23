@@ -2785,3 +2785,72 @@ ALTER TABLE used_bundle
 COMMENT ON COLUMN used_bundle.status IS '상태 — pending(결제대기)/paid/shipped/completed/canceled';
 
 -- ============================================================================
+-- [20261001000000_message_image]
+-- ============================================================================
+
+-- 쪽지에 이미지 1장 첨부 — 비공개 UGC 버킷의 최종 키(messages/<uuid>.<ext>)를 저장한다.
+-- 서빙은 서명 GET(getSignedUgcGetUrl). 본문(body)만·이미지만·둘 다 허용(앱에서 검증).
+-- GRANT 는 이미 message 에 SELECT/INSERT 로 부여돼 새 컬럼도 커버된다(body 를 NULL 허용으로 완화).
+ALTER TABLE message
+    ADD COLUMN IF NOT EXISTS image_r2_key TEXT;
+ALTER TABLE message
+    ALTER COLUMN body DROP NOT NULL;
+
+COMMENT ON COLUMN message.image_r2_key IS '첨부 이미지 R2 키(비공개 UGC) — 없으면 NULL';
+COMMENT ON COLUMN message.body IS '내용(이미지만 보낼 땐 NULL 가능)';
+
+-- ============================================================================
+-- [20261002000000_order_tracking]
+-- ============================================================================
+
+-- 스토어 주문도 중고처럼 우체국 배송추적을 자동화 — 발송(shipped) 전이 시 등기번호(더미/실키)를
+-- 발급해 tracking_code 에 저장하고 shipped_at 을 남긴다. 고객·관리자 화면이 종적조회 링크를 띄운다.
+-- GRANT 는 이미 "order" 에 부여돼 새 컬럼도 커버된다.
+ALTER TABLE "order"
+    ADD COLUMN IF NOT EXISTS tracking_code TEXT,
+    ADD COLUMN IF NOT EXISTS shipped_at    TIMESTAMPTZ;
+
+COMMENT ON COLUMN "order".tracking_code IS '우체국 등기 송장번호(발송 시 발급) — 없으면 NULL';
+COMMENT ON COLUMN "order".shipped_at IS '발송 처리 시각';
+
+-- ============================================================================
+-- [20261003000000_login_pairing]
+-- ============================================================================
+
+-- iOS standalone PWA(홈 화면 앱)는 외부 OAuth 리다이렉트가 Safari 로 튕겨 나가 세션 쿠키가
+-- 앱 컨텍스트에 안 심긴다. 디바이스 페어링 브리지: 앱이 고엔트로피 code 를 만들어 Safari 로
+-- 로그인 → 콜백이 code↔account 를 이 표에 남김 → 앱이 code 로 claim 하면 앱 컨텍스트에서 세션 발급.
+-- 코드는 1회용·단기(5분). 만료 스윕은 claim/생성 시 lazy 정리.
+CREATE TABLE IF NOT EXISTS login_pairing
+(
+    code       TEXT PRIMARY KEY,
+    account_id UUID        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_pairing_expires_idx ON login_pairing (expires_at);
+
+COMMENT ON TABLE login_pairing IS 'PWA 로그인 디바이스 페어링 — code↔account, 1회용·단기';
+COMMENT ON COLUMN login_pairing.code IS '앱이 생성한 고엔트로피 코드(base64url 32바이트)';
+COMMENT ON COLUMN login_pairing.account_id IS '로그인된 회원 — claim 시 이 계정으로 세션 발급';
+COMMENT ON COLUMN login_pairing.expires_at IS '만료 시각(생성 +5분)';
+
+-- UPDATE 는 createLoginPairing 의 upsert(같은 code 재사용 시 갱신)에 필요.
+GRANT SELECT, INSERT, UPDATE, DELETE ON login_pairing TO app;
+
+-- ============================================================================
+-- [20261004000000_shipping_courier]
+-- ============================================================================
+
+-- 수동 송장 입력 — 판매자/관리자가 실제 택배사·송장번호를 넣고, 구매자는 택배사 공개 조회 페이지로
+-- 무료 조회한다(유료 API 없이). courier 는 lib/shipping/couriers 의 코드(cj/epost/hanjin/… ).
+-- 송장번호는 기존 컬럼 재사용: used_trade/used_bundle=post_tracking_code, order=tracking_code.
+ALTER TABLE used_trade  ADD COLUMN IF NOT EXISTS courier TEXT;
+ALTER TABLE used_bundle ADD COLUMN IF NOT EXISTS courier TEXT;
+ALTER TABLE "order"     ADD COLUMN IF NOT EXISTS courier TEXT;
+
+COMMENT ON COLUMN used_trade.courier  IS '택배사 코드(cj/epost/…) — 수동 송장 입력 시';
+COMMENT ON COLUMN used_bundle.courier IS '택배사 코드 — 수동 송장 입력 시';
+COMMENT ON COLUMN "order".courier     IS '택배사 코드 — 발송 처리 시 관리자가 입력';
+
+-- ============================================================================

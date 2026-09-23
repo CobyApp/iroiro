@@ -16,7 +16,7 @@ import { evaluateBid, payDueFrom } from "@/modules/auction/lib/rules";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
 import { publicOriginFromHeaders } from "@/lib/public-origin";
-import { issueTracking } from "@/lib/korea-post";
+import { isCourierCode } from "@/lib/shipping/couriers";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedTradeFees } from "./lib/fees";
 import { failUsedTradePayment } from "./lib/checkout";
@@ -462,44 +462,22 @@ export async function settleUsedListingIfDue(
   return true;
 }
 
-// 우체국 QR 발급(목업) — 판매자가 결제 완료 건에 등기번호를 발급.
-export async function issueUsedPostQr(
+// 발송 처리 — 판매자가 실제 택배사·송장번호를 입력한다(수동). shipped_at 을 남겨 자동 수령확정
+// 타이머의 기준으로 삼고, 송장번호는 구매자가 택배사 공개 페이지로 무료 조회한다.
+export async function markUsedShipped(
   tradeId: number,
-): Promise<ActionResult<{ trackingCode: string }>> {
+  input: { courier: string; trackingCode: string },
+): Promise<ActionResult> {
   return runAction(async () => {
     const account = await requireLogin();
-    const trade = await db.usedTrade.findUnique({
-      where: { id: BigInt(tradeId) },
-    });
-    if (!trade || trade.sellerAccountId !== account.id) {
-      throw new DomainError("내 판매 건이 아닙니다");
+    const courier = input.courier?.trim();
+    const trackingCode = input.trackingCode?.trim();
+    if (!courier || !isCourierCode(courier)) {
+      throw new DomainError("택배사를 선택해주세요");
     }
-    if (trade.status !== "paid") {
-      throw new DomainError("결제 완료 상태에서만 발급할 수 있어요");
+    if (!trackingCode || trackingCode.length < 6 || trackingCode.length > 40) {
+      throw new DomainError("송장번호를 정확히 입력해주세요");
     }
-    const trackingCode =
-      trade.postTrackingCode ??
-      issueTracking({
-        seed: Number(trade.id) * 7919,
-        shippingMethod: undefined,
-      }).trackingCode;
-    await db.usedTrade.update({
-      where: { id: trade.id },
-      data: {
-        postTrackingCode: trackingCode,
-        postQrIssuedAt: trade.postQrIssuedAt ?? new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    revalidateUsed(Number(trade.listingId));
-    return { trackingCode };
-  });
-}
-
-// 발송 처리 — 판매자. shipped_at 을 남겨 자동 수령확정 타이머의 기준으로 삼는다.
-export async function markUsedShipped(tradeId: number): Promise<ActionResult> {
-  return runAction(async () => {
-    const account = await requireLogin();
     const now = new Date();
     const res = await db.usedTrade.updateMany({
       where: {
@@ -507,7 +485,13 @@ export async function markUsedShipped(tradeId: number): Promise<ActionResult> {
         sellerAccountId: account.id,
         status: "paid",
       },
-      data: { status: "shipped", shippedAt: now, updatedAt: now },
+      data: {
+        status: "shipped",
+        courier,
+        postTrackingCode: trackingCode,
+        shippedAt: now,
+        updatedAt: now,
+      },
     });
     if (res.count === 0) throw new DomainError("발송 처리할 수 없는 상태입니다");
     const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });

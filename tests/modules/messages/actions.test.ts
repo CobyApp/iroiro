@@ -24,6 +24,19 @@ vi.mock("@/modules/auth/dal", () => ({ getCurrentAccount }));
 vi.mock("@/modules/notifications/lib/notify", () => ({ notify }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+const headUgcObject = vi.fn();
+const copyUgcObject = vi.fn();
+const deleteUgcObject = vi.fn();
+const presignUgcPut = vi.fn();
+vi.mock("@/lib/r2/ugc", () => ({
+  headUgcObject,
+  copyUgcObject,
+  deleteUgcObject,
+  presignUgcPut,
+}));
+const VALID_TMP_KEY =
+  "messages/tmp/01900000-0000-7000-8000-0000000000cc.jpg";
+
 // 실제 계정 id와 같은 UUIDv7 형식(zod uuid 검증 통과) + 사전순 LOW < ME < OTHER
 const ME = "01900000-0000-7000-8000-0000000000aa";
 const OTHER = "01900000-0000-7000-8000-0000000000bb";
@@ -38,6 +51,12 @@ beforeEach(() => {
   threadUpdate.mockReset().mockResolvedValue({});
   messageCreate.mockReset().mockResolvedValue({});
   accountFindUnique.mockReset().mockResolvedValue({ id: OTHER, displayName: "상대" });
+  headUgcObject
+    .mockReset()
+    .mockResolvedValue({ etag: "e1", contentType: "image/jpeg", contentLength: 1000 });
+  copyUgcObject.mockReset().mockResolvedValue(undefined);
+  deleteUgcObject.mockReset().mockResolvedValue(true);
+  presignUgcPut.mockReset().mockResolvedValue("https://upload");
 });
 
 describe("sendMessageToAccount", () => {
@@ -121,5 +140,58 @@ describe("markThreadRead", () => {
     const { markThreadRead } = await import("@/modules/messages/actions");
     await markThreadRead({ threadId: 1 });
     expect(threadUpdate.mock.calls[0][0].data.bLastReadAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("sendMessageToAccount — 이미지 첨부", () => {
+  it("본문 없이 이미지만 보내면 검증·복사 후 최종 키로 저장한다", async () => {
+    const { sendMessageToAccount } = await import("@/modules/messages/actions");
+    const res = await sendMessageToAccount({
+      toAccountId: OTHER,
+      body: "",
+      imageKey: VALID_TMP_KEY,
+    });
+    expect(res.ok).toBe(true);
+    expect(copyUgcObject).toHaveBeenCalledWith(
+      VALID_TMP_KEY,
+      "messages/01900000-0000-7000-8000-0000000000cc.jpg",
+      "e1",
+      "image/jpeg",
+    );
+    const data = messageCreate.mock.calls[0][0].data;
+    expect(data.imageR2Key).toBe("messages/01900000-0000-7000-8000-0000000000cc.jpg");
+    expect(data.body).toBeNull();
+    expect(notify.mock.calls[0][1].body).toBe("사진을 보냈어요");
+  });
+
+  it("tmp 패턴이 아닌 임의 키는 거부한다(임의 키 서빙 차단)", async () => {
+    const { sendMessageToAccount } = await import("@/modules/messages/actions");
+    const res = await sendMessageToAccount({
+      toAccountId: OTHER,
+      body: "",
+      imageKey: "messages/someones-secret.jpg",
+    });
+    expect(res.ok).toBe(false);
+    expect(copyUgcObject).not.toHaveBeenCalled();
+    expect(messageCreate).not.toHaveBeenCalled();
+  });
+
+  it("본문·이미지 둘 다 없으면 거부한다", async () => {
+    const { sendMessageToAccount } = await import("@/modules/messages/actions");
+    const res = await sendMessageToAccount({ toAccountId: OTHER, body: "" });
+    expect(res.ok).toBe(false);
+    expect(messageCreate).not.toHaveBeenCalled();
+  });
+
+  it("업로드된 객체가 없으면(HEAD null) 거부한다", async () => {
+    headUgcObject.mockResolvedValue(null);
+    const { sendMessageToAccount } = await import("@/modules/messages/actions");
+    const res = await sendMessageToAccount({
+      toAccountId: OTHER,
+      body: "",
+      imageKey: VALID_TMP_KEY,
+    });
+    expect(res.ok).toBe(false);
+    expect(copyUgcObject).not.toHaveBeenCalled();
   });
 });

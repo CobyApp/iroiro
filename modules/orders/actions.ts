@@ -5,7 +5,9 @@ import { Prisma } from "@prisma/client";
 import { type ActionResult, DomainError, parseActionInput, runAction } from "@/lib/action-result";
 import { db } from "@/lib/db";
 import { todayKstYmd } from "@/lib/datetime";
-import { getPaymentGateway } from "@/lib/payments";
+import { getPaymentGateway, type GatewayConfirmResult } from "@/lib/payments";
+import { getCheckoutProvider } from "@/lib/payments/checkout";
+import { publicOriginFromHeaders } from "@/lib/public-origin";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { requireDeliveryManager } from "@/modules/admin/lib/requireAdminSpace";
 import { notify } from "@/modules/notifications/lib/notify";
@@ -14,6 +16,8 @@ import { notify } from "@/modules/notifications/lib/notify";
 // 교차 도메인: 결제 승인 tx 안에서 컬렉션 보유 원장 적재를 원자화해야 하므로 tx client를 넘겨 호출.
 import { materializeItems } from "@/modules/collection/lib/materialize";
 import { calculateOrderAmounts } from "./lib/amounts";
+import { rememberAddress } from "@/modules/addresses/lib/remember";
+import { isCourierCode } from "@/lib/shipping/couriers";
 import { formatOrderNo } from "./lib/order-no";
 import { decrementStock, restoreStock, SoldOutError } from "./lib/stock";
 import {
@@ -49,17 +53,44 @@ async function requireAccountId(): Promise<string> {
 
 export async function placeOrder(
   input: CheckoutInput,
-): Promise<ActionResult<{ orderNo: string }>> {
+): Promise<ActionResult<{ orderNo: string; redirectUrl?: string }>> {
   return runAction(async () => {
     const data = parseActionInput(checkoutSchema, input);
     const accountId = await requireAccountId();
-    const provider = getPaymentGateway().provider;
+    const checkout = getCheckoutProvider();
+    // 결제 provider 라벨 — 카카오페이(redirect)면 kakaopay, 아니면 mock 게이트웨이.
+    const provider =
+      checkout.kind === "redirect" ? checkout.provider : getPaymentGateway().provider;
 
     const orderNo = await nextOrderNo();
-    await db.$transaction((tx) =>
+    const created = await db.$transaction((tx) =>
       placeOrderTx(tx, accountId, data, provider, orderNo),
     );
     revalidatePath("/cart");
+
+    // 카카오페이 등 리다이렉트 결제 — 결제창 URL 을 만들어 반환(승인은 approve 콜백).
+    if (checkout.kind === "redirect") {
+      const origin = await publicOriginFromHeaders();
+      const ready = await checkout.ready({
+        orderNo,
+        userId: accountId,
+        itemName: created.itemName,
+        quantity: 1,
+        totalAmount: created.totalAmount,
+        approvalUrl: `${origin}/api/payment/kakao/approve?order=${orderNo}`,
+        cancelUrl: `${origin}/api/payment/kakao/cancel?order=${orderNo}`,
+        failUrl: `${origin}/api/payment/kakao/fail?order=${orderNo}`,
+      });
+      if (!ready.ok) {
+        await failOrderPayment(orderNo, accountId);
+        throw new DomainError(ready.failMessage || "결제 준비에 실패했어요");
+      }
+      await db.payment.updateMany({
+        where: { orderNo },
+        data: { tradeNo: ready.tid, updatedAt: new Date() },
+      });
+      return { orderNo, redirectUrl: ready.redirectUrl };
+    }
     return { orderNo };
   });
 }
@@ -86,9 +117,22 @@ async function placeOrderTx(
   data: CheckoutParsed,
   provider: string,
   orderNo: string,
-): Promise<void> {
-  const cart = await tx.cartItem.findMany({ where: { accountId } });
-  if (cart.length === 0) throw new DomainError("장바구니가 비어 있습니다");
+): Promise<{ itemName: string; totalAmount: number }> {
+  // 선택 주문 — 장바구니에서 고른 항목만. 빈 배열(구버전/미선택)이면 전체.
+  const selectedIds = data.cartItemIds.map((id) => BigInt(id));
+  const cart = await tx.cartItem.findMany({
+    where: {
+      accountId,
+      ...(selectedIds.length > 0 ? { id: { in: selectedIds } } : {}),
+    },
+  });
+  if (cart.length === 0) {
+    throw new DomainError(
+      selectedIds.length > 0
+        ? "주문할 상품을 선택해주세요"
+        : "장바구니가 비어 있습니다",
+    );
+  }
 
   const productIds = cart.map((item) => item.productId);
   const [products, thumbnails, policyRow] = await Promise.all([
@@ -267,8 +311,28 @@ async function placeOrderTx(
     }
   }
 
-  // 장바구니 전체 주문 — 해당 계정 장바구니 비우기.
-  await tx.cartItem.deleteMany({ where: { accountId } });
+  // 주문한 항목만 장바구니에서 비운다(선택 주문). 선택이 없으면(전체 주문) 계정 전체.
+  await tx.cartItem.deleteMany({
+    where: {
+      accountId,
+      ...(selectedIds.length > 0 ? { id: { in: selectedIds } } : {}),
+    },
+  });
+
+  // 이번 배송지를 주소록에 자동 저장·최근 배송지로 승격(다음 결제에 자동 채움).
+  await rememberAddress(tx, accountId, {
+    recipientName: data.recipientName,
+    recipientPhone: data.recipientPhone,
+    zipcode: data.zipcode,
+    baseAddress: data.baseAddress,
+    detailAddress: data.detailAddress ?? null,
+  });
+
+  // 결제창 상품명 — 대표 상품 + 외 N건.
+  const firstName = snapshots[0]?.product.name ?? "이로이로 주문";
+  const itemName =
+    snapshots.length > 1 ? `${firstName} 외 ${snapshots.length - 1}건` : firstName;
+  return { itemName, totalAmount: amounts.totalAmount };
 }
 
 // 주문이 취소로 끝날 때 포인트 환급 + 쿠폰 복원 — 취소 tx 안에서 호출.
@@ -319,15 +383,21 @@ export async function confirmPayment(
 }
 
 // 본문이 커서 runAction 콜백으로 추출 — 내부 throw(DomainError)는 결과로 변환된다.
-async function confirmPaymentImpl(
-  input: ConfirmPaymentInput,
-): Promise<{ orderNo: string }> {
-  const data = parseActionInput(confirmPaymentSchema, input);
-  const accountId = await requireAccountId();
-  const gateway = getPaymentGateway();
+type OrderApproveFn = (ctx: {
+  orderNo: string;
+  totalAmount: number;
+  tradeNo: string | null;
+}) => Promise<GatewayConfirmResult>;
 
+// 주문 결제 정산 — reserve(재고 선점)→approve(주입)→finalize(paid·보유원장), 실패 시 취소·복원.
+// 승인 호출부만 주입해 mock confirm 과 카카오페이 redirect approve 가 같은 로직을 공유한다.
+async function settleOrder(
+  orderNo: string,
+  accountId: string,
+  approve: OrderApproveFn,
+): Promise<{ orderNo: string }> {
   const order = await db.order.findFirst({
-    where: { orderNo: data.orderNo, accountId },
+    where: { orderNo, accountId },
   });
   if (!order) throw new DomainError("주문을 찾을 수 없습니다");
   const payment = await db.payment.findUnique({ where: { orderId: order.id } });
@@ -390,11 +460,11 @@ async function confirmPaymentImpl(
     throw error;
   }
 
-  // 게이트웨이 호출 — 반드시 트랜잭션 밖(네트워크 호출 중 락 보유 금지).
-  const result = await gateway.confirm({
+  // 승인 호출 — 반드시 트랜잭션 밖(네트워크 호출 중 락 보유 금지).
+  const result = await approve({
     orderNo: order.orderNo,
-    amount: order.totalAmount,
-    tradeNo: data.tradeNo ?? payment.tradeNo,
+    totalAmount: order.totalAmount,
+    tradeNo: payment.tradeNo,
   });
   const approved = result.ok && result.approvedAmount === order.totalAmount;
 
@@ -500,6 +570,81 @@ async function confirmPaymentImpl(
   throw new DomainError(failMessage);
 }
 
+// mock(즉시 확인) 결제 — /checkout/[orderNo]/pay 체험 화면에서 호출. 실서비스는 카카오페이 redirect.
+async function confirmPaymentImpl(
+  input: ConfirmPaymentInput,
+): Promise<{ orderNo: string }> {
+  const data = parseActionInput(confirmPaymentSchema, input);
+  const accountId = await requireAccountId();
+  const gateway = getPaymentGateway();
+  return settleOrder(data.orderNo, accountId, ({ orderNo, totalAmount, tradeNo }) =>
+    gateway.confirm({ orderNo, amount: totalAmount, tradeNo: data.tradeNo ?? tradeNo }),
+  );
+}
+
+// 카카오페이 승인 — 결제창에서 pg_token 과 함께 돌아온 콜백(app/api/payment/kakao/approve?order=)이 호출.
+// settleOrder 로 mock 과 동일한 재고 선점·보유원장 적재를 재사용한다.
+export async function approveOrderPayment(
+  orderNo: string,
+  pgToken: string,
+  accountId: string,
+): Promise<ActionResult<{ orderNo: string }>> {
+  return runAction(() =>
+    settleOrder(orderNo, accountId, async ({ orderNo: no, tradeNo }) => {
+      if (!tradeNo) {
+        return { ok: false, failMessage: "결제 정보가 없어요", rawRequest: {}, rawResponse: {} };
+      }
+      const provider = getCheckoutProvider();
+      const r = await provider.approve({
+        tid: tradeNo,
+        orderNo: no,
+        userId: accountId,
+        pgToken,
+      });
+      if (!r.ok) {
+        return { ok: false, failMessage: r.failMessage, rawRequest: {}, rawResponse: r.raw };
+      }
+      return {
+        ok: true,
+        tradeNo,
+        method: "kakaopay",
+        approvedAmount: r.approvedAmount,
+        approvedAt: r.approvedAt,
+        rawRequest: {},
+        rawResponse: r.raw,
+      };
+    }),
+  );
+}
+
+// 카카오페이 취소/실패 — pending 주문을 취소한다(선점 전이라 재고 복원 불필요, 혜택만 환급).
+export async function failOrderPayment(
+  orderNo: string,
+  accountId: string,
+): Promise<void> {
+  const order = await db.order.findFirst({ where: { orderNo, accountId } });
+  if (!order || order.status !== "pending") return;
+  await db.$transaction(async (tx) => {
+    // 결제가 아직 시작 전(ready)일 때만 취소한다 — reserve(in_progress) 이후엔 approve 흐름이
+    // 결과를 소유하므로 건드리지 않는다(취소 콜백과 승인의 경합 → 재고 누락·이중확정 방지).
+    const failed = await tx.payment.updateMany({
+      where: { orderId: order.id, status: "ready" },
+      data: { status: "failed", failMessage: "결제 취소", updatedAt: new Date() },
+    });
+    if (failed.count === 0) return;
+    const canceled = await tx.order.updateMany({
+      where: { id: order.id, status: "pending" },
+      data: { status: "canceled", updatedAt: new Date() },
+    });
+    if (canceled.count === 0) return;
+    await tx.orderStatusHistory.create({
+      data: { orderId: order.id, status: "canceled", statusChangedAt: new Date() },
+    });
+    await refundOrderBenefits(tx, order.id, order.accountId);
+  });
+  revalidateOrder(order.orderNo);
+}
+
 // ── cancelOrder — pending 주문만. 선점 전이므로 재고 복원 불필요. ──────────────────
 
 export async function cancelOrder(
@@ -548,10 +693,12 @@ const ADMIN_ORDER_TRANSITIONS: Record<string, "shipped" | "delivered"> = {
 
 export async function advanceOrderStatus(input: {
   orderNo: string;
+  courier?: string;
+  trackingCode?: string;
 }): Promise<ActionResult<{ status: string }>> {
   return runAction(async () => {
     await requireDeliveryManager();
-    const data = parseActionInput(cancelOrderSchema, input);
+    const data = parseActionInput(cancelOrderSchema, { orderNo: input.orderNo });
 
     const order = await db.order.findFirst({
       where: { orderNo: data.orderNo },
@@ -560,17 +707,38 @@ export async function advanceOrderStatus(input: {
     const next = ADMIN_ORDER_TRANSITIONS[order.status];
     if (!next) throw new DomainError("전이할 수 없는 주문 상태입니다");
 
+    // 발송 전이 시 관리자가 입력한 실제 택배사·송장번호를 저장한다(수동). 무료 조회는 링크로.
+    const now = new Date();
+    let courier: string | null = order.courier ?? null;
+    let trackingCode: string | null = order.trackingCode ?? null;
+    if (next === "shipped") {
+      const c = input.courier?.trim();
+      const t = input.trackingCode?.trim();
+      if (!c || !isCourierCode(c)) throw new DomainError("택배사를 선택해주세요");
+      if (!t || t.length < 6 || t.length > 40) {
+        throw new DomainError("송장번호를 정확히 입력해주세요");
+      }
+      courier = c;
+      trackingCode = t;
+    }
+
     // 조건부 updateMany — 동시 클릭·다른 전이와 경합 시 0행이면 거부(중복 전이 방지).
     await db.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { id: order.id, status: order.status },
-        data: { status: next, updatedAt: new Date() },
+        data: {
+          status: next,
+          updatedAt: now,
+          ...(next === "shipped"
+            ? { courier, trackingCode, shippedAt: order.shippedAt ?? now }
+            : {}),
+        },
       });
       if (updated.count === 0) {
         throw new DomainError("주문 상태가 이미 변경되었습니다. 새로고침해주세요");
       }
       await tx.orderStatusHistory.create({
-        data: { orderId: order.id, status: next, statusChangedAt: new Date() },
+        data: { orderId: order.id, status: next, statusChangedAt: now },
       });
     });
 

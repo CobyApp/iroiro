@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { redirect } from "next/navigation";
+import { AdminAccessNotice } from "@/modules/admin/components/AdminAccessNotice";
 import { connection } from "next/server";
 import { AdminShell } from "@/modules/admin/components/AdminShell";
 import { getCurrentAccount } from "@/modules/auth/dal";
@@ -35,8 +35,10 @@ export default async function MarketLayout({ children }: { children: React.React
   await connection();
 
   const account = await getCurrentAccount();
-  if (!account) redirect("/login?returnTo=/admin/used");
-  if (!hasAdminSpace(account, "used")) redirect("/");
+  if (!account) return <AdminAccessNotice mode="login" returnTo="/admin/used" />;
+  if (!hasAdminSpace(account, "used")) {
+    return <AdminAccessNotice mode="forbidden" spaceLabel="중고거래" />;
+  }
 
   return (
     <AdminShell

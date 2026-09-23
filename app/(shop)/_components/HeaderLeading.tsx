@@ -9,6 +9,7 @@ import { SALE_MODE_LABEL } from "@/modules/products/types";
 import { USED_ITEM_TYPE_LABEL } from "@/modules/used/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
+import { WishlistSearch } from "@/modules/wishlist/components/WishlistSearch";
 import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
 
 // 상단 헤더 왼쪽 영역 — 현재 화면에 맞춰 셋 중 하나를 보여준다.
@@ -80,8 +81,10 @@ function resolveLeading(pathname: string): Leading {
       return USED;
     case "/posts":
       return COMMUNITY;
-    // 찜·장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
+    // 찜은 자체 검색(찜 목록 안에서 필터)을 페이지에서 제공 — 헤더 스토어 검색을 붙이지 않는다.
     case "/wishlist":
+      return { kind: "logo" };
+    // 장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
     case "/cart":
       return PRODUCT;
     // 메뉴에서 진입하는 leaf 페이지 — 자체 상위 탭이 없으니 뒤로가기.
@@ -120,6 +123,15 @@ export function HeaderLeading({
 }) {
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
+
+  // 찜은 자체 검색(찜 목록 필터) — 모바일 상단 헤더에 찜 전용 검색바를 둔다(데스크탑은 페이지 안).
+  if (pathname === "/wishlist") {
+    return (
+      <div className="min-w-0 flex-1 sm:hidden">
+        <WishlistSearch />
+      </div>
+    );
+  }
 
   if (leading.kind === "back") return <BackButton fallback={leading.fallback} />;
   if (leading.kind === "account" && account) {
@@ -208,7 +220,7 @@ export function InPageSearchBar({ className }: { className?: string }) {
   const leading = resolveLeading(pathname);
   if (leading.kind !== "search") return null;
   return (
-    <div className={`hidden w-full max-w-xl sm:block ${className ?? ""}`}>
+    <div className={`hidden w-full sm:block ${className ?? ""}`}>
       <SearchField mode={leading} teams={teams} members={members} tagFacets={tagFacets} />
     </div>
   );

@@ -24,6 +24,7 @@ import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { UsedFaveSection } from "@/modules/used/components/UsedFaveSection";
 import { EmptyState } from "@/components/EmptyState";
+import { HScroll } from "@/components/HScroll";
 import { InPageSearchBar } from "../_components/HeaderLeading";
 
 export const metadata: Metadata = { title: "중고거래" };
@@ -163,7 +164,7 @@ export default async function UsedHomePage({
 
       {/* 판매 방식 + 그룹 → 멤버 필터 칩 — 링크 기반이라 뒤로가기·공유에 안전. */}
       <div className="space-y-2">
-        <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
+        <HScroll className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1">
           {modeTabs.map((tab) => (
             <Link
               key={tab.label}
@@ -193,9 +194,9 @@ export default async function UsedHomePage({
               {team.name}
             </Link>
           ))}
-        </div>
+        </HScroll>
         {orderedItemTypes.length > 1 && (
-          <div className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1">
+          <HScroll className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1">
             <Link href={qs({ item: undefined, page: 1 })} className={chip(itemType === undefined)}>
               모든 종류
             </Link>
@@ -204,11 +205,11 @@ export default async function UsedHomePage({
                 {USED_ITEM_TYPE_LABEL[t]}
               </Link>
             ))}
-          </div>
+          </HScroll>
         )}
         {teamId !== undefined && teamMembers.length > 0 && (
-          <div
-            className="scroll-x scroll-x-bleed scroll-x-fade flex gap-2 overflow-x-auto pb-1"
+          <HScroll
+            className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1"
             aria-label="멤버 필터"
           >
             <Link
@@ -226,7 +227,7 @@ export default async function UsedHomePage({
                 {member.name}
               </Link>
             ))}
-          </div>
+          </HScroll>
         )}
       </div>
 

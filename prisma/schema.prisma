@@ -110,7 +110,8 @@ model Message {
   id              BigInt   @id @default(autoincrement())
   threadId        BigInt   @map("thread_id")
   senderAccountId String   @map("sender_account_id") @db.Uuid
-  body            String
+  body            String?
+  imageR2Key      String?  @map("image_r2_key")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([threadId, createdAt], map: "message_thread_created_idx")
@@ -315,6 +316,16 @@ model AccountSession {
   @@index([expiresAt], map: "account_session_expires_idx")
   @@index([createdAt], map: "account_session_created_at_idx")
   @@map("account_session")
+}
+
+model LoginPairing {
+  code      String   @id
+  accountId String   @map("account_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt], map: "login_pairing_expires_idx")
+  @@map("login_pairing")
 }
 
 model PendingAccount {
@@ -591,6 +602,9 @@ model Order {
   discountAmount Int                  @map("discount_amount")
   deliveryAmount Int                  @map("delivery_amount")
   totalAmount    Int                  @map("total_amount")
+  trackingCode   String?              @map("tracking_code")
+  courier        String?
+  shippedAt      DateTime?            @map("shipped_at") @db.Timestamptz(6)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
   items          OrderItem[]
@@ -934,6 +948,7 @@ model UsedTrade {
   recipientPhone   String?   @map("recipient_phone")
   recipientAddress String?   @map("recipient_address")
   postTrackingCode String?   @map("post_tracking_code")
+  courier          String?
   postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
   shippedAt        DateTime? @map("shipped_at") @db.Timestamptz(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
@@ -963,6 +978,7 @@ model UsedBundle {
   recipientPhone   String?   @map("recipient_phone")
   recipientAddress String?   @map("recipient_address")
   postTrackingCode String?   @map("post_tracking_code")
+  courier          String?
   postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
   shippedAt        DateTime? @map("shipped_at") @db.Timestamptz(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)

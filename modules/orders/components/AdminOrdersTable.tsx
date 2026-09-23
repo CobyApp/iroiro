@@ -1,10 +1,17 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PackageCheck, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ShipmentForm } from "@/components/ShipmentForm";
 import {
   Table,
   TableBody,
@@ -26,8 +33,11 @@ function formatWon(amount: number): string {
 export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // 발송 처리 시 택배사·송장번호를 받는 다이얼로그 대상 주문번호.
+  const [shipOrderNo, setShipOrderNo] = useState<string | null>(null);
 
-  function advance(orderNo: string) {
+  // 배송 완료(shipped→delivered) — 추가 입력 없음.
+  function markDelivered(orderNo: string) {
     startTransition(async () => {
       const result = await advanceOrderStatus({ orderNo });
       if (!result.ok) {
@@ -35,11 +45,21 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
         router.refresh();
         return;
       }
-      toast.success(
-        result.data.status === "shipped"
-          ? "발송 처리했어요 (구매자에게 알림 발송)"
-          : "배송 완료 처리했어요 (구매자에게 알림 발송)",
-      );
+      toast.success("배송 완료 처리했어요 (구매자에게 알림 발송)");
+      router.refresh();
+    });
+  }
+
+  // 발송 처리(paid→shipped) — 택배사·송장번호 입력.
+  function ship(orderNo: string, courier: string, trackingCode: string) {
+    startTransition(async () => {
+      const result = await advanceOrderStatus({ orderNo, courier, trackingCode });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setShipOrderNo(null);
+      toast.success("발송 처리했어요 (구매자에게 알림 발송)");
       router.refresh();
     });
   }
@@ -59,7 +79,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
           size="sm"
           variant="outline"
           className="h-8 gap-1 text-xs"
-          onClick={() => advance(order.orderNo)}
+          onClick={() => setShipOrderNo(order.orderNo)}
           disabled={pending}
         >
           <Truck className="h-3.5 w-3.5" />
@@ -73,7 +93,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
           size="sm"
           variant="outline"
           className="h-8 gap-1 text-xs"
-          onClick={() => advance(order.orderNo)}
+          onClick={() => markDelivered(order.orderNo)}
           disabled={pending}
         >
           <PackageCheck className="h-3.5 w-3.5" />
@@ -140,6 +160,11 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                 </TableCell>
                 <TableCell className="py-2.5">
                   <OrderStatusBadge status={order.status} />
+                  {order.trackingCode && (
+                    <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">
+                      등기 {order.trackingCode}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
                   {formatKstDateTime(order.createdAt)}
@@ -164,7 +189,14 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                 <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                   {order.orderNo}
                 </span>
-                <OrderStatusBadge status={order.status} />
+                <div className="flex flex-col items-end gap-0.5">
+                  <OrderStatusBadge status={order.status} />
+                  {order.trackingCode && (
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      등기 {order.trackingCode}
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="line-clamp-2 text-sm font-medium leading-snug">{itemLabel(order)}</p>
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
@@ -188,6 +220,29 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
           );
         })}
       </ul>
+
+      <Dialog
+        open={shipOrderNo !== null}
+        onOpenChange={(open) => !open && setShipOrderNo(null)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>발송 처리</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            택배 접수 후 택배사·송장번호를 입력하면 구매자가 배송 조회할 수 있어요.
+          </p>
+          {shipOrderNo && (
+            <ShipmentForm
+              pending={pending}
+              submitLabel="발송 처리"
+              onSubmit={(courier, trackingCode) =>
+                ship(shipOrderNo, courier, trackingCode)
+              }
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

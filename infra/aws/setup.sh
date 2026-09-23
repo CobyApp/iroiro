@@ -73,9 +73,9 @@ app_user_s3_policy() { # pub ugc  (카드 이미지가 products=pub 에 있어 �
 # Express primary container JSON for an environment — single source for `ecs` (create/update).
 container_json() { # env image
   local e=$1 image=$2 dom lg="/ecs/${APP}-$1"; dom=$(domain_for "$e")
-  local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
+  local secrets="["; for s in DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET KAKAO_PAY_SECRET_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT CRON_SECRET; do
     secrets+="{\"name\":\"$s\",\"valueFrom\":\"$(ssm_arn "$e" "$s")\"},"; done; secrets="${secrets%,}]"
-  local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"CATALOG_BUCKET\",\"value\":\"$(catalog_bucket "$e")\"},{\"name\":\"CATALOG_PUBLIC_BASE\",\"value\":\"$(catalog_public_base "$e")\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"mock\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
+  local envs="[{\"name\":\"APP_URL\",\"value\":\"https://${dom}\"},{\"name\":\"R2_ENDPOINT\",\"value\":\"https://s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_REGION\",\"value\":\"${REGION}\"},{\"name\":\"R2_BUCKET\",\"value\":\"${APP}-kr-products-${e}\"},{\"name\":\"R2_PUBLIC_BASE\",\"value\":\"https://${APP}-kr-products-${e}.s3.${REGION}.amazonaws.com\"},{\"name\":\"R2_UGC_BUCKET\",\"value\":\"${APP}-kr-ugc-${e}\"},{\"name\":\"CATALOG_BUCKET\",\"value\":\"$(catalog_bucket "$e")\"},{\"name\":\"CATALOG_PUBLIC_BASE\",\"value\":\"$(catalog_public_base "$e")\"},{\"name\":\"PAYMENT_PROVIDER\",\"value\":\"kakaopay\"},{\"name\":\"NEXT_TELEMETRY_DISABLED\",\"value\":\"1\"}]"
   echo "{\"image\":\"${image}\",\"containerPort\":3000,\"awsLogsConfiguration\":{\"logGroup\":\"${lg}\",\"logStreamPrefix\":\"ecs\"},\"environment\":${envs},\"secrets\":${secrets}}"
 }
 
@@ -132,7 +132,7 @@ phase_core() {
     else ok "access key already stored in SSM"; fi
 
     say "SSM placeholders for app secrets ($e)"
-    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET VAPID_PRIVATE_KEY VAPID_SUBJECT; do
+    for s in KAKAO_REST_API_KEY KAKAO_CLIENT_SECRET KAKAO_PAY_SECRET_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do
       ssm_put_if_missing "/${APP}/${e}/${s}" "CHANGE_ME"
     done
     ssm_put_if_missing "/${APP}/${e}/CRON_SECRET" "$(rand)"

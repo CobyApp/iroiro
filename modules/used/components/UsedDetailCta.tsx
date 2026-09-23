@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Gavel, PackageCheck, QrCode, Truck } from "lucide-react";
+import { Clock, Gavel, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +19,14 @@ import {
   minNextBid,
   remainingLabel,
 } from "@/modules/auction/lib/rules";
-import { MockQr } from "./MockQr";
+import { ShipmentForm } from "@/components/ShipmentForm";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
 import { UsedWishlistButton } from "./UsedWishlistButton";
 import {
   buyUsedListing,
   cancelUsedListing,
   confirmUsedReceived,
-  issueUsedPostQr,
   markUsedShipped,
   placeUsedBid,
 } from "../actions";
@@ -44,7 +45,6 @@ export function UsedDetailCta({
   isLoggedIn,
   wished = false,
   pointBalance = 0,
-  tracking = null,
   autoConfirmNote = null,
 }: {
   listing: UsedListingWithPhotos;
@@ -67,10 +67,6 @@ export function UsedDetailCta({
   const [address, setAddress] = useState("");
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [bidConfirmOpen, setBidConfirmOpen] = useState(false);
-  const [qrCode, setQrCode] = useState<string | null>(
-    trade?.postTrackingCode ?? null,
-  );
-
   const [pointsInput, setPointsInput] = useState("0");
 
   const isAuction = listing.saleMode === "auction";
@@ -195,63 +191,39 @@ export function UsedDetailCta({
         </dl>
 
         {role === "seller" && trade.status === "paid" && (
-          <div className="space-y-2">
-            {qrCode ? (
-              <>
-                <MockQr code={qrCode} />
-                <p className="text-center text-xs text-muted-foreground">
-                  우체국에서 이 QR을 보여주면 접수돼요 (체험판)
-                </p>
-                <Button
-                  size="sm"
-                  className="w-full gap-1.5"
-                  disabled={pending}
-                  onClick={() =>
-                    run(() => markUsedShipped(trade.id), "발송 처리했어요")
-                  }
-                >
-                  <Truck className="h-4 w-4" />
-                  발송 완료로 표시
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-1.5"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    const result = await issueUsedPostQr(trade.id);
-                    if (!result.ok) {
-                      toast.error(result.message);
-                      return;
-                    }
-                    setQrCode(result.data.trackingCode);
-                    toast.success("우체국 접수 QR을 발급했어요 (체험판)");
-                  })
-                }
-              >
-                <QrCode className="h-4 w-4" />
-                우체국 접수 QR 발급
-              </Button>
-            )}
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">
+              택배 접수 후 택배사·송장번호를 입력하면 발송 완료돼요.
+            </p>
+            <ShipmentForm
+              pending={pending}
+              onSubmit={(courier, trackingCode) =>
+                run(
+                  () => markUsedShipped(trade.id, { courier, trackingCode }),
+                  "발송 처리했어요",
+                )
+              }
+            />
           </div>
         )}
 
         {role === "buyer" && trade.status === "shipped" && (
           <div className="space-y-2">
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              disabled={pending}
-              onClick={() =>
+            <ConfirmDialog
+              title="수령을 확정할까요?"
+              description="확정하면 판매자에게 정산돼요. 상품을 실제로 받은 뒤에 눌러주세요."
+              confirmLabel="수령 확정"
+              pending={pending}
+              onConfirm={() =>
                 run(() => confirmUsedReceived(trade.id), "거래가 완료됐어요!")
               }
-            >
-              <PackageCheck className="h-4 w-4" />
-              수령 확정
-            </Button>
+              trigger={
+                <Button size="sm" className="w-full gap-1.5" disabled={pending}>
+                  <PackageCheck className="h-4 w-4" />
+                  수령 확정
+                </Button>
+              }
+            />
             {autoConfirmNote && (
               <p className="text-center text-xs text-muted-foreground">
                 {autoConfirmNote}
@@ -266,15 +238,20 @@ export function UsedDetailCta({
         )}
         {trade.status === "shipped" && trade.postTrackingCode && (
           <div className="space-y-0.5 border-t border-border pt-2 text-center text-xs text-muted-foreground">
-            {tracking && (
-              <p className="font-medium text-foreground">
-                배송 상태: {tracking.stateLabel}
-                {tracking.isMock && " (체험판)"}
-              </p>
-            )}
             <p>
-              등기번호 <span className="font-mono">{trade.postTrackingCode}</span>
+              {courierLabel(trade.courier)}{" "}
+              <span className="font-mono">{trade.postTrackingCode}</span>
             </p>
+            {courierTrackingUrl(trade.courier, trade.postTrackingCode) && (
+              <a
+                href={courierTrackingUrl(trade.courier, trade.postTrackingCode)!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-primary underline underline-offset-2"
+              >
+                배송 조회 →
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -286,19 +263,37 @@ export function UsedDetailCta({
     return (
       <div className="space-y-2 rounded-md border border-border bg-card p-4">
         <p className="text-sm text-muted-foreground">내가 올린 매물이에요.</p>
-        {listing.status === "active" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            disabled={pending}
-            onClick={() =>
-              run(() => cancelUsedListing(listing.id), "매물을 내렸어요")
-            }
-          >
-            판매 취소
-          </Button>
-        )}
+        <div className="flex items-stretch gap-2">
+          <UsedWishlistButton
+            listingId={listing.id}
+            initialWished={wished}
+            isLoggedIn={isLoggedIn}
+            variant="detail"
+            className="h-9 px-3.5"
+          />
+          {listing.status === "active" && (
+            <ConfirmDialog
+              title="판매를 취소할까요?"
+              description="매물이 목록에서 내려가요. 다시 올리려면 새로 등록해야 해요."
+              confirmLabel="판매 취소"
+              destructive
+              pending={pending}
+              onConfirm={() =>
+                run(() => cancelUsedListing(listing.id), "매물을 내렸어요")
+              }
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1"
+                  disabled={pending}
+                >
+                  판매 취소
+                </Button>
+              }
+            />
+          )}
+        </div>
       </div>
     );
   }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { HScroll } from "@/components/HScroll";
 import { ProductImage } from "@/modules/products/components/ProductImage";
 
 // 중고 매물 사진 갤러리 — 유저가 올린 실물 사진을 큰 화면 + 썸네일로.
@@ -31,7 +32,7 @@ export function UsedPhotoGallery({
         />
       </div>
       {photos.length > 1 && (
-        <div className="scroll-x scroll-x-fade flex gap-2 overflow-x-auto pb-1">
+        <HScroll className="scroll-x flex gap-2 overflow-x-auto pb-1">
           {photos.map((photo, i) => (
             <button
               key={photo.id}
@@ -53,7 +54,7 @@ export function UsedPhotoGallery({
               />
             </button>
           ))}
-        </div>
+        </HScroll>
       )}
     </div>
   );

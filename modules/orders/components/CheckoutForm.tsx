@@ -26,23 +26,33 @@ function formatWon(amount: number): string {
   return `₩${amount.toLocaleString()}`;
 }
 
+type SavedAddress = {
+  id?: number;
+  label?: string | null;
+  recipientName: string;
+  recipientPhone: string;
+  zipcode: string;
+  baseAddress: string;
+  detailAddress: string | null;
+};
+
 export function CheckoutForm({
+  cartItemIds = [],
   summary,
   pointBalance = 0,
   freeShippingCoupons = 0,
   defaultAddress = null,
+  savedAddresses = [],
 }: {
+  /** 이번 주문 대상 장바구니 항목 id — 장바구니에서 고른 것만 결제·차감. */
+  cartItemIds?: number[];
   summary: OrderSummary;
   pointBalance?: number;
   freeShippingCoupons?: number;
   /** 주소록의 기본 배송지 — 있으면 배송지 입력을 미리 채운다. */
-  defaultAddress?: {
-    recipientName: string;
-    recipientPhone: string;
-    zipcode: string;
-    baseAddress: string;
-    detailAddress: string | null;
-  } | null;
+  defaultAddress?: SavedAddress | null;
+  /** 저장된 배송지 목록 — 칩으로 빠르게 선택해 입력을 채운다. */
+  savedAddresses?: SavedAddress[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -62,6 +72,14 @@ export function CheckoutForm({
   const [deliveryMessage, setDeliveryMessage] = useState("");
   const [pointsInput, setPointsInput] = useState("0");
   const [useCoupon, setUseCoupon] = useState(false);
+
+  function fillFromSaved(addr: SavedAddress) {
+    setRecipientName(addr.recipientName);
+    setRecipientPhone(addr.recipientPhone);
+    setZipcode(addr.zipcode);
+    setBaseAddress(addr.baseAddress);
+    setDetailAddress(addr.detailAddress ?? "");
+  }
 
   // 서버와 같은 규칙으로 표시 금액을 계산 — 최종 검증은 서버(placeOrder)가 한다.
   const maxPoints = Math.max(0, Math.min(pointBalance, summary.productAmount));
@@ -99,9 +117,15 @@ export function CheckoutForm({
         expectedTotalAmount: totalAmount,
         usePoints,
         useFreeShippingCoupon: couponApplies,
+        cartItemIds,
       });
       if (!result.ok) {
         toast.error(result.message);
+        return;
+      }
+      // 카카오페이 등 리다이렉트 결제 — 결제창으로 이동. 아니면 mock 결제 화면.
+      if (result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
         return;
       }
       router.push(`/checkout/${result.data.orderNo}/pay`);
@@ -115,6 +139,24 @@ export function CheckoutForm({
           <CardTitle>배송지</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {savedAddresses.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>저장된 배송지</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {savedAddresses.map((addr, i) => (
+                  <button
+                    key={addr.id ?? i}
+                    type="button"
+                    onClick={() => fillFromSaved(addr)}
+                    className="max-w-full truncate rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+                  >
+                    {addr.label ? `${addr.label} · ` : ""}
+                    {addr.recipientName} · {addr.baseAddress}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="recipientName">수령인</Label>
             <Input

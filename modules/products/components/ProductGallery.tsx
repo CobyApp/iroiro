@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HScroll } from "@/components/HScroll";
 import { ProductImage } from "./ProductImage";
 import { CardViewer3D, type Viewer3DCard } from "@/components/CardViewer3D";
 
@@ -56,7 +57,7 @@ export function ProductGallery({ photos, altFallback }: Props) {
         </div>
 
         {photos.length > 1 && (
-          <div className="scroll-x scroll-x-fade flex gap-2 overflow-x-auto pb-1">
+          <HScroll className="scroll-x flex gap-2 overflow-x-auto pb-1">
             {photos.map((photo, i) => (
               <button
                 key={photo.id}
@@ -77,7 +78,7 @@ export function ProductGallery({ photos, altFallback }: Props) {
                 />
               </button>
             ))}
-          </div>
+          </HScroll>
         )}
       </div>
 

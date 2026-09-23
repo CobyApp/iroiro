@@ -15,6 +15,8 @@ export type AdminOrderRow = {
   firstItemName: string | null;
   recipientName: string | null;
   buyerName: string;
+  trackingCode: string | null;
+  courier: string | null;
   createdAt: string;
 };
 
@@ -73,6 +75,8 @@ export async function listOrdersForAdmin(
       firstItemName: names[0] ?? null,
       recipientName: recipientByOrder.get(order.id) ?? null,
       buyerName: nameByAccount.get(order.accountId) ?? "알 수 없음",
+      trackingCode: order.trackingCode ?? null,
+      courier: order.courier ?? null,
       createdAt: order.createdAt.toISOString(),
     };
   });

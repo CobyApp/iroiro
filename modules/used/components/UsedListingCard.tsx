@@ -32,7 +32,8 @@ export function UsedListingCard({
     auctionLive && listing.auctionEndsAt
       ? remainingLabel(listing.auctionEndsAt, new Date())
       : null;
-  const reserved = listing.status === "reserved";
+  // 판매중이 아니면(거래중·판매완료·취소·차단) 썸네일을 흐리게 + 상태 태그로 밖에서도 알아보게 한다.
+  const unavailable = listing.status !== "active";
   const price = isAuction
     ? (listing.auctionCurrentPrice ?? listing.auctionStartPrice ?? 0)
     : (listing.price ?? 0);
@@ -42,12 +43,12 @@ export function UsedListingCard({
       <div className="relative aspect-[3/4] overflow-hidden rounded-sm border border-border bg-lilac shadow-card transition-[transform,border-color] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:border-primary/40 group-active:translate-y-0 group-active:scale-[.985]">
         {auctionLive ? (
           <Badge className="absolute left-2 top-2 z-10">입찰</Badge>
-        ) : reserved ? (
+        ) : unavailable ? (
           <Badge
             variant="outline"
             className="absolute left-2 top-2 z-10 bg-card text-muted-foreground"
           >
-            {USED_STATUS_LABEL.reserved}
+            {USED_STATUS_LABEL[listing.status]}
           </Badge>
         ) : null}
         <UsedWishlistButton
@@ -61,12 +62,20 @@ export function UsedListingCard({
             alt={listing.title}
             className={cn(
               "h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-105",
-              reserved && "opacity-60",
+              unavailable && "opacity-50",
             )}
             loading="lazy"
           />
         ) : (
           <div className="h-full w-full bg-muted" />
+        )}
+        {/* 판매완료·취소는 한눈에 — 중앙 라벨을 얹는다(거래중은 태그만). */}
+        {unavailable && listing.status !== "reserved" && (
+          <div className="absolute inset-0 z-[1] grid place-items-center">
+            <span className="rounded-full bg-foreground/70 px-3 py-1 text-xs font-semibold text-background">
+              {USED_STATUS_LABEL[listing.status]}
+            </span>
+          </div>
         )}
       </div>
       {/* 제목 2줄·가격 2줄 높이를 고정 확보 — 경매/일반 매물이 섞여도 카드 높이 일정. */}
