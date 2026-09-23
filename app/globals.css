@@ -132,6 +132,18 @@ body {
   background: rgb(255 207 226 / 88%);
 }
 
+/* iOS Safari는 폰트 16px 미만 폼 컨트롤에 포커스하면 화면을 자동 확대한다.
+   모바일(sm 미만)에서 모든 텍스트 폼 컨트롤을 16px로 고정해 이 확대를 막는다
+   (핀치 줌은 유지). Tailwind text-sm 유틸리티(specificity 0,1,0)를 이기려면
+   !important 가 필요하다 — 데스크톱(sm+)은 각자 sm:text-sm 등 유지. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 :where(a, button, [role="button"]) {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
