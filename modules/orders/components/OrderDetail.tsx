@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { formatKstDate, formatKstDateTime } from "@/lib/datetime";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
-import { ORDER_AUTO_CONFIRM_MS } from "../lib/settle-order";
+import { ORDER_AUTO_CONFIRM_MS } from "../lib/settle-order-constants";
 import { OrderReceiptConfirm } from "./OrderReceiptConfirm";
 import {
   collectionThumbnailUrl,
