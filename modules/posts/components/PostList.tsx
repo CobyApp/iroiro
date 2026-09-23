@@ -11,6 +11,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { HScroll } from "@/components/HScroll";
 import { POST_PAGE_SIZE } from "../lib/schema";
 import {
   POST_TOPICS,
@@ -70,7 +71,7 @@ export function PostList({ items, total, filter, canFave = false }: Props) {
     <div className="space-y-5">
       {/* 검색은 상단 헤더 검색바가 담당한다(커뮤니티 글 검색). 여기선 토픽 탭만. */}
       <div className="border-b border-border/70 pb-3">
-        <div className="scroll-x scroll-x-fade flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+        <HScroll className="scroll-x flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
           {TOPIC_TABS.map(({ value, label }) => (
             <Link
               key={label}
@@ -105,7 +106,7 @@ export function PostList({ items, total, filter, canFave = false }: Props) {
               🩷 내 최애
             </Link>
           )}
-        </div>
+        </HScroll>
       </div>
 
       {items.length === 0 ? (

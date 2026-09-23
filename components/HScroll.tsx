@@ -16,10 +16,12 @@ import { cn } from "@/lib/utils";
 export function HScroll({
   children,
   className,
+  "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   /** 스크롤 컨테이너에 줄 클래스 — 기존 scroll-x 행 클래스를 그대로 넘긴다. */
   className?: string;
+  "aria-label"?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
@@ -63,7 +65,7 @@ export function HScroll({
 
   return (
     <div className="relative">
-      <div ref={ref} onScroll={update} className={className}>
+      <div ref={ref} onScroll={update} className={className} aria-label={ariaLabel}>
         {children}
       </div>
       {canLeft && (
