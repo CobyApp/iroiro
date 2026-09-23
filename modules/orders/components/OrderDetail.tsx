@@ -7,8 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatKstDateTime } from "@/lib/datetime";
+import { formatKstDate, formatKstDateTime } from "@/lib/datetime";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
+import { ORDER_AUTO_CONFIRM_MS } from "../lib/settle-order";
+import { OrderReceiptConfirm } from "./OrderReceiptConfirm";
 import {
   collectionThumbnailUrl,
   productGridThumbnailUrl,
@@ -41,6 +43,11 @@ export function OrderDetail({
     order.status === "delivered";
   const itemThumbnailUrl = (productId: number) =>
     owned ? collectionThumbnailUrl(productId) : productGridThumbnailUrl(productId);
+  // 발송 주문의 자동 구매확정 예정일 안내(있으면).
+  const autoConfirmNote =
+    order.status === "shipped" && order.shippedAt
+      ? `${formatKstDate(new Date(new Date(order.shippedAt).getTime() + ORDER_AUTO_CONFIRM_MS))}에 자동으로 구매확정돼요`
+      : null;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -149,6 +156,18 @@ export function OrderDetail({
                 배송 조회 →
               </a>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {order.status === "shipped" && (
+        <Card className="border-primary/40">
+          <CardContent className="space-y-2 p-4">
+            <p className="text-sm text-muted-foreground">
+              상품을 받으셨다면 수령확정을 눌러주세요.
+              {autoConfirmNote ? ` ${autoConfirmNote}` : ""}
+            </p>
+            <OrderReceiptConfirm orderNo={order.orderNo} />
           </CardContent>
         </Card>
       )}
