@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 import { formatKstDateTime } from "@/lib/datetime";
 import {
   PHOTO_ALLOWED_TYPES,
-  PHOTO_CLIENT_MAX_DIMENSION,
   UNSUPPORTED_TYPE_MESSAGE,
   putWithRetry,
   reencodeToBlob,
@@ -74,9 +73,33 @@ export function MessageThreadClient({
     (state, next: MessageItem) => [...state, next],
   );
   const bottomRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   // 모바일은 전체화면(fixed) — 단, PageTransition의 transform 조상이 fixed의 기준이 되어
   // 화면이 깨지므로(빈 화면) document.body로 포탈해 조상 밖에서 렌더한다.
   const useMobileFull = useIsMobile();
+
+  // 모바일 키보드가 열리면 visualViewport 가 줄어드는데, fixed 전체화면은 그대로라 상단이
+  // 가려지고 입력창이 키보드 뒤로 숨는다. 컨테이너를 실제 보이는 영역(visualViewport)에 맞춘다.
+  useEffect(() => {
+    const el = rootRef.current;
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!useMobileFull || !el || !vv) return;
+    const apply = () => {
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.bottom = "auto";
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+      el.style.height = "";
+      el.style.top = "";
+      el.style.bottom = "";
+    };
+  }, [useMobileFull]);
 
   useEffect(() => {
     void markThreadRead({ threadId });
@@ -102,7 +125,8 @@ export function MessageThreadClient({
       return;
     }
     try {
-      const blob = await reencodeToBlob(file, PHOTO_CLIENT_MAX_DIMENSION);
+      // 쪽지 사진은 강하게 압축 — 긴 변 1280px·JPEG q0.62(용량·전송 최소화).
+      const blob = await reencodeToBlob(file, 1280, 0.62, "image/jpeg");
       if (blob.size > IMAGE_MAX_BYTES) {
         toast.error("이미지는 5MB 이하여야 해요");
         return;
@@ -181,6 +205,7 @@ export function MessageThreadClient({
 
   const tree = (
     <div
+      ref={rootRef}
       className={
         useMobileFull
           ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-card"
