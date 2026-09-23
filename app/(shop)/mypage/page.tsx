@@ -11,7 +11,6 @@ import {
   LibraryBig,
   PackageCheck,
   UserRound,
-  UserCog,
   MapPin,
   IdCard,
   Mail,
@@ -81,12 +80,6 @@ const MY_LINK_SECTIONS = [
         icon: Mail,
       },
       {
-        href: "/mypage/edit",
-        label: "회원정보 변경",
-        description: "닉네임 · 프로필",
-        icon: UserCog,
-      },
-      {
         href: "/mypage/addresses",
         label: "주소록",
         description: "배송지 관리",
@@ -129,9 +122,8 @@ export default async function MyPage() {
 
   return (
     <div className="shop-page-frame space-y-6">
-      <ShopPageHeader title={`${displayName}님의 공간`} />
-
-      {/* 프로필 + 요약 — 소장 카드·포인트를 숫자로, 컬렉션 진입은 여기 한 곳에서만. */}
+      {/* 프로필 + 요약 — 이름·아바타를 페이지의 첫 정체성으로 두고(별도 타이틀 제거),
+         소장 카드·포인트를 숫자로, 컬렉션 진입은 여기 한 곳에서만. */}
       <section
         className="shop-content-surface space-y-5"
         aria-labelledby="profile-summary-title"
@@ -144,13 +136,18 @@ export default async function MyPage() {
               size={72}
             />
             <div className="min-w-0">
-              <p className="shop-section-eyebrow">PROFILE</p>
               <h2
                 id="profile-summary-title"
-                className="mt-1 truncate text-xl font-semibold text-foreground"
+                className="truncate text-xl font-semibold text-foreground"
               >
                 {displayName}
               </h2>
+              <Link
+                href="/mypage/edit"
+                className="mt-0.5 inline-block text-xs text-muted-foreground hover:text-foreground"
+              >
+                회원정보 변경
+              </Link>
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
@@ -184,12 +181,9 @@ export default async function MyPage() {
         className="shop-content-surface space-y-4"
         aria-labelledby="quick-actions-title"
       >
-        <div>
-          <p className="shop-section-eyebrow">MY MENU</p>
-          <h2 id="quick-actions-title" className="shop-section-title">
-            내 메뉴
-          </h2>
-        </div>
+        <h2 id="quick-actions-title" className="shop-section-title">
+          내 메뉴
+        </h2>
         <nav aria-label="마이페이지 메뉴" className="space-y-5">
           {MY_LINK_SECTIONS.map((section) => {
             const links = section.links;
@@ -233,12 +227,9 @@ export default async function MyPage() {
         className="shop-content-surface space-y-4"
         aria-labelledby="notification-settings-title"
       >
-        <div>
-          <p className="shop-section-eyebrow">NOTIFICATIONS</p>
-          <h2 id="notification-settings-title" className="shop-section-title">
-            알림 설정
-          </h2>
-        </div>
+        <h2 id="notification-settings-title" className="shop-section-title">
+          알림 설정
+        </h2>
         <div className="rounded-xl border border-border/70 bg-card/70 p-1">
           <PushToggle variant="settings" />
         </div>
@@ -248,12 +239,9 @@ export default async function MyPage() {
         className="shop-content-surface space-y-4"
         aria-labelledby="account-actions-title"
       >
-        <div>
-          <p className="shop-section-eyebrow">ACCOUNT</p>
-          <h2 id="account-actions-title" className="shop-section-title">
-            계정 관리
-          </h2>
-        </div>
+        <h2 id="account-actions-title" className="shop-section-title">
+          계정 관리
+        </h2>
         <div className="divide-y divide-border/60 rounded-xl border border-border/70 bg-card/70 p-1">
           <LogoutConfirmDialog>
             <button
