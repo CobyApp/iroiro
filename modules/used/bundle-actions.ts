@@ -10,7 +10,7 @@ import {
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
-import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { publicOriginFromHeaders, isMobileFromHeaders } from "@/lib/public-origin";
 import { isCourierCode } from "@/lib/shipping/couriers";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedBundleFees } from "./lib/fees";
@@ -163,7 +163,10 @@ export async function buyUsedBundle(
     }
 
     // 리다이렉트결제 — 결제 준비(ready) 후 결제창 URL 반환. HTTP 호출은 트랜잭션 밖.
-    const origin = await publicOriginFromHeaders();
+    const [origin, isMobile] = await Promise.all([
+      publicOriginFromHeaders(),
+      isMobileFromHeaders(),
+    ]);
     const ready = await provider.ready({
       orderNo: `bundle-${bundleId}`,
       userId: account.id,
@@ -176,6 +179,7 @@ export async function buyUsedBundle(
       approvalUrl: `${origin}/api/payment/kakao/approve?bundle=${bundleId}`,
       cancelUrl: `${origin}/api/payment/kakao/cancel?bundle=${bundleId}`,
       failUrl: `${origin}/api/payment/kakao/fail?bundle=${bundleId}`,
+      isMobile,
     });
     if (!ready.ok) {
       // 준비 실패 — pending 묶음·거래를 취소하고 매물을 다시 판매중으로 되돌린다.

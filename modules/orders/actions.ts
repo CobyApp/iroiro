@@ -6,7 +6,7 @@ import { type ActionResult, DomainError, parseActionInput, runAction } from "@/l
 import { db } from "@/lib/db";
 import { todayKstYmd } from "@/lib/datetime";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
-import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { publicOriginFromHeaders, isMobileFromHeaders } from "@/lib/public-origin";
 
 // 승인 결과 정규화 타입 — settleOrder 가 mock 즉시결제·카카오페이 approve 양쪽에서 공유.
 type OrderApproval =
@@ -78,7 +78,10 @@ export async function placeOrder(
 
     // 카카오페이 등 리다이렉트 결제 — 결제창 URL 을 만들어 반환(승인은 approve 콜백).
     if (checkout.kind === "redirect") {
-      const origin = await publicOriginFromHeaders();
+      const [origin, isMobile] = await Promise.all([
+        publicOriginFromHeaders(),
+        isMobileFromHeaders(),
+      ]);
       const ready = await checkout.ready({
         orderNo,
         userId: accountId,
@@ -88,6 +91,7 @@ export async function placeOrder(
         approvalUrl: `${origin}/api/payment/kakao/approve?order=${orderNo}`,
         cancelUrl: `${origin}/api/payment/kakao/cancel?order=${orderNo}`,
         failUrl: `${origin}/api/payment/kakao/fail?order=${orderNo}`,
+        isMobile,
       });
       if (!ready.ok) {
         await failOrderPayment(orderNo, accountId);

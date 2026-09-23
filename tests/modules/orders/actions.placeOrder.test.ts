@@ -41,6 +41,7 @@ vi.mock("@/lib/payments/checkout", () => ({
 }));
 vi.mock("@/lib/public-origin", () => ({
   publicOriginFromHeaders: async () => "https://test.iroiro.club",
+  isMobileFromHeaders: async () => false,
 }));
 
 vi.mock("@/lib/db", () => ({

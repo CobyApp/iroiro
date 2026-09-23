@@ -15,7 +15,7 @@ import { relayUploadToR2 } from "@/lib/r2/relay";
 import { evaluateBid, payDueFrom } from "@/modules/auction/lib/rules";
 import { getSiteSettings } from "@/modules/site-settings/lib/queries";
 import { getCheckoutProvider } from "@/lib/payments/checkout";
-import { publicOriginFromHeaders } from "@/lib/public-origin";
+import { publicOriginFromHeaders, isMobileFromHeaders } from "@/lib/public-origin";
 import { isCourierCode } from "@/lib/shipping/couriers";
 import { notify } from "@/modules/notifications/lib/notify";
 import { calcUsedTradeFees } from "./lib/fees";
@@ -346,7 +346,10 @@ export async function buyUsedListing(
     }
 
     // 리다이렉트결제 — 결제 준비(ready) 후 결제창 URL 반환. HTTP 호출은 트랜잭션 밖.
-    const origin = await publicOriginFromHeaders();
+    const [origin, isMobile] = await Promise.all([
+      publicOriginFromHeaders(),
+      isMobileFromHeaders(),
+    ]);
     const tradeId = Number(created.trade.id);
     const ready = await provider.ready({
       orderNo: `used-${tradeId}`,
@@ -357,6 +360,7 @@ export async function buyUsedListing(
       approvalUrl: `${origin}/api/payment/kakao/approve?trade=${tradeId}`,
       cancelUrl: `${origin}/api/payment/kakao/cancel?trade=${tradeId}`,
       failUrl: `${origin}/api/payment/kakao/fail?trade=${tradeId}`,
+      isMobile,
     });
     if (!ready.ok) {
       // 준비 실패 — pending 취소하고 매물을 다시 판매중으로 되돌린다.
