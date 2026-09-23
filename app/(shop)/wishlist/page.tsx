@@ -11,6 +11,7 @@ import { listUsedWishlistListings } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
 import { WishlistSearch } from "@/modules/wishlist/components/WishlistSearch";
+import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 
 export const metadata: Metadata = { title: "찜" };
 
@@ -68,7 +69,7 @@ export default async function WishlistPage({
 
   return (
     <div className="shop-page-frame space-y-6">
-      <h1 className="font-display text-2xl">찜</h1>
+      <ShopPageHeader title="찜" />
       {/* 데스크탑은 타이틀 아래에서 검색. 모바일은 상단 헤더에 검색바가 뜬다(HeaderLeading). */}
       {hasAny && (
         <div className="hidden sm:block">
