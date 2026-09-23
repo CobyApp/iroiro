@@ -10,11 +10,18 @@ import { listWishlistProducts } from "@/modules/wishlist/lib/queries";
 import { listUsedWishlistListings } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { GuestFeatureGate } from "@/modules/auth/components/GuestFeatureGate";
+import { WishlistSearch } from "@/modules/wishlist/components/WishlistSearch";
 
 export const metadata: Metadata = { title: "찜" };
 
-// 찜 탭 — 스토어 상품과 중고 매물을 구분된 섹션으로 보여준다.
-export default async function WishlistPage() {
+// 찜 탭 — 스토어 상품과 중고 매물을 구분된 섹션으로 보여준다. 찜 전용 검색(?q=)으로 목록 안에서 필터.
+export default async function WishlistPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const query = (q ?? "").trim().toLowerCase();
   const account = await getCurrentAccount();
   if (!account) {
     return (
@@ -30,24 +37,51 @@ export default async function WishlistPage() {
     );
   }
 
-  const [products, usedListings, teams, members] = await Promise.all([
+  const [allProducts, allUsedListings, teams, members] = await Promise.all([
     listWishlistProducts(account.id),
     listUsedWishlistListings(account.id),
     listTeams(),
     listMembers(),
   ]);
+  const teamName = new Map(teams.map((t) => [t.id, t.name.toLowerCase()]));
+  const memberName = new Map(members.map((m) => [m.id, m.name.toLowerCase()]));
+  // 찜 목록 안에서 이름/그룹/멤버로 필터(스토어로 이동하지 않는다).
+  const matches = (
+    text: string,
+    teamId: number | null,
+    memberId: number | null,
+  ) =>
+    !query ||
+    text.toLowerCase().includes(query) ||
+    (teamId !== null && (teamName.get(teamId) ?? "").includes(query)) ||
+    (memberId !== null && (memberName.get(memberId) ?? "").includes(query));
+
+  const products = allProducts.filter((p) =>
+    matches(p.name, p.teamId, p.memberId),
+  );
+  const usedListings = allUsedListings.filter((l) =>
+    matches(l.title, l.teamId, l.memberId),
+  );
   const wishedIds = new Set(products.map((p) => String(p.id)));
-  const isEmpty = products.length === 0 && usedListings.length === 0;
+  const hasAny = allProducts.length > 0 || allUsedListings.length > 0;
+  const noResult = hasAny && products.length === 0 && usedListings.length === 0;
 
   return (
-    <div className="shop-page-frame space-y-8">
+    <div className="shop-page-frame space-y-6">
       <h1 className="font-display text-2xl">찜</h1>
-      {isEmpty ? (
+      {hasAny && <WishlistSearch initialQuery={q ?? ""} />}
+      {!hasAny ? (
         <EmptyState
           emoji="🤍"
           title="찜한 상품이 없어요"
           description="상품에서 하트를 눌러 담아보세요"
           action={{ href: "/products", label: "상품 둘러보기" }}
+        />
+      ) : noResult ? (
+        <EmptyState
+          emoji="🔍"
+          title="검색 결과가 없어요"
+          description={`"${q}" 와 일치하는 찜이 없어요`}
         />
       ) : (
         <>

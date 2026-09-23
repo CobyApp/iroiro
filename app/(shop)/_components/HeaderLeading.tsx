@@ -80,8 +80,10 @@ function resolveLeading(pathname: string): Leading {
       return USED;
     case "/posts":
       return COMMUNITY;
-    // 찜·장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
+    // 찜은 자체 검색(찜 목록 안에서 필터)을 페이지에서 제공 — 헤더 스토어 검색을 붙이지 않는다.
     case "/wishlist":
+      return { kind: "logo" };
+    // 장바구니는 상품 탐색의 연장선 — 상단에 스토어 상품 검색을 둔다.
     case "/cart":
       return PRODUCT;
     // 메뉴에서 진입하는 leaf 페이지 — 자체 상위 탭이 없으니 뒤로가기.
