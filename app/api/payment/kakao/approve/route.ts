@@ -3,6 +3,7 @@ import { publicUrl } from "@/lib/public-origin";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { approveUsedTradePayment } from "@/modules/used/lib/checkout";
 import { approveUsedBundlePayment } from "@/modules/used/lib/bundle-checkout";
+import { approveOrderPayment } from "@/modules/orders/actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,9 +16,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const account = await getCurrentAccount();
   const bundleId = Number(sp.get("bundle"));
   const tradeId = Number(sp.get("trade"));
+  const orderNo = sp.get("order");
 
   if (!account || !pgToken) {
     return NextResponse.redirect(publicUrl(request, "/used?payfail=1"));
+  }
+
+  // 스토어 주문 결제 승인.
+  if (orderNo) {
+    const result = await approveOrderPayment(orderNo, pgToken, account.id);
+    return NextResponse.redirect(
+      publicUrl(
+        request,
+        result.ok
+          ? `/orders/${orderNo}/complete`
+          : `/checkout?payfail=1`,
+      ),
+    );
   }
 
   // 묶음 결제 승인.
