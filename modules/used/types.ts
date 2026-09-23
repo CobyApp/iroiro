@@ -47,7 +47,6 @@ export const USED_CARD_ITEM_TYPE: UsedItemType = "photocard";
 export const USED_SHIPPING_LABEL = {
   post: "우체국 준등기",
   parcel: "택배",
-  direct: "직거래",
 } as const satisfies Record<string, string>;
 export type UsedShippingMethod = keyof typeof USED_SHIPPING_LABEL;
 export const USED_SHIPPING_METHODS = Object.keys(USED_SHIPPING_LABEL) as [
