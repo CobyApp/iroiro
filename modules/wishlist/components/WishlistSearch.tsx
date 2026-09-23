@@ -24,7 +24,7 @@ export function WishlistSearch({ initialQuery = "" }: { initialQuery?: string })
   }, [value, router]);
 
   return (
-    <div className="relative w-full sm:max-w-xl">
+    <div className="relative w-full">
       <Search
         className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
