@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { canEnterAnyAdmin } from "@/modules/admin/lib/adminRoles";
+import { AdminAccessNotice } from "@/modules/admin/components/AdminAccessNotice";
 
 // /admin 하위 전체(대시보드·스토어·중고·커뮤니티·토레카)에 상속되는 베이스 게이트.
 // 셸·공간 가드는 두지 않는다 — 각 공간 layout((main)·store·used·posts·catalog)이 자기 AdminShell과
@@ -15,9 +15,10 @@ export default async function AdminBaseLayout({
 }) {
   await connection();
 
+  // 튕겨내지 않고 안내 화면을 보여준다 — 게스트는 로그인, 권한 없는 계정은 권한 요청 안내.
   const account = await getCurrentAccount();
-  if (!account) redirect("/login?returnTo=/admin");
-  if (!canEnterAnyAdmin(account)) redirect("/");
+  if (!account) return <AdminAccessNotice mode="login" returnTo="/admin" />;
+  if (!canEnterAnyAdmin(account)) return <AdminAccessNotice mode="forbidden" />;
 
   return <>{children}</>;
 }
