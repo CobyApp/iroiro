@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -56,6 +57,9 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // 결제창(카카오페이) 이동 중 — 주문 생성 후 장바구니가 비면서 현재 페이지가
+  // /cart(빈 장바구니)로 잠깐 리렌더/리다이렉트되는 깜빡임을 전체 화면 오버레이로 가린다.
+  const [redirecting, setRedirecting] = useState(false);
   const [recipientName, setRecipientName] = useState(
     defaultAddress?.recipientName ?? "",
   );
@@ -125,11 +129,26 @@ export function CheckoutForm({
       }
       // 카카오페이 리다이렉트 결제 — 결제창으로 이동. provider 미설정(로컬)이면 즉시 완료.
       if (result.data.redirectUrl) {
+        setRedirecting(true); // 빈 장바구니 깜빡임 가리기
         window.location.href = result.data.redirectUrl;
         return;
       }
       router.push(`/orders/${result.data.orderNo}/complete`);
     });
+  }
+
+  if (redirecting) {
+    return (
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-cream/95 backdrop-blur-sm">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
+        <div className="space-y-1 text-center">
+          <p className="text-lg font-bold text-foreground">결제창으로 이동 중이에요</p>
+          <p className="text-sm text-muted-foreground">
+            카카오페이 결제 화면으로 넘어갑니다. 잠시만 기다려 주세요…
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
