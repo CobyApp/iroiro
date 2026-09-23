@@ -19,12 +19,8 @@ export default async function MessagesInboxPage() {
   const threads = await listThreads(account.id);
 
   return (
-    <div className="shop-page-frame space-y-6">
-      <ShopPageHeader
-        eyebrow="MESSAGES"
-        title="쪽지함"
-        description="커뮤니티 회원과 주고받은 1:1 쪽지를 확인하세요."
-      />
+    <div className="shop-page-frame space-y-4">
+      <ShopPageHeader title="쪽지함" />
 
       {threads.length === 0 ? (
         <div className="shop-content-surface flex flex-col items-center gap-3 py-16 text-center">

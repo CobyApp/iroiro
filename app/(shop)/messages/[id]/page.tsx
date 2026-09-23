@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { loginRequiredHref } from "@/modules/auth/lib/login-required";
-import { ShopPageHeader } from "@/modules/ui/components/ShopPageHeader";
 import { getThreadForViewer } from "@/modules/messages/lib/queries";
 import { MessageThreadClient } from "@/modules/messages/components/MessageThreadClient";
 
@@ -35,12 +34,23 @@ export default async function MessageThreadPage({
   if (!thread) notFound();
 
   return (
-    <div className="shop-page-frame space-y-4">
-      <ShopPageHeader
-        eyebrow="MESSAGES"
-        title={thread.otherName}
-        description="1:1 쪽지 대화"
-      />
+    <div className="shop-page-frame space-y-3">
+      {/* 모바일 채팅 공간 확보 — 무거운 페이지 헤더 대신 상대 이름만 한 줄로.
+         뒤로가기는 상단 쇼핑 헤더가 이미 제공한다(HeaderLeading). */}
+      <div className="flex items-center gap-2.5">
+        <div
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
+          aria-hidden="true"
+        >
+          {thread.otherName.slice(0, 1)}
+        </div>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-bold text-foreground">
+            {thread.otherName}
+          </h1>
+          <p className="text-[11px] text-muted-foreground">1:1 쪽지</p>
+        </div>
+      </div>
       <MessageThreadClient
         threadId={thread.id}
         otherAccountId={thread.otherAccountId}
