@@ -231,7 +231,7 @@ export function SellerBundleShop({
                     {pending ? "처리 중…" : `₩${buyerTotal.toLocaleString()} 묶음 결제`}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
-                    결제는 체험판이라 실제로 청구되지 않아요.
+                    카카오페이 안전결제 — 배송비 1회로 함께 발송돼요.
                   </p>
                 </div>
               </DialogContent>

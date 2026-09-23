@@ -83,18 +83,6 @@ const envSchema = z
       z.string().min(1).default("amazon.titan-embed-image-v1"),
     ),
     BEDROCK_EMBED_DIMENSION: z.coerce.number().int().positive().default(1024),
-    // 우체국 국내우편 종적조회(배송추적) 오픈 API. 전부 선택 — KOREA_POST_API_KEY 가 없으면
-    // lib/korea-post 어댑터가 실 호출 없이 더미 상태를 돌려준다(CI·로컬 안전). 실 키는 SSM.
-    KOREA_POST_API_BASE: z.preprocess(
-      emptyToUndefined,
-      z
-        .string()
-        .url()
-        .default(
-          "http://openapi.epost.go.kr/trace/retrieveLongitudinalCombinedService/retrieveLongitudinalCombinedService/getLongitudinalCombinedList",
-        ),
-    ),
-    KOREA_POST_API_KEY: optionalString,
   });
 
 export const env = envSchema.parse(process.env);
@@ -102,6 +90,3 @@ export const env = envSchema.parse(process.env);
 // 이미지 분석 활성화 조건 = 리전 설정. 자격증명은 런타임에 정적 키 또는 자격증명 체인에서
 // 해석하며(lib/vision/client.ts), 해석 실패 시 분석만 조용히 건너뛴다(fail-soft).
 export const isVisionConfigured = Boolean(env.BEDROCK_REGION);
-
-// 배송추적 실연동 활성화 조건 = 우체국 API 키. 없으면 lib/korea-post 가 더미 상태로 폴백.
-export const isKoreaPostConfigured = Boolean(env.KOREA_POST_API_KEY);

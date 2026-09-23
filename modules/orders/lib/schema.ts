@@ -24,14 +24,6 @@ export type CheckoutInput = z.input<typeof checkoutSchema>;
 // z.output — 파싱 후(default 적용)의 타입. 서버 내부 로직용.
 export type CheckoutParsed = z.output<typeof checkoutSchema>;
 
-// 결제 승인 요청. tradeNo는 실 PG의 paymentKey 대응(mock은 마법값 mock_fail로 실패 유도).
-export const confirmPaymentSchema = z.object({
-  orderNo: z.string().min(1),
-  tradeNo: z.string().nullable().optional(),
-});
-
-export type ConfirmPaymentInput = z.infer<typeof confirmPaymentSchema>;
-
 export const cancelOrderSchema = z.object({
   orderNo: z.string().min(1),
 });

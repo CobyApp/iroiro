@@ -562,8 +562,8 @@ export function UsedListingForm({
         </div>
         {shippingMethod === "post" && (
           <p className="text-xs text-muted-foreground">
-            우체국 준등기 — 거래 확정 후 접수 QR이 자동 발급돼요(추후 연동, 현재
-            체험판).
+            결제 후 택배로 발송하고, 택배사·송장번호를 입력하면 구매자가 배송
+            조회할 수 있어요.
           </p>
         )}
       </section>
