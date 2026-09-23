@@ -20,6 +20,7 @@ import {
   remainingLabel,
 } from "@/modules/auction/lib/rules";
 import { ShipmentForm } from "@/components/ShipmentForm";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
 import { UsedWishlistButton } from "./UsedWishlistButton";
 import {
@@ -208,17 +209,21 @@ export function UsedDetailCta({
 
         {role === "buyer" && trade.status === "shipped" && (
           <div className="space-y-2">
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              disabled={pending}
-              onClick={() =>
+            <ConfirmDialog
+              title="수령을 확정할까요?"
+              description="확정하면 판매자에게 정산돼요. 상품을 실제로 받은 뒤에 눌러주세요."
+              confirmLabel="수령 확정"
+              pending={pending}
+              onConfirm={() =>
                 run(() => confirmUsedReceived(trade.id), "거래가 완료됐어요!")
               }
-            >
-              <PackageCheck className="h-4 w-4" />
-              수령 확정
-            </Button>
+              trigger={
+                <Button size="sm" className="w-full gap-1.5" disabled={pending}>
+                  <PackageCheck className="h-4 w-4" />
+                  수령 확정
+                </Button>
+              }
+            />
             {autoConfirmNote && (
               <p className="text-center text-xs text-muted-foreground">
                 {autoConfirmNote}
@@ -267,17 +272,26 @@ export function UsedDetailCta({
             className="h-9 px-3.5"
           />
           {listing.status === "active" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 flex-1"
-              disabled={pending}
-              onClick={() =>
+            <ConfirmDialog
+              title="판매를 취소할까요?"
+              description="매물이 목록에서 내려가요. 다시 올리려면 새로 등록해야 해요."
+              confirmLabel="판매 취소"
+              destructive
+              pending={pending}
+              onConfirm={() =>
                 run(() => cancelUsedListing(listing.id), "매물을 내렸어요")
               }
-            >
-              판매 취소
-            </Button>
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1"
+                  disabled={pending}
+                >
+                  판매 취소
+                </Button>
+              }
+            />
           )}
         </div>
       </div>

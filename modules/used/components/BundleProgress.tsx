@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShipmentForm } from "@/components/ShipmentForm";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { courierLabel, courierTrackingUrl } from "@/lib/shipping/couriers";
 import { confirmBundleReceived, markBundleShipped } from "../bundle-actions";
 import { USED_BUNDLE_STATUS_LABEL, type UsedBundle } from "../types";
@@ -90,15 +91,21 @@ export function BundleProgress({
 
       {role === "buyer" && bundle.status === "shipped" && (
         <div className="space-y-2">
-          <Button
-            size="sm"
-            className="w-full gap-1.5"
-            disabled={pending}
-            onClick={() => run(() => confirmBundleReceived(bundle.id), "거래가 완료됐어요!")}
-          >
-            <PackageCheck className="h-4 w-4" />
-            수령 확정
-          </Button>
+          <ConfirmDialog
+            title="수령을 확정할까요?"
+            description="확정하면 판매자에게 정산돼요. 상품을 실제로 받은 뒤에 눌러주세요."
+            confirmLabel="수령 확정"
+            pending={pending}
+            onConfirm={() =>
+              run(() => confirmBundleReceived(bundle.id), "거래가 완료됐어요!")
+            }
+            trigger={
+              <Button size="sm" className="w-full gap-1.5" disabled={pending}>
+                <PackageCheck className="h-4 w-4" />
+                수령 확정
+              </Button>
+            }
+          />
           {autoConfirmNote && (
             <p className="text-center text-xs text-muted-foreground">
               {autoConfirmNote}
