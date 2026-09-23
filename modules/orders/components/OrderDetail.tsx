@@ -47,9 +47,11 @@ export function OrderDetail({
       {order.status === "pending" && (
         <Card className="border-primary/40">
           <CardContent className="flex items-center justify-between gap-4 p-4">
-            <p className="text-sm">결제가 완료되지 않은 주문입니다.</p>
-            <Button asChild size="sm">
-              <Link href={`/checkout/${order.orderNo}/pay`}>결제 계속하기</Link>
+            <p className="text-sm text-muted-foreground">
+              결제가 완료되지 않은 주문이에요. 장바구니에서 다시 주문해 주세요.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/cart">장바구니</Link>
             </Button>
           </CardContent>
         </Card>

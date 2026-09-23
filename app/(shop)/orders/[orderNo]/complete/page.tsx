@@ -22,8 +22,10 @@ export default async function OrderCompletePage({
 
   const order = await getOrderByOrderNo(account.id, orderNo);
   if (!order) redirect("/");
-  if (order.status === "pending") redirect(`/checkout/${orderNo}/pay`);
-  if (order.status === "canceled") redirect(`/orders/${orderNo}`);
+  // 결제 미완료·취소 — 완료 화면 대신 주문 상세로.
+  if (order.status === "pending" || order.status === "canceled") {
+    redirect(`/orders/${orderNo}`);
+  }
 
   return (
     <div className="shop-page-frame space-y-6 py-10 text-center">

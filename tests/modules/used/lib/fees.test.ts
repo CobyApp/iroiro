@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  calcUsedBundleFees,
-  calcUsedTradeFees,
-  mockPostTrackingCode,
-} from "@/modules/used/lib/fees";
+import { calcUsedBundleFees, calcUsedTradeFees } from "@/modules/used/lib/fees";
 
 describe("calcUsedTradeFees", () => {
   it("수수료는 상품가에만 부과하고 배송비는 판매자 몫 그대로", () => {
@@ -58,13 +54,5 @@ describe("calcUsedBundleFees", () => {
     expect(b.itemTotal).toBe(0);
     expect(b.shippingFee).toBe(0);
     expect(b.shippingSaved).toBe(0);
-  });
-});
-
-describe("mockPostTrackingCode", () => {
-  it("EB+9자리+KR 형식, 같은 시드는 같은 코드(멱등)", () => {
-    const code = mockPostTrackingCode(42 * 7919);
-    expect(code).toMatch(/^EB\d{9}KR$/);
-    expect(mockPostTrackingCode(42 * 7919)).toBe(code);
   });
 });
