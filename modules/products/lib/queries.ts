@@ -203,11 +203,19 @@ export async function listProducts(
 
   // FK 없어 nested select 불가 — 분리 fetch 후 메모리 join
   const productIds = rows.map((r) => r.id);
-  const photoRows = productIds.length
-    ? await db.productPhoto.findMany({
-        where: { productId: { in: productIds } },
-      })
-    : [];
+  const [photoRows, wishRows] = await Promise.all([
+    productIds.length
+      ? db.productPhoto.findMany({ where: { productId: { in: productIds } } })
+      : Promise.resolve([]),
+    // 상품별 찜 수 — 리스트 카드에 노출(관심도 지표).
+    productIds.length
+      ? db.wishlist.groupBy({
+          by: ["productId"],
+          where: { productId: { in: productIds } },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+  ]);
   const photosByProduct = new Map<number, ProductPhoto[]>();
   for (const ph of photoRows) {
     const pid = Number(ph.productId);
@@ -215,13 +223,16 @@ export async function listProducts(
     arr.push(toProductPhoto(ph));
     photosByProduct.set(pid, arr);
   }
+  const wishByProduct = new Map(
+    wishRows.map((w) => [Number(w.productId), w._count._all]),
+  );
 
   const items: ProductWithPhotos[] = rows.map((row) => {
     const product = toProduct(row);
     const photos = (photosByProduct.get(product.id) ?? []).sort(
       (a, b) => a.displayOrder - b.displayOrder,
     );
-    return { ...product, photos };
+    return { ...product, photos, wishCount: wishByProduct.get(product.id) ?? 0 };
   });
 
   return { items: await overlayCardDisplay(items), total, page, pageSize };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/modules/teams/types";
@@ -114,16 +114,24 @@ export function ProductCard({
       {/* 텍스트 영역 — 제목 2줄·가격 2줄 높이를 항상 확보해 경매/일반이 섞여도
          카드 높이가 들쭉날쭉하지 않게 한다. */}
       <div className="mt-2.5 space-y-1 px-0.5">
-        <p className="truncate text-xs text-muted-foreground">
-          {team?.name ?? "-"}
-          {member && (
-            <span>
-              {" / "}
-              {member.name}
-              {memberJa ? ` (${memberJa})` : ""}
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-xs text-muted-foreground">
+            {team?.name ?? "-"}
+            {member && (
+              <span>
+                {" / "}
+                {member.name}
+                {memberJa ? ` (${memberJa})` : ""}
+              </span>
+            )}
+          </p>
+          {(product.wishCount ?? 0) > 0 && (
+            <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+              <Heart className="h-3 w-3" aria-hidden />
+              {product.wishCount}
             </span>
           )}
-        </p>
+        </div>
         <p className="line-clamp-2 min-h-10 text-sm font-semibold text-foreground">
           {product.name}
         </p>

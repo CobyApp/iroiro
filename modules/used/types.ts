@@ -133,6 +133,8 @@ export type UsedListing = {
 export type UsedListingWithPhotos = UsedListing & {
   photos: UsedListingPhoto[];
   sellerName: string;
+  // 이 매물을 찜한 사용자 수 — 리스트 카드 관심도 표시.
+  wishCount: number;
 };
 
 export type UsedTrade = {

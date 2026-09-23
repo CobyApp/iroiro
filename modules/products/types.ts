@@ -165,4 +165,8 @@ export type ProductPhoto = {
   createdAt: string;
 };
 
-export type ProductWithPhotos = Product & { photos: ProductPhoto[] };
+export type ProductWithPhotos = Product & {
+  photos: ProductPhoto[];
+  // 이 상품을 찜한 사용자 수 — 리스트 카드 관심도 표시(목록 쿼리에서만 채운다).
+  wishCount?: number;
+};
