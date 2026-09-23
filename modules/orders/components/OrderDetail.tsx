@@ -75,7 +75,12 @@ export function OrderDetail({
         <CardContent className="space-y-3">
           {order.items.map((item) => (
             <div key={item.id} className="flex gap-3">
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xs bg-muted">
+              {/* 상품 상세로 이동 — 구매한 상품 페이지를 다시 열어볼 수 있게. */}
+              <Link
+                href={`/products/${item.productId}`}
+                className="block h-16 w-16 shrink-0 overflow-hidden rounded-xs bg-muted"
+                aria-label={`${item.productName} 상품 상세`}
+              >
                 {item.productThumbnailKey ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -90,12 +95,15 @@ export function OrderDetail({
                     <ImageOff className="h-5 w-5" aria-hidden />
                   </div>
                 )}
-              </div>
+              </Link>
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
+                  <Link
+                    href={`/products/${item.productId}`}
+                    className="block truncate text-sm font-medium hover:underline"
+                  >
                     {item.productName}
-                  </p>
+                  </Link>
                   <p className="text-xs text-muted-foreground">
                     {formatWon(item.unitPrice)} · {item.quantity}개
                   </p>
