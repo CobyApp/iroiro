@@ -69,7 +69,12 @@ export default async function WishlistPage({
   return (
     <div className="shop-page-frame space-y-6">
       <h1 className="font-display text-2xl">찜</h1>
-      {hasAny && <WishlistSearch initialQuery={q ?? ""} />}
+      {/* 데스크탑은 타이틀 아래에서 검색. 모바일은 상단 헤더에 검색바가 뜬다(HeaderLeading). */}
+      {hasAny && (
+        <div className="hidden sm:block">
+          <WishlistSearch initialQuery={q ?? ""} />
+        </div>
+      )}
       {!hasAny ? (
         <EmptyState
           emoji="🤍"

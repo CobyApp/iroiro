@@ -9,6 +9,7 @@ import { SALE_MODE_LABEL } from "@/modules/products/types";
 import { USED_ITEM_TYPE_LABEL } from "@/modules/used/types";
 import { POST_TOPICS, POST_TOPIC_EMOJI, POST_TOPIC_LABELS } from "@/modules/posts/types";
 import { useRecentSearches } from "./use-recent-searches";
+import { WishlistSearch } from "@/modules/wishlist/components/WishlistSearch";
 import type { SearchTagFacets } from "@/modules/search/lib/tag-facets";
 
 // 상단 헤더 왼쪽 영역 — 현재 화면에 맞춰 셋 중 하나를 보여준다.
@@ -122,6 +123,15 @@ export function HeaderLeading({
 }) {
   const pathname = usePathname();
   const leading = resolveLeading(pathname);
+
+  // 찜은 자체 검색(찜 목록 필터) — 모바일 상단 헤더에 찜 전용 검색바를 둔다(데스크탑은 페이지 안).
+  if (pathname === "/wishlist") {
+    return (
+      <div className="min-w-0 flex-1 sm:hidden">
+        <WishlistSearch />
+      </div>
+    );
+  }
 
   if (leading.kind === "back") return <BackButton fallback={leading.fallback} />;
   if (leading.kind === "account" && account) {
