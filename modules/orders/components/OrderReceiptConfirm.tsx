@@ -7,7 +7,7 @@ import { PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { confirmOrderReceipt } from "../actions";
-import { ORDER_AUTO_CONFIRM_DAYS } from "../lib/settle-order";
+import { ORDER_AUTO_CONFIRM_DAYS } from "../lib/settle-order-constants";
 
 // 구매자 수령확정 — 발송된 주문을 받은 뒤 직접 배송완료로 확정한다.
 // 누르지 않아도 발송 후 ORDER_AUTO_CONFIRM_DAYS일이 지나면 자동 확정된다.
