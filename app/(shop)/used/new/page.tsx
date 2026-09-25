@@ -53,6 +53,7 @@ export default async function UsedNewPage() {
         fxRate100={fxRate100}
         usedSoldBySeries={usedSoldBySeries}
         publicBaseUrl={env.CATALOG_PUBLIC_BASE}
+        kakaoMapKey={env.KAKAO_MAP_JS_KEY}
       />
     </div>
   );

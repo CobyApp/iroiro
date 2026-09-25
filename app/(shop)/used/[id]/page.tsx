@@ -190,7 +190,7 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
           {listing.directEnabled && listing.meetLocations.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-foreground">직거래 만날 장소</h2>
-              <MeetLocationMap locations={listing.meetLocations} />
+              <MeetLocationMap locations={listing.meetLocations} mapKey={env.KAKAO_MAP_JS_KEY} />
             </div>
           )}
 
@@ -202,6 +202,7 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
             wished={usedWishedIds?.has(listing.id) ?? false}
             pointBalance={pointBalance}
             autoConfirmNote={autoConfirmNote}
+            kakaoMapKey={env.KAKAO_MAP_JS_KEY}
           />
 
           {listing.description && (

@@ -26,9 +26,10 @@ import {
   canSellerMarkHandedOver,
   canBuyerCancelForRefund,
   canSellerCancelForRefund,
+  canBuyerDispute,
   DIRECT_AUTO_CONFIRM_DAYS,
 } from "./lib/trade-policy";
-import type { UsedTradeKind } from "./types";
+import { USED_DISPUTE_REASONS, type UsedDisputeReason, type UsedTradeKind } from "./types";
 import {
   usedBuySchema,
   usedListingCreateSchema,
@@ -655,6 +656,44 @@ export async function cancelUsedTradeForRefund(
       link: `/used/${Number(trade.listingId)}`,
     }).catch(() => {});
     revalidateUsed(Number(trade.listingId));
+  });
+}
+
+// 문제 신고(분쟁) — 구매자. 발송/전달 후(하자·미도착·설명불일치)에만. 자동확정을 멈추고 관리자 중재로.
+export async function disputeUsedTrade(
+  tradeId: number,
+  reason: UsedDisputeReason,
+  detail?: string,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const account = await requireLogin();
+    if (!USED_DISPUTE_REASONS.includes(reason)) {
+      throw new DomainError("신고 사유를 선택해주세요");
+    }
+    const current = await db.usedTrade.findUnique({
+      where: { id: BigInt(tradeId) },
+      select: { buyerAccountId: true, sellerAccountId: true, status: true, tradeKind: true, listingId: true },
+    });
+    if (!current || current.buyerAccountId !== account.id) {
+      throw new DomainError("신고할 수 없는 상태입니다");
+    }
+    if (!canBuyerDispute(current.tradeKind as UsedTradeKind, current.status as never)) {
+      throw new DomainError("발송·전달된 거래만 문제를 신고할 수 있어요");
+    }
+    const now = new Date();
+    const note = detail?.trim() ? ` — ${detail.trim().slice(0, 500)}` : "";
+    const res = await db.usedTrade.updateMany({
+      where: { id: BigInt(tradeId), buyerAccountId: account.id, status: { in: ["shipped", "handed_over"] } },
+      data: { status: "disputed", disputedAt: now, disputeReason: `${reason}${note}`, updatedAt: now },
+    });
+    if (res.count === 0) throw new DomainError("신고할 수 없는 상태입니다");
+    await notify(current.sellerAccountId, {
+      type: "order_delivered",
+      title: "구매자가 거래 문제를 신고했어요",
+      body: "운영팀이 확인 후 중재해요. 자동 구매확정은 멈췄어요.",
+      link: `/used/${Number(current.listingId)}`,
+    }).catch(() => {});
+    revalidateUsed(Number(current.listingId));
   });
 }
 

@@ -1,22 +1,21 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import type { MeetLocation } from "../types";
-import { hasKakaoMapKey, loadKakaoMaps } from "../lib/kakao-loader";
+import { loadKakaoMaps } from "../lib/kakao-loader";
 
-type Props = { locations: MeetLocation[] };
+type Props = { locations: MeetLocation[]; mapKey?: string };
 
 // 매물 상세 — 직거래 만날 장소를 지도 + 목록으로 보여준다(읽기 전용). 키가 없으면 목록만.
-export function MeetLocationMap({ locations }: Props) {
+export function MeetLocationMap({ locations, mapKey }: Props) {
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const [failed, setFailed] = useState(!hasKakaoMapKey());
+  const [failed, setFailed] = useState(!mapKey);
 
   useEffect(() => {
     if (failed || locations.length === 0) return;
     let alive = true;
-    loadKakaoMaps()
+    loadKakaoMaps(mapKey!)
       .then((kakao) => {
         if (!alive || !mapRef.current) return;
         const first = new kakao.maps.LatLng(locations[0].lat, locations[0].lng);
@@ -37,7 +36,7 @@ export function MeetLocationMap({ locations }: Props) {
     return () => {
       alive = false;
     };
-  }, [failed, locations]);
+  }, [failed, locations, mapKey]);
 
   if (locations.length === 0) return null;
 

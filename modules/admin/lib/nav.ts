@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageSquare,
   Package,
+  Scale,
   Store,
   ShoppingBag,
   Star,
@@ -188,6 +189,14 @@ export const MARKET_SECTIONS: NavSection[] = [
         href: "/admin/used/review-reports",
         icon: Star,
         matchPrefix: "/admin/used/review-reports",
+        role: "used",
+      },
+      {
+        key: "disputes",
+        label: "거래 분쟁",
+        href: "/admin/used/disputes",
+        icon: Scale,
+        matchPrefix: "/admin/used/disputes",
         role: "used",
       },
       {

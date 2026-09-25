@@ -307,3 +307,68 @@ export async function dismissUsedReport(
   });
   if (updated.count === 0) throw new DomainError("이미 처리된 신고입니다");
 }
+
+// ── 거래 분쟁 큐(관리자) ──────────────────────────────────────────────────
+export const USED_DISPUTE_PAGE_SIZE = 20;
+
+export type UsedDisputeItem = {
+  tradeId: number;
+  listingId: number;
+  listingTitle: string;
+  price: number;
+  shippingFee: number;
+  pointsUsed: number;
+  tradeKind: string;
+  disputeReason: string | null;
+  disputedAt: string | null;
+  buyerMasked: string;
+  sellerMasked: string;
+};
+
+export type UsedDisputeQueuePage = {
+  items: UsedDisputeItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+// 미해결 분쟁(status=disputed)을 오래된 순으로. 관리자가 환불/정산으로 종결한다.
+export async function listUsedDisputeQueue(
+  page = 1,
+  pageSize = USED_DISPUTE_PAGE_SIZE,
+  db: Db = defaultDb,
+): Promise<UsedDisputeQueuePage> {
+  const [total, trades] = await Promise.all([
+    db.usedTrade.count({ where: { status: "disputed" } }),
+    db.usedTrade.findMany({
+      where: { status: "disputed" },
+      orderBy: [{ disputedAt: "asc" }, { id: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  const listingIds = [...new Set(trades.map((t) => t.listingId))];
+  const listings = listingIds.length
+    ? await db.usedListing.findMany({
+        where: { id: { in: listingIds } },
+        select: { id: true, title: true },
+      })
+    : [];
+  const titleById = new Map(listings.map((l) => [l.id.toString(), l.title]));
+
+  const items: UsedDisputeItem[] = trades.map((t) => ({
+    tradeId: Number(t.id),
+    listingId: Number(t.listingId),
+    listingTitle: titleById.get(t.listingId.toString()) ?? "(삭제된 매물)",
+    price: t.price,
+    shippingFee: t.shippingFee,
+    pointsUsed: t.pointsUsed,
+    tradeKind: t.tradeKind,
+    disputeReason: t.disputeReason,
+    disputedAt: t.disputedAt?.toISOString() ?? null,
+    buyerMasked: mask(t.buyerAccountId),
+    sellerMasked: mask(t.sellerAccountId),
+  }));
+
+  return { items, total, page, pageSize };
+}

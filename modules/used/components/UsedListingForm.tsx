@@ -50,6 +50,7 @@ export function UsedListingForm({
   fxRate100,
   usedSoldBySeries,
   publicBaseUrl,
+  kakaoMapKey,
 }: {
   teams: TeamOpt[];
   members: MemberOpt[];
@@ -60,6 +61,8 @@ export function UsedListingForm({
   /** seriesId → 최근 중고 완료 거래가(최신순) */
   usedSoldBySeries: Record<number, number[]>;
   publicBaseUrl: string;
+  /** 카카오맵 JS 키(서버 env → prop) — 직거래 만날 장소 지도. */
+  kakaoMapKey?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -606,7 +609,7 @@ export function UsedListingForm({
               <p className="text-xs text-muted-foreground">
                 선호하는 만날 장소를 미리 정해두면 구매자가 지도로 확인해요. 결제는 안전거래로 진행되고, 만나서 받은 뒤 수령확정하면 정산돼요.
               </p>
-              <MeetLocationPicker value={meetLocations} onChange={setMeetLocations} />
+              <MeetLocationPicker value={meetLocations} onChange={setMeetLocations} mapKey={kakaoMapKey} />
             </div>
           )}
         </div>

@@ -6,18 +6,20 @@ import { MapPin, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MEET_LOCATION_MAX, type MeetLocation } from "../types";
-import { hasKakaoMapKey, loadKakaoMaps } from "../lib/kakao-loader";
+import { loadKakaoMaps } from "../lib/kakao-loader";
 
 type Props = {
   value: MeetLocation[];
   onChange: (next: MeetLocation[]) => void;
+  /** 카카오맵 JavaScript 키(서버 env → prop). 없으면 지도 대신 안내. */
+  mapKey?: string;
 };
 
 type SearchHit = { label: string; address: string; lat: number; lng: number };
 
 // 직거래 만날 장소 선택기 — 카카오맵 키워드 검색 또는 지도 클릭으로 최대 3곳을 고른다.
 // 각 장소는 라벨(예: "서면역 1번 출구")·주소·좌표를 갖는다. 키가 없으면 안내만 표시.
-export function MeetLocationPicker({ value, onChange }: Props) {
+export function MeetLocationPicker({ value, onChange, mapKey }: Props) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const kakaoRef = useRef<any>(null);
   const mapObjRef = useRef<any>(null);
@@ -25,7 +27,7 @@ export function MeetLocationPicker({ value, onChange }: Props) {
   // 지도 클릭 핸들러는 최초 1회 등록되므로, 최신 add 함수를 ref 로 참조해 스테일 클로저를 피한다.
   const addRef = useRef<(hit: SearchHit) => void>(() => {});
   const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState(!hasKakaoMapKey());
+  const [failed, setFailed] = useState(!mapKey);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -52,7 +54,7 @@ export function MeetLocationPicker({ value, onChange }: Props) {
   useEffect(() => {
     if (failed) return;
     let alive = true;
-    loadKakaoMaps()
+    loadKakaoMaps(mapKey!)
       .then((kakao) => {
         if (!alive || !mapRef.current) return;
         kakaoRef.current = kakao;
@@ -133,7 +135,7 @@ export function MeetLocationPicker({ value, onChange }: Props) {
   if (failed) {
     return (
       <div className="rounded-md border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-        지도를 불러올 수 없어요. 카카오맵 키(NEXT_PUBLIC_KAKAO_MAP_JS_KEY)가 설정되면 만날 장소를 지도로 고를 수 있어요.
+        지도를 불러올 수 없어요. 카카오맵 키가 설정되면 만날 장소를 지도로 고를 수 있어요.
       </div>
     );
   }

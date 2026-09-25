@@ -28,12 +28,16 @@ import {
   cancelUsedListing,
   cancelUsedTradeForRefund,
   confirmUsedReceived,
+  disputeUsedTrade,
   markUsedHandedOver,
   markUsedShipped,
   placeUsedBid,
 } from "../actions";
 import {
+  USED_DISPUTE_REASON_LABEL,
+  USED_DISPUTE_REASONS,
   USED_TRADE_STATUS_LABEL,
+  type UsedDisputeReason,
   type UsedListingWithPhotos,
   type UsedTrade,
   type UsedTradeKind,
@@ -50,11 +54,14 @@ export function UsedDetailCta({
   wished = false,
   pointBalance = 0,
   autoConfirmNote = null,
+  kakaoMapKey,
 }: {
   listing: UsedListingWithPhotos;
   trade: UsedTrade | null;
   role: Role;
   isLoggedIn: boolean;
+  /** 카카오맵 JS 키(서버 env → prop) — 직거래 구매 다이얼로그의 만날 장소 지도. */
+  kakaoMapKey?: string;
   wished?: boolean;
   /** 보유 포인트 — 구매 다이얼로그 포인트 사용 UI용. */
   pointBalance?: number;
@@ -72,6 +79,9 @@ export function UsedDetailCta({
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [bidConfirmOpen, setBidConfirmOpen] = useState(false);
   const [pointsInput, setPointsInput] = useState("0");
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState<UsedDisputeReason>("not_received");
+  const [disputeDetail, setDisputeDetail] = useState("");
 
   // 이 매물이 허용하는 거래 방식 — 구매자가 택배/직거래 중 선택. 하나뿐이면 그것으로 고정.
   const availableKinds = [
@@ -334,6 +344,71 @@ export function UsedDetailCta({
             )}
           </div>
         )}
+
+        {/* 구매자 문제 신고(분쟁) — 발송(택배)/전달(직거래) 후, 완료 전 */}
+        {role === "buyer" &&
+          ((trade.tradeKind === "parcel" && trade.status === "shipped") ||
+            (trade.tradeKind === "direct" && trade.status === "handed_over")) && (
+            <button
+              type="button"
+              onClick={() => setDisputeOpen(true)}
+              className="w-full text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              문제가 있나요? 신고하기
+            </button>
+          )}
+
+        {trade.status === "disputed" && (
+          <p className="rounded-md bg-muted/50 px-3 py-2 text-center text-xs text-muted-foreground">
+            문제가 접수됐어요. 운영팀이 확인 후 환불 또는 정산으로 처리해요.
+          </p>
+        )}
+
+        {/* 분쟁 신고 다이얼로그 */}
+        <Dialog open={disputeOpen} onOpenChange={setDisputeOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>어떤 문제인가요?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <div className="space-y-1.5">
+                {USED_DISPUTE_REASONS.map((r) => (
+                  <label key={r} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="dispute-reason"
+                      checked={disputeReason === r}
+                      onChange={() => setDisputeReason(r)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {USED_DISPUTE_REASON_LABEL[r]}
+                  </label>
+                ))}
+              </div>
+              <Input
+                value={disputeDetail}
+                onChange={(e) => setDisputeDetail(e.target.value)}
+                placeholder="상세 내용(선택)"
+                maxLength={500}
+              />
+              <p className="rounded-md bg-muted/50 px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                단순 변심은 환불 대상이 아니에요. 신고하면 자동 구매확정이 멈추고 운영팀이 중재해요.
+              </p>
+              <Button
+                className="w-full"
+                disabled={pending}
+                onClick={() =>
+                  run(() => {
+                    setDisputeOpen(false);
+                    return disputeUsedTrade(trade.id, disputeReason, disputeDetail);
+                  }, "문제를 신고했어요. 운영팀이 확인할게요")
+                }
+              >
+                신고하기
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -586,7 +661,7 @@ export function UsedDetailCta({
                 만나서 거래해요. 결제는 안전거래로 진행되고, 받은 뒤 수령확정하면 판매자에게 정산돼요. 배송비는 없어요.
               </p>
               {listing.meetLocations.length > 0 ? (
-                <MeetLocationMap locations={listing.meetLocations} />
+                <MeetLocationMap locations={listing.meetLocations} mapKey={kakaoMapKey} />
               ) : (
                 <p className="text-xs text-muted-foreground">판매자와 만날 장소는 결제 후 쪽지로 정하세요.</p>
               )}

@@ -77,6 +77,19 @@ export const USED_TRADE_KINDS = Object.keys(USED_TRADE_KIND_LABEL) as [
   ...UsedTradeKind[],
 ];
 
+// 거래 분쟁 사유 — 발송/전달 후 문제. 단순 변심은 보호 대상이 아니므로 목록에 없다(안내로 구분).
+export const USED_DISPUTE_REASON_LABEL = {
+  not_received: "받지 못했어요(미도착)",
+  damaged: "파손·불량이에요",
+  not_as_described: "설명과 달라요(가품 의심 포함)",
+  other: "기타 문제",
+} as const satisfies Record<string, string>;
+export type UsedDisputeReason = keyof typeof USED_DISPUTE_REASON_LABEL;
+export const USED_DISPUTE_REASONS = Object.keys(USED_DISPUTE_REASON_LABEL) as [
+  UsedDisputeReason,
+  ...UsedDisputeReason[],
+];
+
 // 직거래 만날 장소 — 카카오맵에서 고른 지점. 매물당 최대 3곳.
 export type MeetLocation = {
   label: string; // 예: "서면역 1번 출구"

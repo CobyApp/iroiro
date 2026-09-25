@@ -59,6 +59,9 @@ const envSchema = z
     KAKAO_CLIENT_SECRET: optionalString,
     // 선택: 동의항목(scope). 기본 profile_nickname. 이메일은 비즈앱+"profile_nickname,account_email".
     KAKAO_SCOPE: optionalString,
+    // 카카오맵 JavaScript 키(중고 직거래 만날 장소 지도). 환경별 다른 앱 키 — 런타임 SSM 주입.
+    // 서버가 읽어 클라이언트에 prop 으로 내려준다(빌드 인라인 아님). 미설정 시 지도는 목록 폴백.
+    KAKAO_MAP_JS_KEY: optionalString,
     // 매입일 환율(JPY→KRW) 조회 API. 기본 Frankfurter(ECB, 키 불필요, 과거 영업일 지원).
     // 정식 호스트는 api.frankfurter.dev/v1 (.app은 301 리다이렉트).
     FX_API_BASE: z.preprocess(
