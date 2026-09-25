@@ -153,6 +153,7 @@ export function AdminShell({
           sections={config.sections}
           viewer={viewer}
           ariaLabel={config.navLabel}
+          scopeKey={scope}
         />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
