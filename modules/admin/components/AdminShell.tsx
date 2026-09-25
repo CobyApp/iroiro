@@ -11,11 +11,13 @@ import {
   CATALOG_SECTIONS,
   DELIVERY_SECTIONS,
   MARKET_SECTIONS,
+  visibleSections,
   type NavSection,
 } from "../lib/nav";
 import type { AdminSpace } from "../lib/adminRoles";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminAccountMenu } from "./AdminAccountMenu";
+import { AdminCommandPalette, type CommandItem } from "./AdminCommandPalette";
 
 export type AdminShellScope = "admin" | "catalog" | "board" | "delivery" | "market";
 
@@ -90,6 +92,20 @@ export function AdminShell({
   const config = SCOPE[scope];
   const viewer = { isSiteAdmin, spaces: new Set(spaces) };
 
+  // 명령 팔레트(⌘K) 항목 — 접근 가능한 모든 관리 공간의 메뉴를 평탄화해 어디로든 즉시 이동.
+  const paletteItems: CommandItem[] = (Object.keys(SCOPE) as AdminShellScope[]).flatMap((s) => {
+    const cfg = SCOPE[s];
+    return visibleSections(cfg.sections, viewer).flatMap((section) =>
+      section.items.map((item) => ({
+        key: item.key,
+        label: item.label,
+        href: item.href,
+        scope: cfg.title,
+        group: section.title,
+      })),
+    );
+  });
+
   return (
     <div
       className="flex min-h-dvh flex-col bg-background"
@@ -123,7 +139,10 @@ export function AdminShell({
               )}
             </Link>
           </div>
-          <AdminAccountMenu />
+          <div className="flex items-center gap-2">
+            <AdminCommandPalette items={paletteItems} />
+            <AdminAccountMenu />
+          </div>
         </div>
       </header>
 
