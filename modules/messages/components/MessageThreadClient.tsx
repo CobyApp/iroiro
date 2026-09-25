@@ -20,7 +20,8 @@ import {
   PHOTO_ALLOWED_TYPES,
   UNSUPPORTED_TYPE_MESSAGE,
   putWithRetry,
-  reencodeToBlob,
+  compressImageFile,
+  COMPRESS_PRESET,
 } from "@/lib/photo-client";
 import type { MessageItem } from "../types";
 import {
@@ -125,8 +126,8 @@ export function MessageThreadClient({
       return;
     }
     try {
-      // 쪽지 사진은 강하게 압축 — 긴 변 1280px·JPEG q0.62(용량·전송 최소화).
-      const blob = await reencodeToBlob(file, 1280, 0.62, "image/jpeg");
+      // 쪽지 사진은 강하게 압축 — 공용 chat 프리셋(긴 변 1280px·JPEG). 다른 화면과 동일 로직.
+      const blob = await compressImageFile(file, COMPRESS_PRESET.chat);
       if (blob.size > IMAGE_MAX_BYTES) {
         toast.error("이미지는 5MB 이하여야 해요");
         return;

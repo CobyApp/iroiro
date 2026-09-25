@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Star, Trash2 } from "lucide-react";
+import { ImagePlus, Loader2, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { compressImageFile, COMPRESS_PRESET } from "@/lib/photo-client";
 import { uploadUsedPhotoFile } from "../actions";
 
 export type UploadedUsedPhoto = {
@@ -23,42 +24,57 @@ export function UsedPhotoUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  // 업로드 중인 로컬 미리보기 — 파일을 고르면 즉시 보여주고(낙관적 UI), 완료되면 실제 사진으로 대체한다.
+  // 제출 대상(photos)에는 넣지 않아 미완료 사진이 저장되는 것을 막는다.
+  const [pending, setPending] = useState<{ id: string; url: string }[]>([]);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const list = Array.from(files).slice(0, 8 - photos.length);
+    const room = 8 - photos.length - pending.length;
+    const list = Array.from(files).slice(0, Math.max(0, room));
     if (list.length === 0) {
       toast.error("사진은 최대 8장까지 올릴 수 있어요");
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    // 각 파일마다 즉시 로컬 미리보기 추가(낙관적) — 화면이 바로 반응한다.
+    const jobs = list.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    setPending((prev) => [...prev, ...jobs.map((j) => ({ id: j.id, url: j.url }))]);
     setUploading(true);
-    try {
-      // 서버 경유 업로드 — R2 버킷 CORS 미설정으로 직접 PUT은 차단된다.
-      const uploaded: UploadedUsedPhoto[] = [];
-      for (const file of list) {
+
+    const uploaded: UploadedUsedPhoto[] = [];
+    for (const job of jobs) {
+      try {
+        // 클라이언트에서 먼저 줄여 전송량을 줄인다(서버가 이 결과에 워터마크). 실패 시 원본 전송.
+        const blob = await compressImageFile(job.file, COMPRESS_PRESET.listing);
         const formData = new FormData();
-        formData.set("file", file, file.name);
-        formData.set("filename", file.name);
+        formData.set("file", blob, `${job.file.name.replace(/\.[^.]+$/, "")}.jpg`);
+        formData.set("filename", job.file.name);
         const result = await uploadUsedPhotoFile(formData);
         if (!result.ok) throw new Error(result.message);
-        uploaded.push({
-          r2Key: result.data.r2Key,
-          // 서버가 압축해 저장한 실제 객체를 미리보기로 보여준다.
-          previewUrl: result.data.previewUrl,
-          isPrimary: false,
-        });
+        uploaded.push({ r2Key: result.data.r2Key, previewUrl: result.data.previewUrl, isPrimary: false });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "업로드에 실패했어요");
+      } finally {
+        // 이 작업의 대기 미리보기 제거 + objectURL 해제.
+        setPending((prev) => prev.filter((p) => p.id !== job.id));
+        URL.revokeObjectURL(job.url);
       }
+    }
+
+    if (uploaded.length > 0) {
       const next = [...photos, ...uploaded];
       if (!next.some((p) => p.isPrimary) && next.length > 0) {
         next[0] = { ...next[0], isPrimary: true };
       }
       onChange(next);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "업로드에 실패했어요");
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
   function setPrimary(index: number) {
@@ -117,15 +133,24 @@ export function UsedPhotoUpload({
             </div>
           </div>
         ))}
-        {photos.length < 8 && (
+        {/* 업로드 중인 로컬 미리보기 — 흐리게 + 스피너 */}
+        {pending.map((p) => (
+          <div key={p.id} className="relative aspect-square overflow-hidden rounded-xs border border-border bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.url} alt="" className="h-full w-full object-cover opacity-50" />
+            <div className="absolute inset-0 grid place-items-center">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          </div>
+        ))}
+        {photos.length + pending.length < 8 && (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
             className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xs border border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
           >
             <ImagePlus className="h-5 w-5" />
-            <span className="text-[10px]">{uploading ? "올리는 중" : "추가"}</span>
+            <span className="text-[10px]">추가</span>
           </button>
         )}
       </div>

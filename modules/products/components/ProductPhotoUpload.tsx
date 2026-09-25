@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Loader2, Maximize2, Star, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { compressImageFile, COMPRESS_PRESET } from "@/lib/photo-client";
 import { uploadProductPhotoFile } from "../actions";
 import type { ProductPhotoInput } from "../lib/schema";
 import type { ProductPhoto } from "../types";
@@ -97,8 +98,10 @@ export function ProductPhotoUpload({ photos, onChange, publicBaseUrl }: Props) {
           const file = files[index];
 
           try {
+            // 클라이언트에서 먼저 줄여 전송량을 줄인다(서버가 이 결과에 워터마크). 실패 시 원본 전송.
+            const blob = await compressImageFile(file, COMPRESS_PRESET.listing);
             const formData = new FormData();
-            formData.set("file", file, file.name);
+            formData.set("file", blob, `${file.name.replace(/\.[^.]+$/, "")}.jpg`);
             formData.set("filename", file.name);
             const result = await uploadProductPhotoFile(formData);
             if (!result.ok) throw new Error(result.message);

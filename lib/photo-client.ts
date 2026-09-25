@@ -38,15 +38,58 @@ export async function putWithRetry(put: PutFn, url: string, blob: Blob): Promise
   throw new Error("사진 업로드에 실패했습니다. 다시 시도해주세요");
 }
 
+// 용도별 클라이언트 압축 프리셋 — 업로드 전에 브라우저에서 줄여 전송량·대기를 줄인다.
+// 모든 이미지 업로드가 같은 값을 공유해 일관성 유지(중고·상품·프로필·채팅·글).
+export type CompressPreset = { maxDim: number; quality: number; type: string };
+export const COMPRESS_PRESET = {
+  // 매물·상품 상세 — 서버가 이 결과에 워터마크를 입힌다(서버 출력과 동일한 2000px).
+  listing: { maxDim: 2000, quality: 0.82, type: "image/jpeg" },
+  // 커뮤니티 글·공지 — 상세 표시용.
+  post: { maxDim: 2048, quality: 0.82, type: "image/jpeg" },
+  // 채팅 사진 — 용량·전송 최소화(강압축).
+  chat: { maxDim: 1280, quality: 0.62, type: "image/jpeg" },
+  // 프로필 아바타 — 작게.
+  avatar: { maxDim: 512, quality: 0.82, type: "image/jpeg" },
+} as const satisfies Record<string, CompressPreset>;
+export type CompressPresetName = keyof typeof COMPRESS_PRESET;
+
+// 파일을 프리셋대로 압축한 Blob 을 돌려준다. 실패하면 원본을 그대로 반환(업로드 자체는 막지 않음).
+// createImageBitmap 이 디코드를 브라우저 내부(메인 스레드 밖)에서 처리해 큰 사진도 화면 잼이 적다.
+export async function compressImageFile(file: File, preset: CompressPreset): Promise<Blob> {
+  try {
+    return await reencodeToBlob(file, preset.maxDim, preset.quality, preset.type);
+  } catch {
+    return file; // 디코드·인코딩 실패 시 원본 전송(서버가 최종 검증·처리)
+  }
+}
+
 // 브라우저 전용 — canvas 재인코딩·리사이즈(긴 변 maxDimension). EXIF 등 메타데이터 제거 시도(보조 수단).
 // quality/outputType 로 압축 강도·포맷을 조절한다(기본: 원본 포맷·0.9). JPEG 출력 시 알파는 흰 배경으로.
+// 리사이즈 옵션을 지원하는 브라우저에서는 createImageBitmap 이 축소까지 오프스레드로 처리해 잼을 더 줄인다.
 export async function reencodeToBlob(
   file: File,
   maxDimension: number,
   quality = 0.9,
   outputType?: string,
 ): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+  // 1차 디코드로 원본 크기를 얻고(오프스레드), 축소가 필요하면 리사이즈 옵션으로 재디코드해 큰 캔버스 그리기를 피한다.
+  let bitmap = await createImageBitmap(file);
+  const need = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  if (need < 1) {
+    const rw = Math.max(1, Math.round(bitmap.width * need));
+    const rh = Math.max(1, Math.round(bitmap.height * need));
+    try {
+      const resized = await createImageBitmap(file, {
+        resizeWidth: rw,
+        resizeHeight: rh,
+        resizeQuality: "high",
+      });
+      bitmap.close();
+      bitmap = resized;
+    } catch {
+      // 리사이즈 옵션 미지원(예: 일부 Safari) — 아래에서 캔버스 축소로 폴백.
+    }
+  }
   try {
     const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale));

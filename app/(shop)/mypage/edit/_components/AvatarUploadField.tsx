@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { compressImageFile, COMPRESS_PRESET } from "@/lib/photo-client";
 import { presignAvatar, updateAvatar } from "@/modules/auth/actions";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -36,13 +37,14 @@ export function AvatarUploadField({
     setPreview(localUrl);
     startTransition(async () => {
       try {
-        const { uploadUrl, key } = await presignAvatar({
-          contentType: file.type,
-        });
+        // 올리기 전 작게 압축(512px) — 전송량·대기 감소. 실패 시 원본으로 폴백.
+        const blob = await compressImageFile(file, COMPRESS_PRESET.avatar);
+        const contentType = blob.type || file.type;
+        const { uploadUrl, key } = await presignAvatar({ contentType });
         const res = await fetch(uploadUrl, {
           method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
+          body: blob,
+          headers: { "Content-Type": contentType },
         });
         if (!res.ok) throw new Error("업로드에 실패했습니다.");
         await updateAvatar({ key });
