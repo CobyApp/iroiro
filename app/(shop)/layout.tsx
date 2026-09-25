@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartButton } from "@/modules/cart/components/CartButton";
 import { WishlistButton } from "@/modules/wishlist/components/WishlistButton";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
+import { MessagesBell } from "@/modules/messages/components/MessagesBell";
 import { AccountNav } from "@/modules/auth/components/AccountNav";
 import { BrandLockup } from "@/modules/ui/components/BrandMark";
 import Link from "next/link";
@@ -100,8 +101,11 @@ export default async function ShopLayout({
               >
                 <CartButton />
               </Suspense>
-              {/* 쪽지는 커뮤니티(/posts) 안 메뉴로 옮겼다 — 헤더에서 제거. */}
-              {/* 알림 벨 — 장바구니 오른쪽. 로그인 시에만 렌더(내부에서 판단). */}
+              {/* 쪽지함 — 알림 벨 왼쪽. 로그인 시에만 렌더(내부에서 판단). */}
+              <Suspense fallback={null}>
+                <MessagesBell />
+              </Suspense>
+              {/* 알림 벨 — 쪽지함 오른쪽. 로그인 시에만 렌더(내부에서 판단). */}
               <Suspense fallback={null}>
                 <NotificationBell />
               </Suspense>
@@ -123,7 +127,7 @@ export default async function ShopLayout({
           members={memberOptions}
           tagFacets={tagFacets}
         >
-          <main className="shop-main relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+          <main className="shop-main relative z-10 mx-auto w-full max-w-7xl flex-1 px-2 py-6 sm:px-6">
             <PageTransition>{children}</PageTransition>
           </main>
         </SearchDataProvider>
