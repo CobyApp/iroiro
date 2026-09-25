@@ -84,6 +84,15 @@ export const usedPhotoInputSchema = z.object({
   isPrimary: z.boolean(),
 });
 
+// 직거래 만날 장소 — 카카오맵에서 고른 지점. 좌표는 대한민국 대략 범위로 방어(오입력·조작 차단).
+export const meetLocationSchema = z.object({
+  label: z.string().trim().min(1, "장소 이름을 입력하세요").max(30),
+  address: z.string().trim().max(200).default(""),
+  lat: z.number().min(33).max(39),
+  lng: z.number().min(124).max(132),
+});
+export type MeetLocationInput = z.input<typeof meetLocationSchema>;
+
 const usedListingBase = z.object({
   // 굿즈 종류. photocard(토레카)만 카탈로그 카드와 연결되고, 나머지는 제목·그룹·멤버를 직접 입력.
   itemType: z.enum(USED_ITEM_TYPES).default("photocard"),
@@ -109,6 +118,10 @@ const usedListingBase = z.object({
   auctionEndsAt: z.string().datetime({ offset: true }).nullable().optional(),
   shippingMethod: z.enum(USED_SHIPPING_METHODS).default("post"),
   shippingFee: z.number().int().min(0).max(10000).default(0),
+  // 거래 방식(독립 선택) — 최소 하나 true. 직거래면 만날 장소를 최대 3곳 미리 지정(선택).
+  parcelEnabled: z.boolean().default(true),
+  directEnabled: z.boolean().default(false),
+  meetLocations: z.array(meetLocationSchema).max(3, "만날 장소는 최대 3곳").default([]),
   photos: z
     .array(usedPhotoInputSchema)
     .min(1, "사진은 최소 1장")
@@ -136,18 +149,43 @@ export const usedListingCreateSchema = usedListingBase
       v.saleMode !== "auction" ||
       ((v.auctionStartPrice ?? 0) > 0 && !!v.auctionEndsAt),
     { message: "경매 시작가와 마감 시각을 입력하세요", path: ["auctionStartPrice"] },
-  );
+  )
+  // 거래 방식 — 택배·직거래 중 최소 하나는 켜야 한다.
+  .refine((v) => v.parcelEnabled || v.directEnabled, {
+    message: "택배 또는 직거래 중 하나 이상 선택하세요",
+    path: ["parcelEnabled"],
+  })
+  // 직거래를 끄면 만날 장소는 의미 없음 — 비워야 한다(오염 방지).
+  .refine((v) => v.directEnabled || v.meetLocations.length === 0, {
+    message: "직거래를 켜야 만날 장소를 넣을 수 있어요",
+    path: ["meetLocations"],
+  });
 
 export type UsedListingCreateInput = z.input<typeof usedListingCreateSchema>;
 
-export const usedBuySchema = z.object({
-  listingId: z.number().int().positive(),
-  recipientName: z.string().trim().min(1, "수령인 이름").max(50),
-  recipientPhone: z.string().trim().min(9, "연락처").max(20),
-  recipientAddress: z.string().trim().min(5, "배송지 주소").max(300),
-  // 포인트 사용 — 상품가까지(배송비 제외), 서버가 잔액·한도 재검증.
-  usePoints: z.number().int().nonnegative().default(0),
-});
+export const usedBuySchema = z
+  .object({
+    listingId: z.number().int().positive(),
+    // 거래 방식 — 매물이 허용하는 방식 중 선택. 직거래는 배송지가 없다(대면 수령).
+    tradeKind: z.enum(["parcel", "direct"]).default("parcel"),
+    // 배송지 — 택배일 때만 필수. 직거래면 생략 가능.
+    recipientName: z.string().trim().max(50).optional(),
+    recipientPhone: z.string().trim().max(20).optional(),
+    recipientAddress: z.string().trim().max(300).optional(),
+    // 포인트 사용 — 상품가까지(배송비 제외), 서버가 잔액·한도 재검증.
+    usePoints: z.number().int().nonnegative().default(0),
+  })
+  .refine(
+    (v) =>
+      v.tradeKind !== "parcel" ||
+      (!!v.recipientName &&
+        v.recipientName.length >= 1 &&
+        !!v.recipientPhone &&
+        v.recipientPhone.length >= 9 &&
+        !!v.recipientAddress &&
+        v.recipientAddress.length >= 5),
+    { message: "택배 거래는 수령인·연락처·배송지를 입력하세요", path: ["recipientAddress"] },
+  );
 export type UsedBuyInput = z.input<typeof usedBuySchema>;
 
 // 묶음 구매 — 같은 판매자의 매물 2개 이상. 수령지·포인트는 단건과 동일.

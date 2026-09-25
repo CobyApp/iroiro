@@ -2919,3 +2919,36 @@ COMMENT ON TABLE used_review IS '중고 거래 후기 — 거래·작성자당 1
 -- reviewee_account_id 는 INSERT 시 채워지고 이후 수정 대상이 아니라 기존 GRANT 로 충분하다.
 
 -- ============================================================================
+
+-- [20261007000000_used_direct_trade_and_refunds]
+-- ============================================================================
+
+-- 직거래 옵션 + 만날 장소 + 안전거래 취소/환불/분쟁 상태 확장.
+-- 거래 방식은 택배(parcel)·직거래(direct) 독립 선택. 최소 하나는 true.
+ALTER TABLE used_listing
+    ADD COLUMN IF NOT EXISTS parcel_enabled BOOLEAN NOT NULL DEFAULT true,
+    ADD COLUMN IF NOT EXISTS direct_enabled BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS meet_locations JSONB;
+COMMENT ON COLUMN used_listing.meet_locations IS '직거래 만날 장소 배열(최대 3): [{label,address,lat,lng}]';
+ALTER TABLE used_listing DROP CONSTRAINT IF EXISTS used_listing_delivery_chk;
+ALTER TABLE used_listing ADD CONSTRAINT used_listing_delivery_chk CHECK (parcel_enabled OR direct_enabled);
+
+-- 거래(에스크로) 상태 확장 — handed_over/disputed/refunded 는 status 값으로만 추가(컬럼 무변경).
+-- 대면 전달·분쟁·환불 부가 정보 컬럼.
+ALTER TABLE used_trade
+    ADD COLUMN IF NOT EXISTS trade_kind TEXT NOT NULL DEFAULT 'parcel',
+    ADD COLUMN IF NOT EXISTS handed_over_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS disputed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS dispute_reason TEXT,
+    ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS refund_amount INT,
+    ADD COLUMN IF NOT EXISTS refund_reason TEXT,
+    ADD COLUMN IF NOT EXISTS resolved_by TEXT;
+COMMENT ON COLUMN used_trade.trade_kind IS 'parcel(택배) | direct(직거래) — 구매 시 확정';
+
+-- 환불된 거래도 매물을 다시 판매 가능하게 — 기존 unique(취소 제외)에 refunded 추가 제외.
+DROP INDEX IF EXISTS used_trade_listing_unique;
+CREATE UNIQUE INDEX used_trade_listing_unique ON used_trade (listing_id)
+    WHERE (status NOT IN ('canceled', 'refunded'));
+
+-- ============================================================================

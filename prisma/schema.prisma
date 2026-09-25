@@ -832,6 +832,11 @@ model UsedListing {
   price                  Int?
   shippingMethod         String    @default("post") @map("shipping_method")
   shippingFee            Int       @default(0) @map("shipping_fee")
+  // 거래 방식(독립 선택) — 택배(parcel)와 직거래(direct)를 각각 켤 수 있다. 최소 하나는 true(DB CHECK).
+  parcelEnabled          Boolean   @default(true) @map("parcel_enabled")
+  directEnabled          Boolean   @default(false) @map("direct_enabled")
+  // 직거래 만날 장소 배열(최대 3): [{label,address,lat,lng}]. 택배만이면 NULL.
+  meetLocations          Json?     @map("meet_locations")
   status                 String    @default("active")
   auctionStartPrice      Int?      @map("auction_start_price")
   auctionCurrentPrice    Int?      @map("auction_current_price")
@@ -963,6 +968,8 @@ model UsedTrade {
   feeAmount        Int       @map("fee_amount")
   sellerPayout     Int       @map("seller_payout")
   status           String    @default("pending")
+  // parcel(택배) | direct(직거래) — 구매 시 확정. 직거래는 배송지·송장이 없고 대면 전달로 진행.
+  tradeKind        String    @default("parcel") @map("trade_kind")
   bundleId         BigInt?   @map("bundle_id")
   pointsUsed       Int       @default(0) @map("points_used")
   paymentTid       String?   @map("payment_tid")
@@ -973,11 +980,20 @@ model UsedTrade {
   courier          String?
   postQrIssuedAt   DateTime? @map("post_qr_issued_at") @db.Timestamptz(6)
   shippedAt        DateTime? @map("shipped_at") @db.Timestamptz(6)
+  // 직거래 대면 전달 표시 시각(판매자). 이후 수령확정 or 자동확정 타이머의 기준.
+  handedOverAt     DateTime? @map("handed_over_at") @db.Timestamptz(6)
   completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  // 분쟁·환불(안전거래) — 자동확정을 멈추고 관리자 중재 또는 PG 환불로 종결한다.
+  disputedAt       DateTime? @map("disputed_at") @db.Timestamptz(6)
+  disputeReason    String?   @map("dispute_reason")
+  refundedAt       DateTime? @map("refunded_at") @db.Timestamptz(6)
+  refundAmount     Int?      @map("refund_amount")
+  refundReason     String?   @map("refund_reason")
+  resolvedBy       String?   @map("resolved_by")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  @@unique([listingId], map: "used_trade_listing_unique", where: raw("(status <> 'canceled')"))
+  @@unique([listingId], map: "used_trade_listing_unique", where: raw("(status NOT IN ('canceled', 'refunded'))"))
   @@index([buyerAccountId, createdAt(sort: Desc)], map: "used_trade_buyer_idx")
   @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_trade_seller_idx")
   @@index([status, createdAt(sort: Desc)], map: "used_trade_status_idx")

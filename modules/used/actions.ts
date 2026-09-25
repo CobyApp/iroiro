@@ -152,7 +152,11 @@ export async function createUsedListing(
           saleMode: data.saleMode,
           price: isAuction ? null : data.price,
           shippingMethod: data.shippingMethod,
-          shippingFee: data.shippingFee,
+          shippingFee: data.parcelEnabled ? data.shippingFee : 0,
+          parcelEnabled: data.parcelEnabled,
+          directEnabled: data.directEnabled,
+          // 직거래일 때만 만날 장소 저장(택배만이면 null 로 비운다).
+          meetLocations: data.directEnabled ? data.meetLocations : undefined,
           auctionStartPrice: isAuction ? data.auctionStartPrice : null,
           auctionEndsAt: isAuction ? new Date(data.auctionEndsAt!) : null,
           auctionStatus: isAuction ? "live" : null,

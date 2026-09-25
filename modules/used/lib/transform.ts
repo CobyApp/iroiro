@@ -6,6 +6,7 @@ import type {
   UsedTrade as PrismaUsedTrade,
 } from "@prisma/client";
 import type {
+  MeetLocation,
   ProductCondition,
   UsedAuctionStatus,
   UsedListing,
@@ -14,8 +15,28 @@ import type {
   UsedShippingMethod,
   UsedStatus,
   UsedTrade,
+  UsedTradeKind,
   UsedTradeStatus,
 } from "../types";
+
+// meet_locations(jsonb) 를 방어적으로 MeetLocation[] 로 정규화 — 깨진 값은 버린다.
+function parseMeetLocations(value: unknown): MeetLocation[] {
+  if (!Array.isArray(value)) return [];
+  const out: MeetLocation[] = [];
+  for (const v of value) {
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      const label = typeof o.label === "string" ? o.label : "";
+      const address = typeof o.address === "string" ? o.address : "";
+      const lat = typeof o.lat === "number" ? o.lat : NaN;
+      const lng = typeof o.lng === "number" ? o.lng : NaN;
+      if (label && Number.isFinite(lat) && Number.isFinite(lng)) {
+        out.push({ label, address, lat, lng });
+      }
+    }
+  }
+  return out;
+}
 
 export function toUsedListing(row: PrismaUsedListing): UsedListing {
   return {
@@ -34,6 +55,9 @@ export function toUsedListing(row: PrismaUsedListing): UsedListing {
     price: row.price,
     shippingMethod: row.shippingMethod as UsedShippingMethod,
     shippingFee: row.shippingFee,
+    parcelEnabled: row.parcelEnabled,
+    directEnabled: row.directEnabled,
+    meetLocations: parseMeetLocations(row.meetLocations),
     status: row.status as UsedStatus,
     auctionStartPrice: row.auctionStartPrice,
     auctionCurrentPrice: row.auctionCurrentPrice,
@@ -72,6 +96,7 @@ export function toUsedTrade(row: PrismaUsedTrade): UsedTrade {
     feeAmount: row.feeAmount,
     sellerPayout: row.sellerPayout,
     status: row.status as UsedTradeStatus,
+    tradeKind: row.tradeKind as UsedTradeKind,
     recipientName: row.recipientName,
     recipientPhone: row.recipientPhone,
     recipientAddress: row.recipientAddress,
@@ -79,7 +104,13 @@ export function toUsedTrade(row: PrismaUsedTrade): UsedTrade {
     courier: row.courier ?? null,
     postQrIssuedAt: row.postQrIssuedAt?.toISOString() ?? null,
     shippedAt: row.shippedAt?.toISOString() ?? null,
+    handedOverAt: row.handedOverAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
+    disputedAt: row.disputedAt?.toISOString() ?? null,
+    disputeReason: row.disputeReason ?? null,
+    refundedAt: row.refundedAt?.toISOString() ?? null,
+    refundAmount: row.refundAmount ?? null,
+    refundReason: row.refundReason ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }

@@ -58,10 +58,33 @@ export const USED_TRADE_STATUS_LABEL = {
   pending: "결제 대기",
   paid: "결제 완료",
   shipped: "발송됨",
+  handed_over: "전달 완료", // 직거래 — 판매자가 대면 전달을 표시
   completed: "거래 완료",
+  disputed: "분쟁 접수",
+  refunded: "환불됨",
   canceled: "취소됨",
 } as const satisfies Record<string, string>;
 export type UsedTradeStatus = keyof typeof USED_TRADE_STATUS_LABEL;
+
+// 거래 방식 — 택배(parcel)와 직거래(direct). 매물은 둘을 독립적으로 켤 수 있고, 구매 시 하나로 확정된다.
+export const USED_TRADE_KIND_LABEL = {
+  parcel: "택배",
+  direct: "직거래",
+} as const satisfies Record<string, string>;
+export type UsedTradeKind = keyof typeof USED_TRADE_KIND_LABEL;
+export const USED_TRADE_KINDS = Object.keys(USED_TRADE_KIND_LABEL) as [
+  UsedTradeKind,
+  ...UsedTradeKind[],
+];
+
+// 직거래 만날 장소 — 카카오맵에서 고른 지점. 매물당 최대 3곳.
+export type MeetLocation = {
+  label: string; // 예: "서면역 1번 출구"
+  address: string; // 도로명/지번 주소(카카오 검색 결과)
+  lat: number;
+  lng: number;
+};
+export const MEET_LOCATION_MAX = 3;
 
 export const USED_BUNDLE_STATUS_LABEL = {
   pending: "결제 대기",
@@ -117,6 +140,10 @@ export type UsedListing = {
   price: number | null;
   shippingMethod: UsedShippingMethod;
   shippingFee: number;
+  // 거래 방식(독립) — 최소 하나는 true. 직거래면 meetLocations 로 만날 장소를 노출.
+  parcelEnabled: boolean;
+  directEnabled: boolean;
+  meetLocations: MeetLocation[];
   status: UsedStatus;
   auctionStartPrice: number | null;
   auctionCurrentPrice: number | null;
@@ -166,6 +193,7 @@ export type UsedTrade = {
   feeAmount: number;
   sellerPayout: number;
   status: UsedTradeStatus;
+  tradeKind: UsedTradeKind;
   recipientName: string | null;
   recipientPhone: string | null;
   recipientAddress: string | null;
@@ -173,7 +201,13 @@ export type UsedTrade = {
   courier: string | null;
   postQrIssuedAt: string | null;
   shippedAt: string | null;
+  handedOverAt: string | null;
   completedAt: string | null;
+  disputedAt: string | null;
+  disputeReason: string | null;
+  refundedAt: string | null;
+  refundAmount: number | null;
+  refundReason: string | null;
   createdAt: string;
 };
 
