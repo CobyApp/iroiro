@@ -26,7 +26,9 @@ import { UsedWishlistButton } from "./UsedWishlistButton";
 import {
   buyUsedListing,
   cancelUsedListing,
+  cancelUsedTradeForRefund,
   confirmUsedReceived,
+  markUsedHandedOver,
   markUsedShipped,
   placeUsedBid,
 } from "../actions";
@@ -34,7 +36,9 @@ import {
   USED_TRADE_STATUS_LABEL,
   type UsedListingWithPhotos,
   type UsedTrade,
+  type UsedTradeKind,
 } from "../types";
+import { MeetLocationMap } from "./MeetLocationMap";
 
 type Role = "seller" | "buyer" | "visitor";
 
@@ -69,6 +73,16 @@ export function UsedDetailCta({
   const [bidConfirmOpen, setBidConfirmOpen] = useState(false);
   const [pointsInput, setPointsInput] = useState("0");
 
+  // 이 매물이 허용하는 거래 방식 — 구매자가 택배/직거래 중 선택. 하나뿐이면 그것으로 고정.
+  const availableKinds = [
+    ...(listing.parcelEnabled ? (["parcel"] as const) : []),
+    ...(listing.directEnabled ? (["direct"] as const) : []),
+  ] as UsedTradeKind[];
+  const [tradeKind, setTradeKind] = useState<UsedTradeKind>(
+    availableKinds[0] ?? "parcel",
+  );
+  const isDirectBuy = tradeKind === "direct";
+
   const isAuction = listing.saleMode === "auction";
   const auctionLive = isAuction && listing.auctionStatus === "live";
   // 포인트는 상품가까지(배송비 제외) — 서버가 같은 규칙으로 재검증.
@@ -77,10 +91,9 @@ export function UsedDetailCta({
     0,
     Math.min(Number(pointsInput.replace(/[^0-9]/g, "")) || 0, maxPoints),
   );
-  const buyerTotal = Math.max(
-    0,
-    (listing.price ?? 0) - usePoints + listing.shippingFee,
-  );
+  // 직거래는 배송비 없음(대면 수령).
+  const effShippingFee = isDirectBuy ? 0 : listing.shippingFee;
+  const buyerTotal = Math.max(0, (listing.price ?? 0) - usePoints + effShippingFee);
 
   // 입찰 금액 — 스토어 경매와 동일하게 최소 입찰가를 미리 채우고,
   // 현재가가 바뀌면 새 최소가로 보정한다(렌더 중 상태 보정 패턴).
@@ -99,9 +112,11 @@ export function UsedDetailCta({
     startTransition(async () => {
       const result = await buyUsedListing({
         listingId: listing.id,
-        recipientName: name,
-        recipientPhone: phone,
-        recipientAddress: address,
+        tradeKind,
+        // 직거래는 배송지가 없다.
+        recipientName: isDirectBuy ? undefined : name,
+        recipientPhone: isDirectBuy ? undefined : phone,
+        recipientAddress: isDirectBuy ? undefined : address,
         usePoints,
       });
       if (!result.ok) {
@@ -190,7 +205,7 @@ export function UsedDetailCta({
           )}
         </dl>
 
-        {role === "seller" && trade.status === "paid" && (
+        {role === "seller" && trade.status === "paid" && trade.tradeKind === "parcel" && (
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground">
               택배 접수 후 택배사·송장번호를 입력하면 발송 완료돼요.
@@ -205,6 +220,71 @@ export function UsedDetailCta({
               }
             />
           </div>
+        )}
+
+        {/* 직거래 — 판매자 대면 전달 표시 */}
+        {role === "seller" && trade.status === "paid" && trade.tradeKind === "direct" && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">
+              구매자와 만나 물건을 전달했다면 표시하세요. 이후 구매자가 수령확정하거나 3일 뒤 자동 확정돼요.
+            </p>
+            <ConfirmDialog
+              title="전달을 표시할까요?"
+              description="만나서 물건을 전달한 뒤에 눌러주세요."
+              confirmLabel="전달 완료"
+              pending={pending}
+              onConfirm={() => run(() => markUsedHandedOver(trade.id), "전달을 표시했어요")}
+              trigger={
+                <Button size="sm" className="w-full gap-1.5" disabled={pending}>
+                  <PackageCheck className="h-4 w-4" />
+                  전달 완료 표시
+                </Button>
+              }
+            />
+          </div>
+        )}
+
+        {/* 직거래 — 구매자 수령확정(만나서 받으면 바로, 또는 전달표시 후) */}
+        {role === "buyer" &&
+          trade.tradeKind === "direct" &&
+          (trade.status === "paid" || trade.status === "handed_over") && (
+            <div className="space-y-2">
+              <ConfirmDialog
+                title="수령을 확정할까요?"
+                description="만나서 물건을 받은 뒤에 눌러주세요. 확정하면 판매자에게 정산돼요."
+                confirmLabel="수령 확정"
+                pending={pending}
+                onConfirm={() => run(() => confirmUsedReceived(trade.id), "거래가 완료됐어요!")}
+                trigger={
+                  <Button size="sm" className="w-full gap-1.5" disabled={pending}>
+                    <PackageCheck className="h-4 w-4" />
+                    수령 확정
+                  </Button>
+                }
+              />
+              <p className="text-center text-xs text-muted-foreground">
+                아직 못 만났다면 확정하지 마세요. 문제가 있으면 취소·환불하세요.
+              </p>
+            </div>
+          )}
+
+        {/* 발송/전달 전(paid) — 취소=환불(구매자·판매자 모두) */}
+        {trade.status === "paid" && (role === "buyer" || role === "seller") && (
+          <ConfirmDialog
+            title={role === "buyer" ? "구매를 취소할까요?" : "거래를 취소할까요?"}
+            description="아직 발송·전달 전이라 전액 환불돼요. 사용한 포인트도 돌려드려요."
+            confirmLabel="취소하고 환불"
+            destructive
+            pending={pending}
+            onConfirm={() =>
+              run(() => cancelUsedTradeForRefund(trade.id), "취소·환불했어요")
+            }
+            trigger={
+              <Button variant="outline" size="sm" className="w-full" disabled={pending}>
+                {role === "buyer" ? "구매 취소·환불" : "거래 취소·환불"}
+              </Button>
+            }
+          />
         )}
 
         {role === "buyer" && trade.status === "shipped" && (
@@ -231,7 +311,7 @@ export function UsedDetailCta({
             )}
           </div>
         )}
-        {role === "buyer" && trade.status === "paid" && (
+        {role === "buyer" && trade.status === "paid" && trade.tradeKind === "parcel" && (
           <p className="text-xs text-muted-foreground">
             판매자가 발송을 준비하고 있어요. 발송되면 알려드릴게요.
           </p>
@@ -476,25 +556,48 @@ export function UsedDetailCta({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>배송지 입력</DialogTitle>
+          <DialogTitle>{isDirectBuy ? "직거래로 구매" : "배송지 입력"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2.5">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="받는 사람"
-          />
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="연락처"
-            inputMode="tel"
-          />
-          <Input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="주소"
-          />
+          {/* 거래 방식 선택 — 둘 다 가능한 매물일 때만 */}
+          {availableKinds.length > 1 && (
+            <div className="flex gap-2">
+              {availableKinds.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTradeKind(k)}
+                  className={[
+                    "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                    tradeKind === k
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50",
+                  ].join(" ")}
+                >
+                  {k === "parcel" ? "택배" : "직거래"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {isDirectBuy ? (
+            <div className="space-y-2 rounded-md border border-border bg-muted/30 p-2.5">
+              <p className="text-xs text-muted-foreground">
+                만나서 거래해요. 결제는 안전거래로 진행되고, 받은 뒤 수령확정하면 판매자에게 정산돼요. 배송비는 없어요.
+              </p>
+              {listing.meetLocations.length > 0 ? (
+                <MeetLocationMap locations={listing.meetLocations} />
+              ) : (
+                <p className="text-xs text-muted-foreground">판매자와 만날 장소는 결제 후 쪽지로 정하세요.</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="받는 사람" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="연락처" inputMode="tel" />
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="주소" />
+            </>
+          )}
           {maxPoints > 0 && (
             <div className="space-y-1 rounded-md border border-border bg-muted/30 p-2.5">
               <p className="text-xs text-muted-foreground">
@@ -533,7 +636,7 @@ export function UsedDetailCta({
           </p>
           <Button
             className="w-full"
-            disabled={pending || !name || !phone || address.length < 5}
+            disabled={pending || (!isDirectBuy && (!name || !phone || address.length < 5))}
             onClick={buy}
           >
             {pending ? "처리 중…" : `₩${buyerTotal.toLocaleString()} 결제하고 구매 확정`}

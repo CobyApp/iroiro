@@ -28,10 +28,12 @@ import {
   USED_ITEM_TYPES,
   USED_SHIPPING_LABEL,
   USED_SHIPPING_METHODS,
+  type MeetLocation,
   type UsedItemType,
   type UsedShippingMethod,
 } from "../types";
 import { UsedPhotoUpload, type UploadedUsedPhoto } from "./UsedPhotoUpload";
+import { MeetLocationPicker } from "./MeetLocationPicker";
 
 type TeamOpt = { id: number; name: string };
 type MemberOpt = { id: number; name: string; teamIds: number[] };
@@ -89,6 +91,10 @@ export function UsedListingForm({
   const [shippingMethod, setShippingMethod] =
     useState<UsedShippingMethod>("post");
   const [shippingFee, setShippingFee] = useState("0");
+  // 거래 방식(독립) — 택배·직거래. 최소 하나. 직거래면 만날 장소를 지정.
+  const [parcelEnabled, setParcelEnabled] = useState(true);
+  const [directEnabled, setDirectEnabled] = useState(false);
+  const [meetLocations, setMeetLocations] = useState<MeetLocation[]>([]);
 
   const membersOfTeam = useMemo(
     () =>
@@ -142,6 +148,10 @@ export function UsedListingForm({
 
   function submit() {
     const endsAtIso = endsAtLocal ? new Date(endsAtLocal).toISOString() : null;
+    if (!parcelEnabled && !directEnabled) {
+      toast.error("택배 또는 직거래 중 하나 이상 선택하세요");
+      return;
+    }
     startTransition(async () => {
       if (!manualMode && !selectedCard) return;
       if (manualMode && title.trim() === "") return;
@@ -161,6 +171,9 @@ export function UsedListingForm({
         auctionEndsAt: saleMode === "auction" ? endsAtIso : null,
         shippingMethod,
         shippingFee: Number(shippingFee) || 0,
+        parcelEnabled,
+        directEnabled,
+        meetLocations: directEnabled ? meetLocations : [],
         photos: photos.map((p, i) => ({
           r2Key: p.r2Key,
           displayOrder: i,
@@ -531,41 +544,72 @@ export function UsedListingForm({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">배송</h2>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Select
-            value={shippingMethod}
-            onValueChange={(v) => setShippingMethod(v as UsedShippingMethod)}
-          >
-            <SelectTrigger className={selectCls}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {USED_SHIPPING_METHODS.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {USED_SHIPPING_LABEL[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <label className="block text-sm">
-            <Input
-              value={shippingFee}
-              onChange={(e) =>
-                setShippingFee(e.target.value.replace(/[^0-9]/g, ""))
-              }
-              inputMode="numeric"
-              aria-label="배송비 (원, 0이면 포함)"
-              placeholder="배송비 (0=포함)"
+        <h2 className="text-sm font-semibold text-foreground">거래 방식</h2>
+        <p className="text-xs text-muted-foreground">택배·직거래 중 하나 이상 선택하세요. 둘 다 켤 수 있어요.</p>
+
+        {/* 택배 */}
+        <div className="rounded-md border border-border p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={parcelEnabled}
+              onChange={(e) => setParcelEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary"
             />
+            택배 거래 (안전거래)
           </label>
+          {parcelEnabled && (
+            <div className="mt-3 space-y-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Select value={shippingMethod} onValueChange={(v) => setShippingMethod(v as UsedShippingMethod)}>
+                  <SelectTrigger className={selectCls}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USED_SHIPPING_METHODS.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {USED_SHIPPING_LABEL[m]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <label className="block text-sm">
+                  <Input
+                    value={shippingFee}
+                    onChange={(e) => setShippingFee(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    aria-label="배송비 (원, 0이면 포함)"
+                    placeholder="배송비 (0=포함)"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                결제 후 택배로 발송하고, 택배사·송장번호를 입력하면 구매자가 배송 조회할 수 있어요.
+              </p>
+            </div>
+          )}
         </div>
-        {shippingMethod === "post" && (
-          <p className="text-xs text-muted-foreground">
-            결제 후 택배로 발송하고, 택배사·송장번호를 입력하면 구매자가 배송
-            조회할 수 있어요.
-          </p>
-        )}
+
+        {/* 직거래 */}
+        <div className="rounded-md border border-border p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={directEnabled}
+              onChange={(e) => setDirectEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            직거래 (만나서 거래)
+          </label>
+          {directEnabled && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                선호하는 만날 장소를 미리 정해두면 구매자가 지도로 확인해요. 결제는 안전거래로 진행되고, 만나서 받은 뒤 수령확정하면 정산돼요.
+              </p>
+              <MeetLocationPicker value={meetLocations} onChange={setMeetLocations} />
+            </div>
+          )}
+        </div>
       </section>
 
       <Button

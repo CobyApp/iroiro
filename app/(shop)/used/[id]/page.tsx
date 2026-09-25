@@ -15,6 +15,7 @@ import {
 import { settleUsedListingIfDue } from "@/modules/used/actions";
 import { AUTO_CONFIRM_MS } from "@/modules/used/lib/settle-trade";
 import { UsedDetailCta } from "@/modules/used/components/UsedDetailCta";
+import { MeetLocationMap } from "@/modules/used/components/MeetLocationMap";
 import { ReportListingDialog } from "@/modules/used/components/ReportListingDialog";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
@@ -162,16 +163,36 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
                 {PRODUCT_CONDITION_LABEL[listing.condition]}
               </Badge>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">배송</span>
-              <span className="text-foreground">
-                {USED_SHIPPING_LABEL[listing.shippingMethod]}
-                {listing.shippingFee > 0
-                  ? ` · ₩${listing.shippingFee.toLocaleString()}`
-                  : " · 배송비 포함"}
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">거래 방식</span>
+              <span className="text-right text-foreground">
+                {listing.parcelEnabled && (
+                  <span className="block">
+                    택배 · {USED_SHIPPING_LABEL[listing.shippingMethod]}
+                    {listing.shippingFee > 0
+                      ? ` · ₩${listing.shippingFee.toLocaleString()}`
+                      : " · 배송비 포함"}
+                  </span>
+                )}
+                {listing.directEnabled && (
+                  <span className="block">
+                    직거래
+                    {listing.meetLocations.length > 0
+                      ? ` · 만날 장소 ${listing.meetLocations.length}곳`
+                      : ""}
+                  </span>
+                )}
               </span>
             </div>
           </div>
+
+          {/* 직거래 만날 장소 — 지도 + 목록 */}
+          {listing.directEnabled && listing.meetLocations.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-foreground">직거래 만날 장소</h2>
+              <MeetLocationMap locations={listing.meetLocations} />
+            </div>
+          )}
 
           <UsedDetailCta
             listing={listing}
