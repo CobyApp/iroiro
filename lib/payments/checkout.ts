@@ -26,4 +26,6 @@ export type {
   CheckoutReadyResult,
   CheckoutApproveInput,
   CheckoutApproveResult,
+  CheckoutRefundInput,
+  CheckoutRefundResult,
 } from "./checkout-types";

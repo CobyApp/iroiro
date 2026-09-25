@@ -22,6 +22,14 @@ import { calcUsedTradeFees } from "./lib/fees";
 import { failUsedTradePayment } from "./lib/checkout";
 import { AUTO_CONFIRM_DAYS } from "./lib/settle-trade";
 import {
+  canBuyerConfirm,
+  canSellerMarkHandedOver,
+  canBuyerCancelForRefund,
+  canSellerCancelForRefund,
+  DIRECT_AUTO_CONFIRM_DAYS,
+} from "./lib/trade-policy";
+import type { UsedTradeKind } from "./types";
+import {
   usedBuySchema,
   usedListingCreateSchema,
   type UsedBuyInput,
@@ -261,9 +269,17 @@ export async function buyUsedListing(
       if (listing.sellerAccountId === account.id) {
         throw new DomainError("내 매물은 구매할 수 없습니다");
       }
+      // 거래 방식 검증 — 매물이 허용하는 방식만. 직거래는 배송비 없음(대면 수령).
+      if (data.tradeKind === "parcel" && !listing.parcelEnabled) {
+        throw new DomainError("이 매물은 택배 거래를 지원하지 않아요");
+      }
+      if (data.tradeKind === "direct" && !listing.directEnabled) {
+        throw new DomainError("이 매물은 직거래를 지원하지 않아요");
+      }
+      const isDirect = data.tradeKind === "direct";
       const fees = calcUsedTradeFees({
         price: listing.price ?? 0,
-        shippingFee: listing.shippingFee,
+        shippingFee: isDirect ? 0 : listing.shippingFee,
         feeBp: settings.usedTradeFeeBp,
       });
 
@@ -304,9 +320,11 @@ export async function buyUsedListing(
           sellerPayout: fees.sellerPayout,
           pointsUsed: data.usePoints,
           status: immediate ? "paid" : "pending",
-          recipientName: data.recipientName,
-          recipientPhone: data.recipientPhone,
-          recipientAddress: data.recipientAddress,
+          tradeKind: data.tradeKind,
+          // 직거래는 배송지가 없다(대면 수령).
+          recipientName: isDirect ? null : data.recipientName,
+          recipientPhone: isDirect ? null : data.recipientPhone,
+          recipientAddress: isDirect ? null : data.recipientAddress,
         },
       });
       return { trade, listing, chargeAmount: fees.buyerTotal - data.usePoints };
@@ -484,18 +502,33 @@ export async function markUsedShipped(
   });
 }
 
-// 수령 확정 — 구매자. 매물을 판매완료로 마감.
+// 수령 확정 — 구매자. 매물을 판매완료로 마감. 택배는 shipped 후, 직거래는 결제완료(만나서 받음)나 전달표시 후.
 export async function confirmUsedReceived(
   tradeId: number,
 ): Promise<ActionResult> {
   return runAction(async () => {
     const account = await requireLogin();
     await db.$transaction(async (tx) => {
+      // 소유·상태를 먼저 읽어 거래방식별 허용 상태를 판정(멱등 가드는 아래 updateMany 가 담당).
+      const current = await tx.usedTrade.findUnique({
+        where: { id: BigInt(tradeId) },
+        select: { buyerAccountId: true, status: true, tradeKind: true },
+      });
+      if (!current || current.buyerAccountId !== account.id) {
+        throw new DomainError("수령 확정할 수 없는 상태입니다");
+      }
+      const kind = current.tradeKind as UsedTradeKind;
+      if (!canBuyerConfirm(kind, current.status as never)) {
+        throw new DomainError("수령 확정할 수 없는 상태입니다");
+      }
+      // 직거래는 paid|handed_over, 택배는 shipped 에서만 완료로 전이(조건부라 경합·중복 안전).
+      const allowedFrom =
+        kind === "parcel" ? ["shipped"] : ["paid", "handed_over"];
       const res = await tx.usedTrade.updateMany({
         where: {
           id: BigInt(tradeId),
           buyerAccountId: account.id,
-          status: "shipped",
+          status: { in: allowedFrom },
         },
         data: {
           status: "completed",
@@ -516,6 +549,112 @@ export async function confirmUsedReceived(
     });
     const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });
     if (trade) revalidateUsed(Number(trade.listingId));
+  });
+}
+
+// 직거래 전달 표시 — 판매자. paid → handed_over. 이후 구매자 미확정 시 3일 자동확정.
+export async function markUsedHandedOver(tradeId: number): Promise<ActionResult> {
+  return runAction(async () => {
+    const account = await requireLogin();
+    const current = await db.usedTrade.findUnique({
+      where: { id: BigInt(tradeId) },
+      select: { sellerAccountId: true, status: true, tradeKind: true, listingId: true, buyerAccountId: true },
+    });
+    if (!current || current.sellerAccountId !== account.id) {
+      throw new DomainError("전달 표시할 수 없는 상태입니다");
+    }
+    if (!canSellerMarkHandedOver(current.tradeKind as UsedTradeKind, current.status as never)) {
+      throw new DomainError("직거래 결제완료 상태에서만 전달 표시할 수 있어요");
+    }
+    const now = new Date();
+    const res = await db.usedTrade.updateMany({
+      where: { id: BigInt(tradeId), sellerAccountId: account.id, status: "paid", tradeKind: "direct" },
+      data: { status: "handed_over", handedOverAt: now, updatedAt: now },
+    });
+    if (res.count === 0) throw new DomainError("전달 표시할 수 없는 상태입니다");
+    await notify(current.buyerAccountId, {
+      type: "order_shipped",
+      title: "판매자가 직거래 전달을 표시했어요",
+      body: `받으셨다면 수령확정을 눌러주세요. ${DIRECT_AUTO_CONFIRM_DAYS}일 후 자동 확정돼요.`,
+      link: `/used/${Number(current.listingId)}`,
+    });
+    revalidateUsed(Number(current.listingId));
+  });
+}
+
+// 발송/전달 전 취소 = 환불 — 구매자 또는 판매자. paid → refunded(PG 환불 + 포인트 복원 + 매물 재판매).
+export async function cancelUsedTradeForRefund(
+  tradeId: number,
+  reason?: string,
+): Promise<ActionResult> {
+  return runAction(async () => {
+    const account = await requireLogin();
+    const trade = await db.usedTrade.findUnique({ where: { id: BigInt(tradeId) } });
+    if (!trade) throw new DomainError("거래를 찾을 수 없어요");
+    const isBuyer = trade.buyerAccountId === account.id;
+    const isSeller = trade.sellerAccountId === account.id;
+    if (!isBuyer && !isSeller) throw new DomainError("권한이 없어요");
+    // 발송/전달 전(paid)만 취소=환불. 이후는 분쟁으로.
+    const allowed = isBuyer
+      ? canBuyerCancelForRefund(trade.status as never)
+      : canSellerCancelForRefund(trade.status as never);
+    if (!allowed) {
+      throw new DomainError("이미 발송·전달돼 취소할 수 없어요(문제가 있으면 신고해주세요)");
+    }
+
+    // 결제 취소(PG 환불) — 결제 승인된 거래만 tid 가 있다. tid 없으면(mock 즉시결제 등) 환불 호출 생략.
+    const refundAmount = trade.price + trade.shippingFee - trade.pointsUsed;
+    if (trade.paymentTid && refundAmount > 0) {
+      const provider = getCheckoutProvider();
+      const refunded = await provider.refund({
+        tid: trade.paymentTid,
+        orderNo: `used-${tradeId}`,
+        amount: refundAmount,
+        reason: reason?.trim() || "구매자/판매자 취소",
+      });
+      if (!refunded.ok) throw new DomainError(refunded.failMessage || "결제 취소에 실패했어요");
+    }
+
+    const now = new Date();
+    await db.$transaction(async (tx) => {
+      const res = await tx.usedTrade.updateMany({
+        where: { id: BigInt(tradeId), status: "paid" },
+        data: {
+          status: "refunded",
+          refundedAt: now,
+          refundAmount,
+          refundReason: reason?.trim() || (isBuyer ? "구매자 취소" : "판매자 취소"),
+          resolvedBy: account.id,
+          updatedAt: now,
+        },
+      });
+      if (res.count === 0) throw new DomainError("취소할 수 없는 상태입니다");
+      // 사용 포인트 복원.
+      if (trade.pointsUsed > 0) {
+        await tx.pointTransaction.create({
+          data: {
+            accountId: trade.buyerAccountId,
+            amount: trade.pointsUsed,
+            reason: "used_order_refund",
+            memo: `중고 거래 취소 환불 (trade #${tradeId})`,
+          },
+        });
+      }
+      // 매물을 다시 판매중으로.
+      await tx.usedListing.updateMany({
+        where: { id: trade.listingId, status: "reserved" },
+        data: { status: "active", updatedAt: now },
+      });
+    });
+
+    const other = isBuyer ? trade.sellerAccountId : trade.buyerAccountId;
+    await notify(other, {
+      type: "order_delivered",
+      title: "거래가 취소·환불됐어요",
+      body: isBuyer ? "구매자가 거래를 취소했어요." : "판매자가 거래를 취소했어요.",
+      link: `/used/${Number(trade.listingId)}`,
+    }).catch(() => {});
+    revalidateUsed(Number(trade.listingId));
   });
 }
 

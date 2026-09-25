@@ -6,11 +6,14 @@ import type {
   CheckoutProvider,
   CheckoutReadyInput,
   CheckoutReadyResult,
+  CheckoutRefundInput,
+  CheckoutRefundResult,
 } from "./checkout-types";
 
 // 카카오페이 단건결제 오픈 API(2023+ open-api.kakaopay.com). SECRET_KEY 인증.
 const READY_URL = "https://open-api.kakaopay.com/online/v1/payment/ready";
 const APPROVE_URL = "https://open-api.kakaopay.com/online/v1/payment/approve";
+const CANCEL_URL = "https://open-api.kakaopay.com/online/v1/payment/cancel";
 
 type KakaoReadyResponse = {
   tid: string;
@@ -25,6 +28,14 @@ type KakaoApproveResponse = {
   tid: string;
   amount?: { total?: number };
   approved_at?: string;
+};
+
+type KakaoCancelResponse = {
+  aid?: string;
+  tid: string;
+  status?: string;
+  approved_cancel_amount?: { total?: number };
+  canceled_at?: string;
 };
 
 /**
@@ -140,6 +151,47 @@ export class KakaoPayCheckoutProvider implements CheckoutProvider {
       return {
         ok: false,
         failMessage: "카카오페이 결제 승인 중 오류가 발생했어요",
+        raw: { error: String(error) },
+      };
+    }
+  }
+
+  async refund(input: CheckoutRefundInput): Promise<CheckoutRefundResult> {
+    const body = {
+      cid: this.cid,
+      tid: input.tid,
+      cancel_amount: input.amount,
+      cancel_tax_free_amount: 0,
+    };
+    try {
+      const res = await fetch(CANCEL_URL, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(body),
+      });
+      const raw = (await res.json().catch(() => null)) as
+        | KakaoCancelResponse
+        | { msg?: string; error_message?: string }
+        | null;
+      if (!res.ok || !raw || !("tid" in raw) || !raw.tid) {
+        return {
+          ok: false,
+          failMessage:
+            (raw && "msg" in raw && raw.msg) ||
+            (raw && "error_message" in raw && raw.error_message) ||
+            `카카오페이 결제 취소 실패 (HTTP ${res.status})`,
+          raw,
+        };
+      }
+      return {
+        ok: true,
+        canceledAmount: raw.approved_cancel_amount?.total ?? input.amount,
+        raw,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        failMessage: "카카오페이 결제 취소 중 오류가 발생했어요",
         raw: { error: String(error) },
       };
     }

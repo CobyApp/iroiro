@@ -61,6 +61,21 @@ export type CheckoutApproveResult =
     }
   | { ok: false; failMessage: string; raw: unknown };
 
+export type CheckoutRefundInput = {
+  /** 승인 때 받은 결제 거래번호(카카오 tid). */
+  tid: string;
+  /** 가맹점 주문번호(partner_order_id). 예: "used-123". */
+  orderNo: string;
+  /** 환불(취소) 금액(원). 부분취소 미지원 — 전액취소로만 쓴다. */
+  amount: number;
+  /** 취소 사유(기록용). */
+  reason?: string;
+};
+
+export type CheckoutRefundResult =
+  | { ok: true; canceledAmount: number; raw: unknown }
+  | { ok: false; failMessage: string; raw: unknown };
+
 export interface CheckoutProvider {
   /** 어댑터 식별자(로그·기록용). */
   readonly provider: string;
@@ -73,4 +88,9 @@ export interface CheckoutProvider {
   readonly kind: "immediate" | "redirect";
   ready(input: CheckoutReadyInput): Promise<CheckoutReadyResult>;
   approve(input: CheckoutApproveInput): Promise<CheckoutApproveResult>;
+  /**
+   * 승인된 결제를 취소(환불)한다 — 안전거래 환불에 쓴다. 전액취소만 지원.
+   * mock 은 항상 성공, 실 PG 는 취소 API 를 호출한다.
+   */
+  refund(input: CheckoutRefundInput): Promise<CheckoutRefundResult>;
 }

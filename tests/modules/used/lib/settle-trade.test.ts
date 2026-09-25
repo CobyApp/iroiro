@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   notify,
   tradeFindManyTop,
+  tradeFindUniqueTop,
   bundleFindManyTop,
   tradeUpdateMany,
   tradeFindUniqueOrThrow,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   notify: vi.fn(),
   tradeFindManyTop: vi.fn(),
+  tradeFindUniqueTop: vi.fn(),
   bundleFindManyTop: vi.fn(),
   tradeUpdateMany: vi.fn(),
   tradeFindUniqueOrThrow: vi.fn(),
@@ -29,7 +31,7 @@ vi.mock("@/modules/notifications/lib/notify", () => ({ notify }));
 
 vi.mock("@/lib/db", () => ({
   db: {
-    usedTrade: { findMany: tradeFindManyTop },
+    usedTrade: { findMany: tradeFindManyTop, findUnique: tradeFindUniqueTop },
     usedBundle: { findMany: bundleFindManyTop },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
@@ -123,7 +125,9 @@ describe("autoConfirmUsedBundleIfDue", () => {
 
 describe("autoConfirmDueUsedTrades (스윕)", () => {
   it("기한 지난 단건·묶음 건수를 합산해 반환한다", async () => {
-    tradeFindManyTop.mockResolvedValue([{ id: 1n }]);
+    // 스윕은 usedTrade.findMany 를 순서대로 호출: 택배 shipped → 직거래 handed_over → 직거래 미전달.
+    // 첫 호출(택배)만 대상이 있고 직거래 쿼리는 비운다.
+    tradeFindManyTop.mockResolvedValueOnce([{ id: 1n }]).mockResolvedValue([]);
     bundleFindManyTop.mockResolvedValue([{ id: 3n }]);
     // 단건 전이
     tradeUpdateMany.mockResolvedValue({ count: 1 });

@@ -8,6 +8,8 @@ import type {
   CheckoutProvider,
   CheckoutReadyInput,
   CheckoutReadyResult,
+  CheckoutRefundInput,
+  CheckoutRefundResult,
 } from "./checkout-types";
 
 /**
@@ -37,6 +39,15 @@ export class MockCheckoutProvider implements CheckoutProvider {
       approvedAmount: 0,
       approvedAt: new Date().toISOString(),
       raw: { provider: this.provider, tid: input.tid, pgToken: input.pgToken },
+    };
+  }
+
+  async refund(input: CheckoutRefundInput): Promise<CheckoutRefundResult> {
+    // 실 HTTP 없이 항상 성공 — 개발/폴백 환불.
+    return {
+      ok: true,
+      canceledAmount: input.amount,
+      raw: { provider: this.provider, tid: input.tid, reason: input.reason ?? null },
     };
   }
 }
