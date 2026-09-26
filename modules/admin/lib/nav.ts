@@ -155,7 +155,7 @@ export const ADMIN_SECTIONS: NavSection[] = [
       },
       {
         key: "to-catalog",
-        label: "토레카 카탈로그 →",
+        label: "토레카 관리 →",
         href: "/admin/catalog",
         icon: ArrowRight,
         role: "siteAdmin",

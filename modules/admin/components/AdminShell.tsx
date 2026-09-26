@@ -26,20 +26,20 @@ const SCOPE: Record<
   { title: string; badge: string; badgeClassName: string; homeHref: string; sections: NavSection[]; navLabel: string }
 > = {
   admin: {
-    title: "관리자",
+    title: "통합 관리",
     badge: "ADMIN",
     badgeClassName: "bg-muted text-muted-foreground",
     homeHref: "/admin",
     sections: ADMIN_SECTIONS,
-    navLabel: "관리자 메뉴",
+    navLabel: "통합 관리 메뉴",
   },
   catalog: {
-    title: "토레카 카탈로그",
+    title: "토레카 관리",
     badge: "TRADING CARD ARCHIVE",
     badgeClassName: "bg-accent/15 tracking-[0.09em] text-accent",
     homeHref: "/admin/catalog",
     sections: CATALOG_SECTIONS,
-    navLabel: "카탈로그 메뉴",
+    navLabel: "토레카 관리 메뉴",
   },
   board: {
     title: "커뮤니티 관리",
@@ -101,6 +101,9 @@ export function AdminShell({
         label: item.label,
         href: item.href,
         scope: cfg.title,
+        scopeKey: s,
+        scopeBadge: cfg.badge,
+        scopeBadgeClassName: cfg.badgeClassName,
         group: section.title,
       })),
     );
