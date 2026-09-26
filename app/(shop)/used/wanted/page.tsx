@@ -105,6 +105,21 @@ export default async function BuyRequestsPage({
 
       <UsedModeTabs active="buy" />
 
+      {/* 검색 — 모바일 헤더가 뒤로가기라 페이지 자체 검색을 둔다(팝니다로 튀지 않게). */}
+      <form action="/used/wanted" className="w-full" role="search">
+        {teamId !== undefined && <input type="hidden" name="team" value={teamId} />}
+        {memberId !== undefined && <input type="hidden" name="member" value={memberId} />}
+        {mine && <input type="hidden" name="mine" value="1" />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="삽니다 제목·설명 검색"
+          aria-label="삽니다 검색"
+          className="h-10 w-full rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary/50"
+        />
+      </form>
+
       {/* 그룹 → 멤버 필터 + 내 삽니다 토글. */}
       <div className="space-y-2">
         <HScroll className="scroll-x scroll-x-bleed flex gap-2 overflow-x-auto pb-1">
