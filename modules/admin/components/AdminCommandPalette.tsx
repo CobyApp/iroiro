@@ -14,8 +14,14 @@ export type CommandItem = {
   key: string;
   label: string;
   href: string;
-  /** 소속 관리 공간 이름(그룹·검색 보조). */
+  /** 소속 관리 공간 이름(그룹 헤더·검색 보조). */
   scope: string;
+  /** 관리 공간 식별자(그룹 묶음 판정). */
+  scopeKey: string;
+  /** 관리 공간 영문 배지(그룹 헤더 표시). */
+  scopeBadge: string;
+  /** 관리 공간 배지 색상 클래스(공간별 구분감). */
+  scopeBadgeClassName: string;
   /** 섹션 제목(있으면 검색 보조). */
   group?: string;
 };
@@ -118,28 +124,45 @@ export function AdminCommandPalette({ items }: { items: CommandItem[] }) {
             {results.length === 0 ? (
               <li className="px-3 py-8 text-center text-sm text-muted-foreground">결과가 없어요.</li>
             ) : (
-              results.map((it, i) => (
-                <li key={`${it.scope}:${it.key}:${it.href}`}>
-                  <button
-                    type="button"
-                    onMouseEnter={() => setActive(i)}
-                    onClick={() => go(it)}
-                    className={[
-                      "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                      i === activeIdx ? "bg-primary/10 text-primary" : "hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-foreground">{it.label}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {it.scope}
-                        {it.group ? ` · ${it.group}` : ""}
+              results.map((it, i) => {
+                // 관리 공간(scope)이 바뀌는 첫 항목 위에 공간 구분 헤더를 얹는다 — 공간별 구분감.
+                const isGroupStart = i === 0 || results[i - 1].scopeKey !== it.scopeKey;
+                return (
+                  <li key={`${it.scopeKey}:${it.key}:${it.href}`}>
+                    {isGroupStart && (
+                      <div className="sticky top-0 z-[1] flex items-center gap-2 bg-card/95 px-2 pb-1 pt-2.5 backdrop-blur">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${it.scopeBadgeClassName}`}
+                        >
+                          {it.scopeBadge}
+                        </span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {it.scope}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActive(i)}
+                      onClick={() => go(it)}
+                      className={[
+                        "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                        i === activeIdx ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                      ].join(" ")}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-foreground">{it.label}</span>
+                        {it.group && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {it.group}
+                          </span>
+                        )}
                       </span>
-                    </span>
-                    {i === activeIdx && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                  </button>
-                </li>
-              ))
+                      {i === activeIdx && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                    </button>
+                  </li>
+                );
+              })
             )}
           </ul>
         </DialogContent>
