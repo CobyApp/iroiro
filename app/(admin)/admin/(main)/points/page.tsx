@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -23,19 +24,41 @@ function reasonLabel(reason: string): string {
   return POINT_REASON_LABEL[reason as PointReason] ?? reason;
 }
 
-export default async function AdminPointsPage() {
-  const transactions = await listPointTransactionsForAdmin();
+export default async function AdminPointsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
+  const { q, page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const result = await listPointTransactionsForAdmin(q, page);
+  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
+  const pageHref = (p: number) =>
+    `/admin/points?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) }).toString()}`;
 
   return (
     <AdminPage>
-      <AdminPageHeader title="포인트 · 쿠폰" />
+      <AdminPageHeader title="포인트 · 쿠폰" count={result.total}>
+        <form action="/admin/points" className="w-full sm:w-72">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="회원 닉네임 또는 #공개코드"
+            aria-label="회원 검색"
+            className="h-9 w-full rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary/50"
+          />
+        </form>
+      </AdminPageHeader>
 
       <AdminPointsGrantForm />
 
-      <h3 className="pt-2 text-sm font-semibold">최근 포인트 내역 (전체 회원)</h3>
-      {transactions.length === 0 ? (
+      <h3 className="pt-2 text-sm font-semibold">
+        포인트 내역 {q ? `— "${q}"` : "(전체 회원)"}
+      </h3>
+      {result.items.length === 0 ? (
         <p className="rounded-md border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-          아직 내역이 없습니다
+          {q ? "검색 결과가 없습니다" : "아직 내역이 없습니다"}
         </p>
       ) : (
         <Table>
@@ -49,9 +72,20 @@ export default async function AdminPointsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((row) => (
+            {result.items.map((row) => (
               <TableRow key={row.id}>
-                <TableCell className="py-2.5">{row.accountName}</TableCell>
+                <TableCell className="py-2.5">
+                  {row.accountId ? (
+                    <Link
+                      href={`/admin/users/${row.accountId}`}
+                      className="underline-offset-2 hover:text-primary hover:underline"
+                    >
+                      {row.accountName}
+                    </Link>
+                  ) : (
+                    row.accountName
+                  )}
+                </TableCell>
                 <TableCell
                   className={cn(
                     "py-2.5 text-right font-medium tabular-nums",
@@ -74,6 +108,26 @@ export default async function AdminPointsPage() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-center gap-3 pt-2" aria-label="포인트 내역 페이지">
+          {page > 1 ? (
+            <Link href={pageHref(page - 1)} className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">
+              이전
+            </Link>
+          ) : (
+            <span className="rounded-full border border-border/50 px-3 py-1 text-xs text-muted-foreground/50">이전</span>
+          )}
+          <span className="text-xs text-muted-foreground">{page} / {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={pageHref(page + 1)} className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">
+              다음
+            </Link>
+          ) : (
+            <span className="rounded-full border border-border/50 px-3 py-1 text-xs text-muted-foreground/50">다음</span>
+          )}
+        </nav>
       )}
     </AdminPage>
   );

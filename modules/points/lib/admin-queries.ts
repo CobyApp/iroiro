@@ -5,6 +5,7 @@ import type { PointReason } from "./rules";
 
 export type AdminPointRow = {
   id: number;
+  accountId: string | null;
   accountName: string;
   amount: number;
   reason: PointReason | string;
@@ -12,15 +13,54 @@ export type AdminPointRow = {
   createdAt: string;
 };
 
-/** 관리자 포인트 원장 — 전체 계정 최신순, 계정 이름 표시. */
+export type AdminPointPage = {
+  items: AdminPointRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+const PAGE_SIZE = 30;
+
+/**
+ * 관리자 포인트 원장 — 최신순, 페이지네이션. q 로 회원(닉네임 부분일치·#공개코드 정확)을 걸러본다.
+ */
 export async function listPointTransactionsForAdmin(
-  limit = 50,
-): Promise<AdminPointRow[]> {
-  const rows = await db.pointTransaction.findMany({
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-  if (rows.length === 0) return [];
+  q?: string,
+  page = 1,
+): Promise<AdminPointPage> {
+  const query = q?.trim();
+
+  // 회원 검색이 있으면 대상 계정 id 집합으로 좁힌다(없으면 즉시 빈 결과).
+  let accountFilter: string[] | undefined;
+  if (query) {
+    const matched = await db.account.findMany({
+      where: {
+        OR: [
+          { displayName: { contains: query, mode: "insensitive" } },
+          { publicCode: { equals: query.replace(/^#/, "") } },
+        ],
+      },
+      select: { id: true },
+      take: 500,
+    });
+    accountFilter = matched.map((a) => a.id);
+    if (accountFilter.length === 0) {
+      return { items: [], total: 0, page, pageSize: PAGE_SIZE };
+    }
+  }
+
+  const where = accountFilter ? { accountId: { in: accountFilter } } : undefined;
+  const [total, rows] = await Promise.all([
+    db.pointTransaction.count({ where }),
+    db.pointTransaction.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+  if (rows.length === 0) return { items: [], total, page, pageSize: PAGE_SIZE };
 
   const accountIds = [...new Set(rows.map((r) => r.accountId))];
   const accounts = await db.account.findMany({
@@ -29,12 +69,14 @@ export async function listPointTransactionsForAdmin(
   });
   const nameById = new Map(accounts.map((a) => [a.id, a.displayName]));
 
-  return rows.map((row) => ({
+  const items = rows.map((row) => ({
     id: Number(row.id),
+    accountId: nameById.has(row.accountId) ? row.accountId : null,
     accountName: nameById.get(row.accountId) ?? "(탈퇴 회원)",
     amount: row.amount,
     reason: row.reason,
     memo: row.memo,
     createdAt: row.createdAt.toISOString(),
   }));
+  return { items, total, page, pageSize: PAGE_SIZE };
 }
