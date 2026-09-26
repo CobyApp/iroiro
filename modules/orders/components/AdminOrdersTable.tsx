@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PackageCheck, Truck } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff, PackageCheck, Truck } from "lucide-react";
+import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
+import type { OrderStatus } from "../types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,8 +33,47 @@ function formatWon(amount: number): string {
 }
 
 // 관리자 주문 목록 — md+ 는 표, 폰은 카드(주문번호·상품·금액·상태·처리 버튼을 세로로 쌓는다).
-export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
+function orderThumb(order: AdminOrderRow) {
+  if (!order.firstItemThumbnailKey || order.firstItemProductId === null) {
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xs bg-muted text-muted-foreground">
+        <ImageOff className="h-4 w-4" aria-hidden />
+      </div>
+    );
+  }
+  return (
+    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xs border border-border bg-muted">
+      {/* eslint-disable-next-line @next/next/no-img-element -- 관리자 썸네일(공개 wm) */}
+      <img
+        src={productGridThumbnailUrl(order.firstItemProductId)}
+        alt=""
+        className="h-full w-full object-cover"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
+export function AdminOrdersTable({
+  orders,
+  total,
+  page,
+  pageSize,
+  status,
+}: {
+  orders: AdminOrderRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  status?: OrderStatus;
+}) {
   const router = useRouter();
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageHref = (p: number) =>
+    `/admin/store/orders?${new URLSearchParams({
+      ...(status ? { status } : {}),
+      page: String(p),
+    }).toString()}`;
   const [pending, startTransition] = useTransition();
   // 발송 처리 시 택배사·송장번호를 받는 다이얼로그 대상 주문번호.
   const [shipOrderNo, setShipOrderNo] = useState<string | null>(null);
@@ -154,8 +195,11 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                     {order.orderNo}
                   </Link>
                 </TableCell>
-                <TableCell className="max-w-[220px] py-2.5">
-                  <span className="line-clamp-1">{itemLabel(order)}</span>
+                <TableCell className="max-w-[240px] py-2.5">
+                  <span className="flex items-center gap-2">
+                    {orderThumb(order)}
+                    <span className="line-clamp-1 min-w-0">{itemLabel(order)}</span>
+                  </span>
                 </TableCell>
                 <TableCell className="py-2.5">{buyerLabel(order)}</TableCell>
                 <TableCell className="py-2.5 text-right tabular-nums">
@@ -209,7 +253,12 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                   )}
                 </div>
               </div>
-              <p className="line-clamp-2 text-sm font-medium leading-snug">{itemLabel(order)}</p>
+              <div className="flex items-center gap-2">
+                {orderThumb(order)}
+                <p className="line-clamp-2 min-w-0 text-sm font-medium leading-snug">
+                  {itemLabel(order)}
+                </p>
+              </div>
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
                 <span className="min-w-0 truncate text-muted-foreground">{buyerLabel(order)}</span>
                 <span className="font-medium tabular-nums">
@@ -231,6 +280,42 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
           );
         })}
       </ul>
+
+      {/* 페이지네이션 — 상태 필터를 유지한 채 이동. */}
+      {totalPages > 1 && (
+        <nav
+          className="flex items-center justify-center gap-3 pt-2"
+          aria-label="주문 페이지"
+        >
+          {page > 1 ? (
+            <Link
+              href={pageHref(page - 1)}
+              className="inline-flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs hover:bg-muted"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" /> 이전
+            </Link>
+          ) : (
+            <span className="inline-flex h-8 items-center gap-1 rounded-full border border-border/50 px-3 text-xs text-muted-foreground/50">
+              <ChevronLeft className="h-3.5 w-3.5" /> 이전
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {page} / {totalPages}
+          </span>
+          {page < totalPages ? (
+            <Link
+              href={pageHref(page + 1)}
+              className="inline-flex h-8 items-center gap-1 rounded-full border border-border px-3 text-xs hover:bg-muted"
+            >
+              다음 <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <span className="inline-flex h-8 items-center gap-1 rounded-full border border-border/50 px-3 text-xs text-muted-foreground/50">
+              다음 <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </nav>
+      )}
 
       <Dialog
         open={shipOrderNo !== null}
