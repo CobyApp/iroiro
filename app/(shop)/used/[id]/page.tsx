@@ -205,6 +205,20 @@ export default async function UsedDetailPage({ params }: { params: Params }) {
             kakaoMapKey={env.KAKAO_MAP_JS_KEY}
           />
 
+          {/* 판매완료·취소된 매물 — 같은 걸 찾는 사람에게 삽니다 요청을 유도. */}
+          {role !== "seller" &&
+            (listing.status === "sold" || listing.status === "canceled") && (
+              <Link
+                href="/used/wanted/new"
+                className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm transition-colors hover:border-primary/50"
+              >
+                <span className="text-muted-foreground">
+                  같은 걸 찾고 있다면 <span className="font-medium text-foreground">삽니다</span>로 요청해보세요.
+                </span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              </Link>
+            )}
+
           {listing.description && (
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-foreground">설명</h2>
