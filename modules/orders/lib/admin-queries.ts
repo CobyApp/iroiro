@@ -135,6 +135,39 @@ export async function getAdminOrderDetail(
   };
 }
 
+const PAID_STATUSES_FOR_SUMMARY = ["paid", "shipped", "delivered"];
+
+export type StoreAdminSummary = {
+  awaitingShipment: number;
+  sales30: number;
+  draftProducts: number;
+  activeProducts: number;
+};
+
+/** 스토어 관리 홈 요약 — 발송 대기·최근 30일 매출·임시저장/판매중 상품 수. */
+export async function getStoreAdminSummary(): Promise<StoreAdminSummary> {
+  const since = new Date(Date.now() - 30 * 86400000);
+  const [awaitingShipment, salesAgg, draftProducts, activeProducts] =
+    await Promise.all([
+      db.order.count({ where: { status: "paid" } }),
+      db.order.aggregate({
+        where: {
+          status: { in: PAID_STATUSES_FOR_SUMMARY },
+          createdAt: { gte: since },
+        },
+        _sum: { totalAmount: true },
+      }),
+      db.product.count({ where: { saleStatus: "draft" } }),
+      db.product.count({ where: { saleStatus: "active" } }),
+    ]);
+  return {
+    awaitingShipment,
+    sales30: salesAgg._sum.totalAmount ?? 0,
+    draftProducts,
+    activeProducts,
+  };
+}
+
 /** 관리자 주문 목록 — 최신순, 상태 필터, 페이지네이션. 구매자·수령인·대표 썸네일 포함. */
 export async function listOrdersForAdmin(
   status: OrderStatus | undefined,
