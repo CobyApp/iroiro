@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { AdminSpace } from "./adminRoles";
 import {
   ArrowRight,
+  Banknote,
   Coins,
   ImageIcon,
   Layers,
@@ -214,6 +215,14 @@ export const MARKET_SECTIONS: NavSection[] = [
         href: "/admin/used/blocked",
         icon: Ban,
         matchPrefix: "/admin/used/blocked",
+        role: "used",
+      },
+      {
+        key: "settlement",
+        label: "정산",
+        href: "/admin/used/settlement",
+        icon: Banknote,
+        matchPrefix: "/admin/used/settlement",
         role: "used",
       },
       {
