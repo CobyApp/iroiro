@@ -10,9 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatKstDate } from "@/lib/datetime";
 import { isAdmin } from "@/modules/admin/lib/isAdmin";
-import { getAdminUserDetail } from "@/modules/admin/lib/users";
+import {
+  getAdminUserActivity,
+  getAdminUserDetail,
+} from "@/modules/admin/lib/users";
 import { ADMIN_SPACE_LABEL } from "@/modules/admin/lib/adminRoles";
 import { UserAdminControls } from "@/modules/admin/components/UserAdminControls";
+import { ORDER_STATUS_LABEL, type OrderStatus } from "@/modules/orders/types";
+import {
+  USED_TRADE_STATUS_LABEL,
+  type UsedTradeStatus,
+} from "@/modules/used/types";
 
 export const metadata: Metadata = { title: "회원 상세" };
 
@@ -30,6 +38,7 @@ export default async function AdminUserDetailPage({
   const { id } = await params;
   const user = await getAdminUserDetail(id);
   if (!user) notFound();
+  const activity = await getAdminUserActivity(id);
 
   const a = user.activity;
   const stats: { label: string; value: string }[] = [
@@ -88,6 +97,83 @@ export default async function AdminUserDetailPage({
           </dl>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>최근 주문</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activity.orders.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                주문이 없어요.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {activity.orders.map((o) => (
+                  <li key={o.orderNo}>
+                    <Link
+                      href={`/admin/store/orders/${o.orderNo}`}
+                      className="flex items-center gap-3 py-2 hover:bg-muted/40"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">
+                          {o.firstItemName ?? "주문 상품"}
+                          {o.itemCount > 1 ? ` 외 ${o.itemCount - 1}건` : ""}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {ORDER_STATUS_LABEL[o.status as OrderStatus] ?? o.status} ·{" "}
+                          {formatKstDate(o.createdAt)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums">
+                        {won(o.totalAmount)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>최근 중고 거래</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activity.trades.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                중고 거래가 없어요.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {activity.trades.map((t, i) => (
+                  <li key={`${t.listingId}-${i}`}>
+                    <Link
+                      href={`/used/${t.listingId}`}
+                      target="_blank"
+                      className="flex items-center gap-3 py-2 hover:bg-muted/40"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">{t.listingTitle}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t.role === "buyer" ? "구매" : "판매"} ·{" "}
+                          {USED_TRADE_STATUS_LABEL[t.status as UsedTradeStatus] ?? t.status} ·{" "}
+                          {formatKstDate(t.createdAt)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums">
+                        {won(t.price)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
