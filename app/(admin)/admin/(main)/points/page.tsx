@@ -11,7 +11,10 @@ import { cn } from "@/lib/utils";
 import { formatKstDateTime } from "@/lib/datetime";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
-import { listPointTransactionsForAdmin } from "@/modules/points/lib/admin-queries";
+import {
+  getCouponAdminSummary,
+  listPointTransactionsForAdmin,
+} from "@/modules/points/lib/admin-queries";
 import { AdminPointsGrantForm } from "@/modules/points/components/AdminPointsGrantForm";
 import {
   POINT_REASON_LABEL,
@@ -31,8 +34,12 @@ export default async function AdminPointsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const result = await listPointTransactionsForAdmin(q, page);
+  const [result, coupons] = await Promise.all([
+    listPointTransactionsForAdmin(q, page),
+    getCouponAdminSummary(),
+  ]);
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
+  const couponKindLabel = (k: string) => (k === "free_shipping" ? "무료배송" : k);
   const pageHref = (p: number) =>
     `/admin/points?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) }).toString()}`;
 
@@ -52,6 +59,57 @@ export default async function AdminPointsPage({
       </AdminPageHeader>
 
       <AdminPointsGrantForm />
+
+      {/* 발급 쿠폰 현황 — 총/미사용/사용 요약 + 최근 발급 */}
+      <section className="space-y-2">
+        <h3 className="pt-2 text-sm font-semibold">쿠폰 현황</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "총 발급", value: coupons.total },
+            { label: "미사용", value: coupons.unused },
+            { label: "사용됨", value: coupons.used },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-xl border border-border/70 bg-card/70 px-3.5 py-2.5"
+            >
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="font-display text-lg text-foreground">
+                {s.value.toLocaleString()}장
+              </p>
+            </div>
+          ))}
+        </div>
+        {coupons.recent.length > 0 && (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {coupons.recent.map((c) => (
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 truncate">
+                  {c.accountId ? (
+                    <Link
+                      href={`/admin/users/${c.accountId}`}
+                      className="underline-offset-2 hover:text-primary hover:underline"
+                    >
+                      {c.accountName}
+                    </Link>
+                  ) : (
+                    c.accountName
+                  )}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {couponKindLabel(c.kind)}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {c.used ? "사용됨" : "미사용"} · {formatKstDateTime(c.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <h3 className="pt-2 text-sm font-semibold">
         포인트 내역 {q ? `— "${q}"` : "(전체 회원)"}
