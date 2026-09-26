@@ -232,7 +232,12 @@ function PostAdminRow({ item, index }: { item: AdminPostItem; index: number }) {
         )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
-        {item.authorName} #{item.authorCode}
+        <Link
+          href={`/admin/users?q=${encodeURIComponent(item.authorCode)}`}
+          className="underline-offset-2 hover:text-primary hover:underline"
+        >
+          {item.authorName} #{item.authorCode}
+        </Link>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {formatKstDate(item.createdAt)}

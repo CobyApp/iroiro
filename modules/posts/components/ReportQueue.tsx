@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -157,7 +158,12 @@ function SnapshotDetail({ item }: { item: ReportQueueItem }) {
         <div>
           <p className="text-xs font-medium text-muted-foreground">작성자</p>
           <p className="text-sm">
-            {parsed.data.authorName} #{parsed.data.authorCode}
+            <Link
+              href={`/admin/users?q=${encodeURIComponent(parsed.data.authorCode)}`}
+              className="underline-offset-2 hover:text-primary hover:underline"
+            >
+              {parsed.data.authorName} #{parsed.data.authorCode}
+            </Link>
           </p>
         </div>
         <div>
