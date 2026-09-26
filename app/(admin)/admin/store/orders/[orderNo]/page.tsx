@@ -52,7 +52,15 @@ export default async function AdminOrderDetailPage({
         <span aria-hidden>·</span>
         <span>{formatKstDateTime(order.createdAt)}</span>
         <span aria-hidden>·</span>
-        <span>구매자 {order.buyerName}</span>
+        <span>
+          구매자{" "}
+          <Link
+            href={`/admin/users/${order.buyerAccountId}`}
+            className="font-medium text-foreground hover:text-primary hover:underline"
+          >
+            {order.buyerName}
+          </Link>
+        </span>
       </div>
 
       {/* 주문 상품 — 이미지 포함 */}
@@ -64,9 +72,9 @@ export default async function AdminOrderDetailPage({
           {order.items.map((item) => (
             <div key={item.id} className="flex items-center gap-3">
               <Link
-                href={`/products/${item.productId}`}
+                href={`/admin/store/products/${item.productId}/edit`}
                 className="block h-16 w-16 shrink-0 overflow-hidden rounded-xs border border-border bg-muted"
-                aria-label={`${item.productName} 상품 상세`}
+                aria-label={`${item.productName} 상품 관리`}
               >
                 {item.productThumbnailKey ? (
                   // eslint-disable-next-line @next/next/no-img-element -- 관리자 썸네일(공개 wm)
@@ -83,7 +91,12 @@ export default async function AdminOrderDetailPage({
                 )}
               </Link>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{item.productName}</p>
+                <Link
+                  href={`/admin/store/products/${item.productId}/edit`}
+                  className="block truncate text-sm font-medium hover:text-primary hover:underline"
+                >
+                  {item.productName}
+                </Link>
                 <p className="text-xs text-muted-foreground">
                   {won(item.unitPrice)} · {item.quantity}개
                 </p>

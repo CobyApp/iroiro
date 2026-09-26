@@ -26,8 +26,10 @@ export default async function AdminOrdersPage({
   ).includes(statusRaw ?? "")
     ? (statusRaw as OrderStatus)
     : undefined;
+  const pageRaw = Array.isArray(params.page) ? params.page[0] : params.page;
+  const page = Math.max(1, Number(pageRaw) || 1);
 
-  const orders = await listOrdersForAdmin(status);
+  const orders = await listOrdersForAdmin(status, page);
 
   const chipClass = (active: boolean) =>
     cn(
@@ -39,7 +41,7 @@ export default async function AdminOrdersPage({
 
   return (
     <AdminPage>
-      <AdminPageHeader title="주문" count={orders.length}>
+      <AdminPageHeader title="주문" count={orders.total}>
         {/* 상태 칩 — 폰에서는 한 줄 가로 스크롤 */}
         <nav
           aria-label="주문 상태 필터"
@@ -59,7 +61,13 @@ export default async function AdminOrdersPage({
           ))}
         </nav>
       </AdminPageHeader>
-      <AdminOrdersTable orders={orders} />
+      <AdminOrdersTable
+        orders={orders.items}
+        total={orders.total}
+        page={orders.page}
+        pageSize={orders.pageSize}
+        status={status}
+      />
       <p className="text-xs text-muted-foreground">
         발송 처리·배송 완료 시 구매자에게 알림이 발송됩니다. 배송 완료된 주문의
         구매자만 도착 인증 리뷰를 남길 수 있어요.

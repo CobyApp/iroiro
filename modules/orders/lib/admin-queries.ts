@@ -13,11 +13,21 @@ export type AdminOrderRow = {
   totalAmount: number;
   itemCount: number;
   firstItemName: string | null;
+  firstItemProductId: number | null;
+  firstItemThumbnailKey: string | null;
   recipientName: string | null;
+  buyerAccountId: string;
   buyerName: string;
   trackingCode: string | null;
   courier: string | null;
   createdAt: string;
+};
+
+export type AdminOrderPage = {
+  items: AdminOrderRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 export type AdminOrderItem = {
@@ -37,6 +47,7 @@ export type AdminOrderDetail = {
   discountAmount: number;
   deliveryAmount: number;
   totalAmount: number;
+  buyerAccountId: string;
   buyerName: string;
   trackingCode: string | null;
   courier: string | null;
@@ -88,6 +99,7 @@ export async function getAdminOrderDetail(
     discountAmount: order.discountAmount,
     deliveryAmount: order.deliveryAmount,
     totalAmount: order.totalAmount,
+    buyerAccountId: order.accountId,
     buyerName: account?.displayName ?? "알 수 없음",
     trackingCode: order.trackingCode ?? null,
     courier: order.courier ?? null,
@@ -123,17 +135,25 @@ export async function getAdminOrderDetail(
   };
 }
 
-/** 관리자 주문 목록 — 최신순, 상태 필터, 구매자·수령인 표시. */
+/** 관리자 주문 목록 — 최신순, 상태 필터, 페이지네이션. 구매자·수령인·대표 썸네일 포함. */
 export async function listOrdersForAdmin(
-  status?: OrderStatus,
-  limit = 100,
-): Promise<AdminOrderRow[]> {
-  const orders = await db.order.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-  if (orders.length === 0) return [];
+  status: OrderStatus | undefined,
+  page = 1,
+  pageSize = 20,
+): Promise<AdminOrderPage> {
+  const where = status ? { status } : undefined;
+  const [total, orders] = await Promise.all([
+    db.order.count({ where }),
+    db.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  if (orders.length === 0) {
+    return { items: [], total, page, pageSize };
+  }
 
   const orderIds = orders.map((o) => o.id);
   const accountIds = [...new Set(orders.map((o) => o.accountId))];
@@ -141,7 +161,12 @@ export async function listOrdersForAdmin(
     db.orderItem.findMany({
       where: { orderId: { in: orderIds } },
       orderBy: { id: "asc" },
-      select: { orderId: true, productName: true },
+      select: {
+        orderId: true,
+        productId: true,
+        productName: true,
+        productThumbnailKey: true,
+      },
     }),
     db.orderAddress.findMany({
       where: { orderId: { in: orderIds } },
@@ -153,19 +178,30 @@ export async function listOrdersForAdmin(
     }),
   ]);
 
-  const itemsByOrder = new Map<bigint, string[]>();
+  type FirstItem = { name: string; productId: number; thumb: string | null };
+  const itemsByOrder = new Map<bigint, { count: number; first: FirstItem }>();
   for (const item of items) {
-    const list = itemsByOrder.get(item.orderId) ?? [];
-    list.push(item.productName);
-    itemsByOrder.set(item.orderId, list);
+    const cur = itemsByOrder.get(item.orderId);
+    if (cur) {
+      cur.count += 1;
+    } else {
+      itemsByOrder.set(item.orderId, {
+        count: 1,
+        first: {
+          name: item.productName,
+          productId: Number(item.productId),
+          thumb: item.productThumbnailKey ?? null,
+        },
+      });
+    }
   }
   const recipientByOrder = new Map(
     addresses.map((a) => [a.orderId, a.recipientName]),
   );
   const nameByAccount = new Map(accounts.map((a) => [a.id, a.displayName]));
 
-  return orders.map((order) => {
-    const names = itemsByOrder.get(order.id) ?? [];
+  const rows: AdminOrderRow[] = orders.map((order) => {
+    const agg = itemsByOrder.get(order.id);
     return {
       id: Number(order.id),
       orderNo: order.orderNo,
@@ -174,13 +210,17 @@ export async function listOrdersForAdmin(
       discountAmount: order.discountAmount,
       deliveryAmount: order.deliveryAmount,
       totalAmount: order.totalAmount,
-      itemCount: names.length,
-      firstItemName: names[0] ?? null,
+      itemCount: agg?.count ?? 0,
+      firstItemName: agg?.first.name ?? null,
+      firstItemProductId: agg?.first.productId ?? null,
+      firstItemThumbnailKey: agg?.first.thumb ?? null,
       recipientName: recipientByOrder.get(order.id) ?? null,
+      buyerAccountId: order.accountId,
       buyerName: nameByAccount.get(order.accountId) ?? "알 수 없음",
       trackingCode: order.trackingCode ?? null,
       courier: order.courier ?? null,
       createdAt: order.createdAt.toISOString(),
     };
   });
+  return { items: rows, total, page, pageSize };
 }
