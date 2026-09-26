@@ -135,15 +135,22 @@ export async function closeBuyRequest(
   return runAction(async () => {
     const account = await requireLogin();
     const { requestId } = usedBuyRequestIdSchema.parse(input);
-    const res = await db.usedBuyRequest.updateMany({
-      where: {
-        id: BigInt(requestId),
-        requesterAccountId: account.id,
-        status: { in: ["open", "fulfilled"] },
-      },
-      data: { status: "closed", updatedAt: new Date() },
+    await db.$transaction(async (tx) => {
+      const res = await tx.usedBuyRequest.updateMany({
+        where: {
+          id: BigInt(requestId),
+          requesterAccountId: account.id,
+          status: { in: ["open", "fulfilled"] },
+        },
+        data: { status: "closed", updatedAt: new Date() },
+      });
+      if (res.count === 0) throw new DomainError("종료할 수 없는 요청입니다");
+      // 대기 중이던 오퍼는 자동 거절 처리 — 판매자의 '보낸 오퍼' 상태를 정확히 유지.
+      await tx.usedBuyOffer.updateMany({
+        where: { requestId: BigInt(requestId), status: "pending" },
+        data: { status: "declined", updatedAt: new Date() },
+      });
     });
-    if (res.count === 0) throw new DomainError("종료할 수 없는 요청입니다");
     revalidateBuy(requestId);
   });
 }
