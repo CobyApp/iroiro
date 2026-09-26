@@ -165,7 +165,7 @@ export default async function BuyRequestsPage({
             <EmptyState
               emoji="🛍️"
               title="올린 삽니다가 없어요"
-              description="사고 싶은 카드를 등록하면 판매자가 오퍼를 보내요."
+              description="사고 싶은 아이템을 등록하면 판매자가 오퍼를 보내요."
               action={{ href: "/used/wanted/new", label: "삽니다 등록" }}
             />
           ) : q || teamId || memberId ? (
@@ -179,7 +179,7 @@ export default async function BuyRequestsPage({
             <EmptyState
               emoji="🛍️"
               title="아직 삽니다가 없어요"
-              description="사고 싶은 카드를 먼저 등록해보세요!"
+              description="사고 싶은 아이템을 먼저 등록해보세요!"
               action={{ href: "/used/wanted/new", label: "삽니다 등록" }}
             />
           )
