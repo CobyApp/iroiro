@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminPage } from "@/modules/admin/components/AdminPage";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
@@ -60,6 +61,14 @@ export default async function AdminOrdersPage({
             </Link>
           ))}
         </nav>
+        <a
+          href={`/admin/store/orders/export${status ? `?status=${status}` : ""}`}
+          download
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-xs hover:bg-muted"
+        >
+          <Download className="h-3.5 w-3.5" />
+          CSV{status ? `(${ORDER_STATUS_LABEL[status]})` : ""}
+        </a>
       </AdminPageHeader>
       <AdminOrdersTable
         orders={orders.items}
