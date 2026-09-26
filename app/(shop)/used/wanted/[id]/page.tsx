@@ -17,6 +17,8 @@ import {
 } from "@/modules/used/buy-types";
 import { USED_ITEM_TYPE_LABEL, type UsedItemType } from "@/modules/used/types";
 import { PRODUCT_CONDITION_LABEL } from "@/modules/products/types";
+import { ProductImage } from "@/modules/products/components/ProductImage";
+import { env } from "@/lib/env";
 import { formatKstRelative } from "@/lib/datetime";
 
 export const metadata: Metadata = { title: "삽니다" };
@@ -100,6 +102,21 @@ export default async function BuyRequestDetailPage({
             </dd>
           </div>
         </dl>
+
+        {request.imageKeys.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {request.imageKeys.map((key) => (
+              <div key={key} className="overflow-hidden rounded-lg border border-border bg-muted">
+                <ProductImage
+                  src={`${env.R2_PUBLIC_BASE}/${key}`}
+                  alt="참고 이미지"
+                  className="aspect-square w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {request.description && (
           <p className="whitespace-pre-wrap text-sm text-foreground">{request.description}</p>

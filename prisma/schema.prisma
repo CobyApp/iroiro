@@ -1048,6 +1048,8 @@ model UsedBuyRequest {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
+  photos             UsedBuyRequestPhoto[]
+
   @@index([status, createdAt(sort: Desc)], map: "used_buy_request_status_created_idx")
   @@index([requesterAccountId, createdAt(sort: Desc)], map: "used_buy_request_requester_idx")
   @@index([seriesId], map: "used_buy_request_series_idx")
@@ -1055,6 +1057,19 @@ model UsedBuyRequest {
   @@index([createdAt], map: "used_buy_request_created_idx")
   @@index([updatedAt], map: "used_buy_request_updated_idx")
   @@map("used_buy_request")
+}
+
+// 삽니다 참고 이미지 — used_listing_photo 와 달리 대표·워터마크 없음. 요청당 최대 4장(앱 검증).
+model UsedBuyRequestPhoto {
+  id           BigInt         @id @default(autoincrement())
+  requestId    BigInt         @map("request_id")
+  r2Key        String         @map("r2_key")
+  displayOrder Int            @default(0) @map("display_order")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  request      UsedBuyRequest @relation(fields: [requestId], references: [id])
+
+  @@index([requestId, displayOrder], map: "used_buy_request_photo_request_idx")
+  @@map("used_buy_request_photo")
 }
 
 // 삽니다 오퍼 — 판매자가 요청에 제안(가격·메시지·연결 매물). 요청당 판매자 1건(철회 제외).

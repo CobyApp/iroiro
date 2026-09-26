@@ -50,10 +50,11 @@ async function attachMeta(
   rows: Prisma.UsedBuyRequestGetPayload<object>[],
 ): Promise<UsedBuyRequestWithMeta[]> {
   if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
   const accountIds = [...new Set(rows.map((r) => r.requesterAccountId))];
   const teamIds = [...new Set(rows.map((r) => r.teamId).filter((v): v is bigint => v != null))];
   const memberIds = [...new Set(rows.map((r) => r.memberId).filter((v): v is bigint => v != null))];
-  const [accounts, teams, members] = await Promise.all([
+  const [accounts, teams, members, photos] = await Promise.all([
     db.account.findMany({
       where: { id: { in: accountIds } },
       select: { id: true, displayName: true },
@@ -64,10 +65,22 @@ async function attachMeta(
     memberIds.length
       ? db.member.findMany({ where: { id: { in: memberIds } }, select: { id: true, name: true } })
       : Promise.resolve([]),
+    db.usedBuyRequestPhoto.findMany({
+      where: { requestId: { in: ids } },
+      orderBy: { displayOrder: "asc" },
+      select: { requestId: true, r2Key: true },
+    }),
   ]);
   const nameBy = new Map(accounts.map((a) => [a.id, a.displayName]));
   const teamBy = new Map(teams.map((t) => [Number(t.id), t.name]));
   const memberBy = new Map(members.map((m) => [Number(m.id), m.name]));
+  const imagesBy = new Map<number, string[]>();
+  for (const p of photos) {
+    const key = Number(p.requestId);
+    const arr = imagesBy.get(key) ?? [];
+    arr.push(p.r2Key);
+    imagesBy.set(key, arr);
+  }
   return rows.map((row) => {
     const base = toBuyRequest(row);
     return {
@@ -75,6 +88,7 @@ async function attachMeta(
       requesterName: nameBy.get(row.requesterAccountId) ?? "구매 희망자",
       teamName: base.teamId != null ? (teamBy.get(base.teamId) ?? null) : null,
       memberName: base.memberId != null ? (memberBy.get(base.memberId) ?? null) : null,
+      imageKeys: imagesBy.get(Number(row.id)) ?? [],
     };
   });
 }

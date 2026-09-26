@@ -46,11 +46,12 @@ export type UsedBuyRequest = {
   updatedAt: string;
 };
 
-// 목록·상세 카드용 — 요청자 닉네임 + 그룹/멤버 이름(카탈로그 join 대체).
+// 목록·상세 카드용 — 요청자 닉네임 + 그룹/멤버 이름(카탈로그 join 대체) + 참고 이미지 키(순서대로).
 export type UsedBuyRequestWithMeta = UsedBuyRequest & {
   requesterName: string;
   teamName: string | null;
   memberName: string | null;
+  imageKeys: string[];
 };
 
 export type UsedBuyOffer = {
