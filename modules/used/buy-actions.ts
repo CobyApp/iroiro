@@ -11,6 +11,9 @@ import {
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { notify } from "@/modules/notifications/lib/notify";
 import { canonicalPair } from "@/modules/messages/types";
+import { buildR2Key, getPublicUrl } from "@/lib/r2/presign";
+import { compressImageBuffer } from "@/lib/image/compress-image";
+import { relayUploadToR2 } from "@/lib/r2/relay";
 import {
   usedBuyOfferCreateSchema,
   usedBuyOfferIdSchema,
@@ -24,6 +27,46 @@ async function requireLogin() {
   const account = await getCurrentAccount();
   if (!account) throw new DomainError("로그인이 필요합니다", "login_required");
   return account;
+}
+
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+const BUY_PHOTO_MAX_DIM = 1280;
+const BUY_PHOTO_QUALITY = 78;
+
+// 삽니다 참고 이미지 업로드 — 서버 경유 압축(워터마크 없음: 요청자 소유물이 아닌 참고용).
+// buy-request/original/ 접두로 저장하고 공개 URL을 미리보기로 돌려준다.
+export async function uploadBuyRequestPhotoFile(
+  formData: FormData,
+): Promise<ActionResult<{ r2Key: string; previewUrl: string }>> {
+  return runAction(async () => {
+    await requireLogin();
+    const file = formData.get("file");
+    const filename = String(formData.get("filename") ?? "photo.jpg");
+    if (!(file instanceof Blob)) throw new DomainError("파일이 없습니다");
+    if (!ALLOWED_MIME.includes(file.type)) {
+      throw new DomainError(`지원하지 않는 포맷: ${file.type}`);
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      throw new DomainError(`파일 크기 초과 (8MB 이하): ${filename}`);
+    }
+    let compressed: Buffer;
+    try {
+      compressed = await compressImageBuffer(Buffer.from(await file.arrayBuffer()), {
+        maxDim: BUY_PHOTO_MAX_DIM,
+        quality: BUY_PHOTO_QUALITY,
+        watermark: false,
+      });
+    } catch {
+      throw new DomainError(`이미지를 처리할 수 없습니다: ${filename}`);
+    }
+    const r2Key = buildR2Key(`${filename.replace(/\.[^.]+$/, "")}.jpg`).replace(
+      "products/original/",
+      "buy-request/original/",
+    );
+    await relayUploadToR2(new Blob([new Uint8Array(compressed)], { type: "image/jpeg" }), r2Key);
+    return { r2Key, previewUrl: getPublicUrl(r2Key) };
+  });
 }
 
 function revalidateBuy(requestId?: number) {
@@ -54,19 +97,31 @@ export async function createBuyRequest(
       if (!series) throw new DomainError("시리즈를 찾을 수 없어요");
     }
 
-    const row = await db.usedBuyRequest.create({
-      data: {
-        requesterAccountId: account.id,
-        itemType: data.itemType,
-        teamId: data.teamId != null ? BigInt(data.teamId) : null,
-        memberId: data.memberId != null ? BigInt(data.memberId) : null,
-        seriesId: data.seriesId != null ? BigInt(data.seriesId) : null,
-        title: data.title,
-        description: data.description,
-        minCondition: data.minCondition ?? null,
-        budget: data.budget ?? null,
-        quantity: data.quantity,
-      },
+    const row = await db.$transaction(async (tx) => {
+      const created = await tx.usedBuyRequest.create({
+        data: {
+          requesterAccountId: account.id,
+          itemType: data.itemType,
+          teamId: data.teamId != null ? BigInt(data.teamId) : null,
+          memberId: data.memberId != null ? BigInt(data.memberId) : null,
+          seriesId: data.seriesId != null ? BigInt(data.seriesId) : null,
+          title: data.title,
+          description: data.description,
+          minCondition: data.minCondition ?? null,
+          budget: data.budget ?? null,
+          quantity: data.quantity,
+        },
+      });
+      if (data.photos.length > 0) {
+        await tx.usedBuyRequestPhoto.createMany({
+          data: data.photos.map((p) => ({
+            requestId: created.id,
+            r2Key: p.r2Key,
+            displayOrder: p.displayOrder,
+          })),
+        });
+      }
+      return created;
     });
     revalidateBuy();
     return { id: Number(row.id) };

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 import { getCurrentAccount } from "@/modules/auth/dal";
 import { listTeams } from "@/modules/teams/lib/queries";
@@ -185,7 +186,11 @@ export default async function BuyRequestsPage({
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((request) => (
-              <BuyRequestCard key={request.id} request={request} />
+              <BuyRequestCard
+                key={request.id}
+                request={request}
+                publicBaseUrl={env.R2_PUBLIC_BASE}
+              />
             ))}
           </div>
         )}

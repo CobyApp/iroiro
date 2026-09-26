@@ -1,24 +1,45 @@
 import Link from "next/link";
 import { MessageSquare, ShoppingBag } from "lucide-react";
 import { formatKstRelative } from "@/lib/datetime";
+import { ProductImage } from "@/modules/products/components/ProductImage";
 import {
   BUY_REQUEST_STATUS_LABEL,
   type UsedBuyRequestWithMeta,
 } from "../buy-types";
 import { USED_ITEM_TYPE_LABEL, type UsedItemType } from "../types";
 
-// 삽니다(매입 요청) 카드 — 텍스트 위주(사진 없음). 그룹/멤버·예산·오퍼 수를 노출.
-export function BuyRequestCard({ request }: { request: UsedBuyRequestWithMeta }) {
+// 삽니다(매입 요청) 카드 — 그룹/멤버·예산·오퍼 수 + 참고 이미지(있으면 대표 1장).
+export function BuyRequestCard({
+  request,
+  publicBaseUrl,
+}: {
+  request: UsedBuyRequestWithMeta;
+  publicBaseUrl?: string;
+}) {
   const itemLabel =
     USED_ITEM_TYPE_LABEL[request.itemType as UsedItemType] ?? request.itemType;
   const tags = [request.teamName, request.memberName].filter(Boolean) as string[];
   const isFulfilled = request.status === "fulfilled";
+  const thumb =
+    publicBaseUrl && request.imageKeys.length > 0
+      ? `${publicBaseUrl}/${request.imageKeys[0]}`
+      : null;
 
   return (
     <Link
       href={`/used/wanted/${request.id}`}
       className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50"
     >
+      {thumb && (
+        <div className="overflow-hidden rounded-lg border border-border bg-muted">
+          <ProductImage
+            src={thumb}
+            alt={request.title}
+            className="aspect-[4/3] w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           <ShoppingBag className="h-3 w-3" aria-hidden />

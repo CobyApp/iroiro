@@ -30,6 +30,11 @@ export const usedBuyRequestCreateSchema = z.object({
   // 예산(개당) — null/미입력이면 협의.
   budget: z.number().int().positive().max(100_000_000).nullable().optional(),
   quantity: z.number().int().positive().max(999).default(1),
+  // 참고 이미지(선택, 최대 4장) — 사고 싶은 카드의 예시.
+  photos: z
+    .array(z.object({ r2Key: z.string().min(1), displayOrder: z.number().int().min(0) }))
+    .max(4, "참고 이미지는 최대 4장")
+    .default([]),
 });
 export type UsedBuyRequestCreateInput = z.input<typeof usedBuyRequestCreateSchema>;
 

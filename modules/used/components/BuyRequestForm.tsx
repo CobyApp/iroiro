@@ -18,6 +18,10 @@ import {
   type ProductCondition,
 } from "@/modules/products/types";
 import { USED_ITEM_TYPE_LABEL, type UsedItemType } from "../types";
+import {
+  BuyRequestPhotoUpload,
+  type UploadedBuyPhoto,
+} from "./BuyRequestPhotoUpload";
 
 type TeamOpt = { id: number; name: string };
 type MemberOpt = { id: number; name: string; teamIds: number[] };
@@ -43,6 +47,7 @@ export function BuyRequestForm({
   const [quantity, setQuantity] = useState("1");
   const [minCondition, setMinCondition] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<UploadedBuyPhoto[]>([]);
 
   const teamMembers = useMemo(
     () => (teamId === "" ? [] : members.filter((m) => m.teamIds.includes(Number(teamId)))),
@@ -71,6 +76,7 @@ export function BuyRequestForm({
         minCondition: (minCondition || null) as ProductCondition | null,
         budget: budgetNum,
         quantity: qtyNum,
+        photos: photos.map((p, i) => ({ r2Key: p.r2Key, displayOrder: i })),
       });
       if (!result.ok) {
         toast.error(result.message);
@@ -207,6 +213,11 @@ export function BuyRequestForm({
           rows={5}
           maxLength={BUY_REQUEST_DESC_MAX}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>참고 이미지 (선택)</Label>
+        <BuyRequestPhotoUpload photos={photos} onChange={setPhotos} />
       </div>
 
       <Button type="submit" className="w-full" disabled={pending}>
