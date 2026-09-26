@@ -107,7 +107,7 @@ export function BuyRequestPhotoUpload({
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        사고 싶은 카드의 예시 이미지를 최대 {MAX}장 올릴 수 있어요 (선택).
+        사고 싶은 아이템의 예시 이미지를 최대 {MAX}장 올릴 수 있어요 (선택).
       </p>
       <input
         ref={inputRef}

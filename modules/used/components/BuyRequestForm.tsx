@@ -25,6 +25,7 @@ import {
 
 type TeamOpt = { id: number; name: string };
 type MemberOpt = { id: number; name: string; teamIds: number[] };
+type SeriesOpt = { id: number; label: string; teamId: number | null };
 
 const selectClass =
   "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:border-primary/50";
@@ -32,9 +33,11 @@ const selectClass =
 export function BuyRequestForm({
   teams,
   members,
+  seriesOptions,
 }: {
   teams: TeamOpt[];
   members: MemberOpt[];
+  seriesOptions: SeriesOpt[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -45,6 +48,7 @@ export function BuyRequestForm({
   const [title, setTitle] = useState("");
   const [budget, setBudget] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [seriesId, setSeriesId] = useState<number | "">("");
   const [minCondition, setMinCondition] = useState<string>("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<UploadedBuyPhoto[]>([]);
@@ -52,6 +56,15 @@ export function BuyRequestForm({
   const teamMembers = useMemo(
     () => (teamId === "" ? [] : members.filter((m) => m.teamIds.includes(Number(teamId)))),
     [teamId, members],
+  );
+  // 시리즈는 토레카(photocard)만. 그룹을 고르면 그 그룹 시리즈로 좁힌다(그룹 미선택 시 전체).
+  const isPhotocard = itemType === "photocard";
+  const seriesChoices = useMemo(
+    () =>
+      isPhotocard
+        ? seriesOptions.filter((s) => teamId === "" || s.teamId === Number(teamId))
+        : [],
+    [isPhotocard, seriesOptions, teamId],
   );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -71,6 +84,7 @@ export function BuyRequestForm({
         itemType,
         teamId: teamId === "" ? null : Number(teamId),
         memberId: memberId === "" ? null : Number(memberId),
+        seriesId: isPhotocard && seriesId !== "" ? Number(seriesId) : null,
         title: title.trim(),
         description: description.trim() || null,
         minCondition: (minCondition || null) as ProductCondition | null,
@@ -110,7 +124,10 @@ export function BuyRequestForm({
             id="buy-item"
             className={selectClass}
             value={itemType}
-            onChange={(e) => setItemType(e.target.value as UsedItemType)}
+            onChange={(e) => {
+              setItemType(e.target.value as UsedItemType);
+              setSeriesId("");
+            }}
           >
             {(Object.keys(USED_ITEM_TYPE_LABEL) as UsedItemType[]).map((t) => (
               <option key={t} value={t}>
@@ -148,6 +165,7 @@ export function BuyRequestForm({
               const v = e.target.value === "" ? "" : Number(e.target.value);
               setTeamId(v);
               setMemberId("");
+              setSeriesId("");
             }}
           >
             <option value="">전체</option>
@@ -176,6 +194,29 @@ export function BuyRequestForm({
           </select>
         </div>
       </div>
+
+      {/* 시리즈(특정 카드)는 토레카일 때만. */}
+      {isPhotocard && seriesChoices.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="buy-series">시리즈 (선택)</Label>
+          <select
+            id="buy-series"
+            className={selectClass}
+            value={seriesId}
+            onChange={(e) => setSeriesId(e.target.value === "" ? "" : Number(e.target.value))}
+          >
+            <option value="">지정 안 함</option>
+            {seriesChoices.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          {teamId === "" && (
+            <p className="text-xs text-muted-foreground">그룹을 고르면 시리즈를 좁혀서 볼 수 있어요.</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
