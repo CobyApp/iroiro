@@ -16,7 +16,7 @@ export type AdminUserRow = {
 };
 
 // 회원 검색 — 닉네임 부분일치 또는 #공개코드 정확일치. 탈퇴 계정 제외.
-export async function listAdminUsers(q?: string): Promise<AdminUserRow[]> {
+export async function listAdminUsers(q?: string, limit = 50): Promise<AdminUserRow[]> {
   const query = q?.trim();
   const rows = await db.account.findMany({
     where: {
@@ -31,7 +31,7 @@ export async function listAdminUsers(q?: string): Promise<AdminUserRow[]> {
         : {}),
     },
     orderBy: [{ createdAt: "desc" }],
-    take: 50,
+    take: limit,
     select: {
       id: true,
       displayName: true,

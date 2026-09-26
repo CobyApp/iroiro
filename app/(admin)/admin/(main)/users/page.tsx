@@ -28,16 +28,24 @@ export default async function AdminUsersPage({
         count={users.length}
         description="관리 권한(배송·중고·커뮤니티·토레카)을 부여하거나, 사이트 관리자 지정·작성 제재를 해요."
       >
-        <form action="/admin/users" className="w-full sm:w-72">
-          <input
-            type="search"
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="닉네임 또는 #공개코드"
-            aria-label="회원 검색"
-            className="h-9 w-full rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary/50"
-          />
-        </form>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <form action="/admin/users" className="w-full sm:w-72">
+            <input
+              type="search"
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="닉네임 또는 #공개코드"
+              aria-label="회원 검색"
+              className="h-9 w-full rounded-full border border-border bg-card px-4 text-sm outline-none focus:border-primary/50"
+            />
+          </form>
+          <a
+            href={`/admin/users/export${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+            className="inline-flex h-9 shrink-0 items-center rounded-full border border-border bg-card px-4 text-sm text-foreground transition-colors hover:border-primary/50"
+          >
+            CSV
+          </a>
+        </div>
       </AdminPageHeader>
 
       <UsersTable users={users} currentAccountId={account!.id} />
