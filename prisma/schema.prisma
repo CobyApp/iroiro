@@ -1028,6 +1028,56 @@ model UsedBundle {
   @@map("used_bundle")
 }
 
+// 중고 삽니다(매입 요청) — 구매 희망자가 원하는 카드·예산을 올리고 판매자가 오퍼로 응답. used_listing 역방향.
+model UsedBuyRequest {
+  id                 BigInt   @id @default(autoincrement())
+  requesterAccountId String   @map("requester_account_id") @db.Uuid
+  itemType           String   @default("photocard") @map("item_type")
+  teamId             BigInt?  @map("team_id")
+  memberId           BigInt?  @map("member_id")
+  seriesId           BigInt?  @map("series_id")
+  sourceProductId    BigInt?  @map("source_product_id")
+  title              String
+  description        String?
+  minCondition       String?  @map("min_condition")
+  budget             Int?
+  quantity           Int      @default(1)
+  status             String   @default("open")
+  offerCount         Int      @default(0) @map("offer_count")
+  viewCount          Int      @default(0) @map("view_count")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt(sort: Desc)], map: "used_buy_request_status_created_idx")
+  @@index([requesterAccountId, createdAt(sort: Desc)], map: "used_buy_request_requester_idx")
+  @@index([seriesId], map: "used_buy_request_series_idx")
+  @@index([memberId], map: "used_buy_request_member_idx")
+  @@index([createdAt], map: "used_buy_request_created_idx")
+  @@index([updatedAt], map: "used_buy_request_updated_idx")
+  @@map("used_buy_request")
+}
+
+// 삽니다 오퍼 — 판매자가 요청에 제안(가격·메시지·연결 매물). 요청당 판매자 1건(철회 제외).
+model UsedBuyOffer {
+  id              BigInt   @id @default(autoincrement())
+  requestId       BigInt   @map("request_id")
+  sellerAccountId String   @map("seller_account_id") @db.Uuid
+  listingId       BigInt?  @map("listing_id")
+  price           Int
+  message         String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([requestId, sellerAccountId], map: "used_buy_offer_request_seller_unique", where: raw("(status <> 'withdrawn'::text)"))
+  @@index([requestId, createdAt(sort: Desc)], map: "used_buy_offer_request_idx")
+  @@index([sellerAccountId, createdAt(sort: Desc)], map: "used_buy_offer_seller_idx")
+  @@index([listingId], map: "used_buy_offer_listing_idx")
+  @@index([createdAt], map: "used_buy_offer_created_idx")
+  @@index([updatedAt], map: "used_buy_offer_updated_idx")
+  @@map("used_buy_offer")
+}
+
 // ── 토레카 마스터 (구 카탈로그 DB에서 커머스 DB로 병합, 2026-09-23) ──────────────
 // team·member·team_member·series·series_kind·card. 예전엔 별도 공유 DB(iroiro_catalog)였으나
 // dev·prd 가 각자 자기 커머스 DB 안에서 토레카를 갖도록 병합했다. 정본은 db/schema.sql.

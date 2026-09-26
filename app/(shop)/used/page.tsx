@@ -23,6 +23,7 @@ import { getUsedWishlistIds } from "@/modules/used/lib/wishlist";
 import { UsedListingCard } from "@/modules/used/components/UsedListingCard";
 import { UsedRow } from "@/modules/used/components/UsedRow";
 import { UsedFaveSection } from "@/modules/used/components/UsedFaveSection";
+import { UsedModeTabs } from "@/modules/used/components/UsedModeTabs";
 import { EmptyState } from "@/components/EmptyState";
 import { HScroll } from "@/components/HScroll";
 import { InPageSearchBar } from "../_components/HeaderLeading";
@@ -161,6 +162,8 @@ export default async function UsedHomePage({
           </Button>
         }
       />
+
+      <UsedModeTabs active="sell" />
 
       {/* 데스크톱 검색바 — 타이틀 아래(모바일은 상단 헤더 검색). */}
       <InPageSearchBar />
