@@ -210,6 +210,14 @@ export const MARKET_SECTIONS: NavSection[] = [
         role: "used",
       },
       {
+        key: "buy-requests",
+        label: "삽니다",
+        href: "/admin/used/buy-requests",
+        icon: ShoppingBag,
+        matchPrefix: "/admin/used/buy-requests",
+        role: "used",
+      },
+      {
         key: "blocked",
         label: "차단 매물",
         href: "/admin/used/blocked",

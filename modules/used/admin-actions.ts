@@ -53,6 +53,38 @@ export async function dismissUsedReport(input: unknown): Promise<ActionResult> {
   });
 }
 
+// 삽니다(매입 요청) 차단 — status=blocked. 고객 목록·상세에서도 사라진다.
+export async function blockBuyRequest(requestId: number): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireUsedManager();
+    const res = await db.usedBuyRequest.updateMany({
+      where: { id: BigInt(requestId), status: { not: "blocked" } },
+      data: { status: "blocked", updatedAt: new Date() },
+    });
+    if (res.count === 0) throw new DomainError("차단할 수 없는 요청입니다");
+    revalidatePath("/admin/used/buy-requests");
+    revalidatePath("/admin/used");
+    revalidatePath("/used/wanted");
+    revalidatePath(`/used/wanted/${requestId}`);
+  });
+}
+
+// 삽니다 차단 해제 — 다시 모집중(open)으로 복원.
+export async function unblockBuyRequest(requestId: number): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireUsedManager();
+    const res = await db.usedBuyRequest.updateMany({
+      where: { id: BigInt(requestId), status: "blocked" },
+      data: { status: "open", updatedAt: new Date() },
+    });
+    if (res.count === 0) throw new DomainError("복원할 수 없는 요청입니다");
+    revalidatePath("/admin/used/buy-requests");
+    revalidatePath("/admin/used");
+    revalidatePath("/used/wanted");
+    revalidatePath(`/used/wanted/${requestId}`);
+  });
+}
+
 function revalidateDispute(listingId: number): void {
   revalidatePath("/admin/used/disputes");
   revalidatePath("/admin/used");
