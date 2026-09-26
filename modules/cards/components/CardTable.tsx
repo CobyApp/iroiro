@@ -30,6 +30,7 @@ import {
 import {
   approveCards,
   deleteCard,
+  rejectCards,
   reviewCard,
   updateCard,
 } from "../actions";
@@ -109,6 +110,21 @@ export function CardTable({
         return;
       }
       toast.success(`${result.data.approved}장 승인 — 카탈로그에 공개됐어요`);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  function bulkReject() {
+    const ids = [...selected];
+    const note = window.prompt("반려 사유 (선택 — 제보자에게 참고용)") ?? undefined;
+    startTransition(async () => {
+      const result = await rejectCards(ids, note || undefined);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(`${result.data.rejected}장 반려했어요`);
       setSelected(new Set());
       router.refresh();
     });
@@ -450,7 +466,16 @@ export function CardTable({
           <div className="flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-elevated">
             <span className="shrink-0 text-sm font-bold">{selected.size}장 선택</span>
             <Button size="sm" className="shrink-0" disabled={pending} onClick={bulkApprove}>
-              {pending ? "승인 중…" : "한 번에 승인"}
+              {pending ? "처리 중…" : "한 번에 승인"}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="shrink-0"
+              disabled={pending}
+              onClick={bulkReject}
+            >
+              한 번에 반려
             </Button>
             <Button
               size="sm"

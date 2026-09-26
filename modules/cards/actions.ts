@@ -662,3 +662,24 @@ export async function approveCards(
     return { approved: targets.length };
   });
 }
+
+// 관리자 — 검수 대기 제보 여러 장을 한 번에 반려(사유 공통). 분석·적립·상품 편입 없음.
+export async function rejectCards(
+  ids: number[],
+  note?: string,
+): Promise<ActionResult<{ rejected: number }>> {
+  return runAction(async () => {
+    await requireCatalogManager();
+    if (ids.length === 0) throw new DomainError("선택된 카드가 없어요");
+    const res = await catalogDb.card.updateMany({
+      where: { id: { in: ids.map((id) => BigInt(id)) }, status: "pending" },
+      data: {
+        status: "rejected",
+        reviewNote: note?.trim() || null,
+        updatedAt: new Date(),
+      },
+    });
+    revalidateCards();
+    return { rejected: res.count };
+  });
+}
