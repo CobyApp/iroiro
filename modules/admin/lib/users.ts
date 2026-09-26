@@ -124,3 +124,109 @@ export async function getAdminUserDetail(
     },
   };
 }
+
+export type AdminUserOrderRow = {
+  orderNo: string;
+  status: string;
+  totalAmount: number;
+  itemCount: number;
+  firstItemName: string | null;
+  createdAt: string;
+};
+export type AdminUserTradeRow = {
+  listingId: number;
+  listingTitle: string;
+  role: "buyer" | "seller";
+  status: string;
+  price: number;
+  createdAt: string;
+};
+export type AdminUserActivityLists = {
+  orders: AdminUserOrderRow[];
+  trades: AdminUserTradeRow[];
+};
+
+// 회원 상세 인라인 리스트 — 최근 주문 8건 + 최근 중고 거래 8건(구매·판매 합산).
+export async function getAdminUserActivity(
+  accountId: string,
+): Promise<AdminUserActivityLists> {
+  const [orderRows, buyerTrades, sellerTrades] = await Promise.all([
+    db.order.findMany({
+      where: { accountId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        orderNo: true,
+        status: true,
+        totalAmount: true,
+        createdAt: true,
+      },
+    }),
+    db.usedTrade.findMany({
+      where: { buyerAccountId: accountId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { listingId: true, status: true, price: true, createdAt: true },
+    }),
+    db.usedTrade.findMany({
+      where: { sellerAccountId: accountId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { listingId: true, status: true, price: true, createdAt: true },
+    }),
+  ]);
+
+  // 주문별 상품명·개수 — 소량이라 한 번에 조회 후 메모리 집계.
+  const orderIds = orderRows.map((o) => o.id);
+  const items = orderIds.length
+    ? await db.orderItem.findMany({
+        where: { orderId: { in: orderIds } },
+        orderBy: { id: "asc" },
+        select: { orderId: true, productName: true },
+      })
+    : [];
+  const itemAgg = new Map<bigint, { first: string; count: number }>();
+  for (const it of items) {
+    const cur = itemAgg.get(it.orderId);
+    if (cur) cur.count += 1;
+    else itemAgg.set(it.orderId, { first: it.productName, count: 1 });
+  }
+  const orders: AdminUserOrderRow[] = orderRows.map((o) => {
+    const agg = itemAgg.get(o.id);
+    return {
+      orderNo: o.orderNo,
+      status: o.status,
+      totalAmount: o.totalAmount,
+      itemCount: agg?.count ?? 0,
+      firstItemName: agg?.first ?? null,
+      createdAt: o.createdAt.toISOString(),
+    };
+  });
+
+  // 중고 거래 — 구매/판매 합쳐 최신 8건, 매물 제목 해석.
+  const merged = [
+    ...buyerTrades.map((t) => ({ ...t, role: "buyer" as const })),
+    ...sellerTrades.map((t) => ({ ...t, role: "seller" as const })),
+  ]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 8);
+  const listingIds = [...new Set(merged.map((t) => t.listingId))];
+  const listings = listingIds.length
+    ? await db.usedListing.findMany({
+        where: { id: { in: listingIds } },
+        select: { id: true, title: true },
+      })
+    : [];
+  const titleById = new Map(listings.map((l) => [Number(l.id), l.title]));
+  const trades: AdminUserTradeRow[] = merged.map((t) => ({
+    listingId: Number(t.listingId),
+    listingTitle: titleById.get(Number(t.listingId)) ?? "(삭제된 매물)",
+    role: t.role,
+    status: t.status,
+    price: t.price,
+    createdAt: t.createdAt.toISOString(),
+  }));
+
+  return { orders, trades };
+}
