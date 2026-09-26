@@ -199,7 +199,12 @@ function Row({
             >
               {item.title}
             </Link>
-            <p className="truncate text-xs text-muted-foreground">{item.sellerName}</p>
+            <Link
+              href={`/admin/users/${item.sellerAccountId}`}
+              className="block truncate text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
+            >
+              {item.sellerName}
+            </Link>
             {item.status === "blocked" && item.blockedReason && (
               <p className="truncate text-xs text-amber-700" title={item.blockedReason}>
                 차단: {item.blockedReason}
