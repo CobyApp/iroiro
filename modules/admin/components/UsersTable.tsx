@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, ShieldMinus, ShieldPlus, Undo2 } from "lucide-react";
 import { toast } from "sonner";
@@ -158,7 +159,12 @@ export function UsersTable({
     return (
       <div className="flex items-center gap-2">
         <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{u.displayName}</p>
+          <Link
+            href={`/admin/users/${u.id}`}
+            className="block truncate font-medium text-foreground hover:text-primary hover:underline"
+          >
+            {u.displayName}
+          </Link>
           <p className="font-mono text-xs text-muted-foreground">#{u.publicCode}</p>
         </div>
         {u.isAdmin && (
