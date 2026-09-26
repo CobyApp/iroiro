@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ImageOff, PackageCheck, Truck } from "lucide-react";
-import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
 import type { OrderStatus } from "../types";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +33,7 @@ function formatWon(amount: number): string {
 
 // 관리자 주문 목록 — md+ 는 표, 폰은 카드(주문번호·상품·금액·상태·처리 버튼을 세로로 쌓는다).
 function orderThumb(order: AdminOrderRow) {
-  if (!order.firstItemThumbnailKey || order.firstItemProductId === null) {
+  if (!order.firstItemThumbnailUrl) {
     return (
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xs bg-muted text-muted-foreground">
         <ImageOff className="h-4 w-4" aria-hidden />
@@ -45,7 +44,7 @@ function orderThumb(order: AdminOrderRow) {
     <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xs border border-border bg-muted">
       {/* eslint-disable-next-line @next/next/no-img-element -- 관리자 썸네일(공개 wm) */}
       <img
-        src={productGridThumbnailUrl(order.firstItemProductId)}
+        src={order.firstItemThumbnailUrl}
         alt=""
         className="h-full w-full object-cover"
         loading="lazy"

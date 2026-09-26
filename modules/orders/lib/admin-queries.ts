@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { productGridThumbnailUrl } from "@/modules/products/lib/customer-media";
 import type { OrderStatus } from "../types";
 
 export type AdminOrderRow = {
@@ -15,6 +16,8 @@ export type AdminOrderRow = {
   firstItemName: string | null;
   firstItemProductId: number | null;
   firstItemThumbnailKey: string | null;
+  /** 서명된 대표 썸네일 URL(서버 계산) — 클라이언트 표가 그대로 렌더. */
+  firstItemThumbnailUrl: string | null;
   recipientName: string | null;
   buyerAccountId: string;
   buyerName: string;
@@ -235,6 +238,7 @@ export async function listOrdersForAdmin(
 
   const rows: AdminOrderRow[] = orders.map((order) => {
     const agg = itemsByOrder.get(order.id);
+    const thumbProductId = agg?.first.thumb ? (agg.first.productId ?? null) : null;
     return {
       id: Number(order.id),
       orderNo: order.orderNo,
@@ -247,6 +251,8 @@ export async function listOrdersForAdmin(
       firstItemName: agg?.first.name ?? null,
       firstItemProductId: agg?.first.productId ?? null,
       firstItemThumbnailKey: agg?.first.thumb ?? null,
+      firstItemThumbnailUrl:
+        thumbProductId != null ? productGridThumbnailUrl(thumbProductId) : null,
       recipientName: recipientByOrder.get(order.id) ?? null,
       buyerAccountId: order.accountId,
       buyerName: nameByAccount.get(order.accountId) ?? "알 수 없음",
