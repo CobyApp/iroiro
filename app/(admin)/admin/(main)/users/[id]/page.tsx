@@ -16,6 +16,7 @@ import {
 } from "@/modules/admin/lib/users";
 import { ADMIN_SPACE_LABEL } from "@/modules/admin/lib/adminRoles";
 import { UserAdminControls } from "@/modules/admin/components/UserAdminControls";
+import { UserGrantControls } from "@/modules/admin/components/UserGrantControls";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/modules/orders/types";
 import {
   USED_TRADE_STATUS_LABEL,
@@ -174,6 +175,15 @@ export default async function AdminUserDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>포인트 · 쿠폰 지급</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UserGrantControls accountId={user.id} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
